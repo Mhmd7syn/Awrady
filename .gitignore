@@ -1,0 +1,22 @@
+# Temporary Chrome swap files
+*.crswap
+*.tmp
+*.swp
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local scratch and logs
+scratch/
+*.log
+
+# Environment & local credentials
+.env
+.env.local
+*.local
+
+# Operating System Files
+Thumbs.db
+Desktop.ini
+.DS_Store

@@ -1,0 +1,20 @@
+{
+  "name": "أورادي وإنجازي - لوحة المتابعة الذكية",
+  "short_name": "أورادي",
+  "description": "لوحة تحكم ذكية لمتابعة الأوراد والصلوات والمهام اليومية مع التقييم والمزامنة السحابية 24/7",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "portrait-primary",
+  "dir": "rtl",
+  "lang": "ar",
+  "categories": ["lifestyle", "productivity"],
+  "icons": [
+    {
+      "src": "app-icon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
