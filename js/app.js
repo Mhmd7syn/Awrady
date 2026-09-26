@@ -101,6 +101,27 @@ async function initData() {
         }
     }
 
+    // If dataset has 0 logs (e.g. fresh Vercel session or unpopulated cloud table),
+    // automatically restore historical records from Data/awrady_backup.json
+    const hasLogs = appData && appData.logs && Object.keys(appData.logs).length > 0;
+    if (!hasLogs && typeof window !== "undefined" && window.location && window.location.protocol.startsWith("http")) {
+        try {
+            const resp = await fetch("Data/awrady_backup.json?v=" + Date.now());
+            if (resp.ok) {
+                const diskData = await resp.json();
+                if (diskData && diskData.logs && Object.keys(diskData.logs).length > 0) {
+                    console.log("[initData] Auto-restoring historical dataset from Data/awrady_backup.json...");
+                    appData = diskData;
+                    if (window.cloudAdapter && window.cloudAdapter.isConfigured()) {
+                        window.cloudAdapter.saveDataImmediate(appData);
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn("[initData] Could not fetch Data/awrady_backup.json:", e);
+        }
+    }
+
     // Apply Weekly Schedule Reorganization (2026-09-21) if not already applied
     if (typeof applyWeeklyScheduleReorg === "function" && appData && appData.tasks) {
         appData = applyWeeklyScheduleReorg(appData);
