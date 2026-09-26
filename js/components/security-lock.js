@@ -1,5 +1,5 @@
 /**
- * Awrad & Enjaz Dashboard - Security Gatekeeper & PIN Lock Component
+ * Awrady Dashboard - Security Gatekeeper & PIN Lock Component
  * Protects personal dashboard and cloud data with a master PIN passcode.
  * Features:
  * - Native SHA-256 cryptographic hashing (crypto.subtle.digest)
@@ -13,7 +13,8 @@ class SecurityLock {
     constructor() {
         this.PIN_HASH_KEY = "AWRAD_PIN_HASH";
         this.AUTH_TOKEN_KEY = "AWRAD_AUTH_SESSION";
-        this.SALT = "enjaz_secure_salt_v1";
+        this.SALT = "awrady_secure_salt_v1";
+        this.LEGACY_SALT = "enjaz_secure_salt_v1";
 
         this.currentEnteredPin = "";
         this.isUnlocked = false;
@@ -24,11 +25,12 @@ class SecurityLock {
     /**
      * Compute SHA-256 hash of PIN string
      */
-    async hashPin(pin) {
+    async hashPin(pin, salt = this.SALT) {
+        const activeSalt = salt || this.SALT;
         if (!window.crypto || !window.crypto.subtle) {
             // Fallback lightweight hash if crypto.subtle is unavailable
             let hash = 0;
-            const str = this.SALT + pin;
+            const str = activeSalt + pin;
             for (let i = 0; i < str.length; i++) {
                 hash = ((hash << 5) - hash) + str.charCodeAt(i);
                 hash |= 0;
@@ -36,7 +38,7 @@ class SecurityLock {
             return "simple_" + Math.abs(hash).toString(16);
         }
 
-        const msgBuffer = new TextEncoder().encode(this.SALT + pin);
+        const msgBuffer = new TextEncoder().encode(activeSalt + pin);
         const hashBuffer = await window.crypto.subtle.digest("SHA-256", msgBuffer);
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
@@ -96,7 +98,7 @@ class SecurityLock {
             if (title) title.textContent = "إنشاء رمز مرور جديد (PIN)";
             if (subtitle) subtitle.textContent = "قم بتعيين رمز مرور لحماية أورادك وسجلاتك من أي وصول غير مصرح به على الإنترنت.";
         } else {
-            if (title) title.textContent = "لوحة أورادي وإنجازي مقفلة 🔒";
+            if (title) title.textContent = "لوحة أورادي مقفلة 🔒";
             if (subtitle) subtitle.textContent = "أدخل رمز المرور للمتابعة والوصول إلى مهامك اليومية.";
         }
 
@@ -217,17 +219,29 @@ class SecurityLock {
      */
     async verifyEnteredPin() {
         const storedHash = localStorage.getItem(this.PIN_HASH_KEY);
-        const enteredHash = await this.hashPin(this.currentEnteredPin);
+        const enteredHash = await this.hashPin(this.currentEnteredPin, this.SALT);
+        let isMatch = (storedHash === enteredHash);
 
-        if (storedHash === enteredHash) {
+        // Seamless migration if stored hash was generated with legacy salt
+        if (!isMatch && this.LEGACY_SALT) {
+            const legacyHash = await this.hashPin(this.currentEnteredPin, this.LEGACY_SALT);
+            if (storedHash === legacyHash) {
+                isMatch = true;
+                // Upgrade stored hash to new salt
+                localStorage.setItem(this.PIN_HASH_KEY, enteredHash);
+            }
+        }
+
+        if (isMatch) {
             // Correct PIN!
             const rememberCheckbox = document.getElementById("pin-remember-device");
             const shouldRemember = rememberCheckbox ? rememberCheckbox.checked : true;
 
+            const finalToken = localStorage.getItem(this.PIN_HASH_KEY) || enteredHash;
             if (shouldRemember) {
-                localStorage.setItem(this.AUTH_TOKEN_KEY, storedHash);
+                localStorage.setItem(this.AUTH_TOKEN_KEY, finalToken);
             } else {
-                sessionStorage.setItem(this.AUTH_TOKEN_KEY, storedHash);
+                sessionStorage.setItem(this.AUTH_TOKEN_KEY, finalToken);
             }
 
             this.isUnlocked = true;
@@ -267,7 +281,7 @@ class SecurityLock {
         setTimeout(() => {
             this.hideLockOverlay();
             this.clearPin();
-            alert("🎉 تم تعيين رمز المرور (PIN) وتأمين لوحة الإنجاز بنجاح!");
+            alert("🎉 تم تعيين رمز المرور (PIN) وتأمين لوحة أورادي بنجاح!");
             if (typeof this.onUnlockCallback === "function") {
                 this.onUnlockCallback();
             }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>أورادي وإنجازي | Awrad & Enjaz Dashboard</title>
+    <title>أورادي | Awrady Dashboard</title>
     <meta name="description" content="لوحة تحكم ذكية لمتابعة الأوراد والصلوات والمهام اليومية مع التقييم التراكمي، حساب التقويم الهجري تلقائياً، التنبيه بالأيام البيض ورمضان، وسؤال النوافل الذكي.">
     <!-- Google Fonts: Cairo & Outfit -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -45,7 +45,7 @@
                     </svg>
                 </div>
                 <div class="brand-text">
-                    <h1>أورادي وإنجازي <span class="tag-badge">Pro</span></h1>
+                    <h1>أورادي <span class="tag-badge">Pro</span></h1>
                     <p class="subtitle">متابعة الروتين والعبادات اليومية الذكية</p>
                 </div>
             </div>
@@ -72,18 +72,11 @@
                         <span class="stat-value" id="header-total-days">0</span>
                     </div>
                 </div>
-                <div class="stat-pill glass-card sync-status-pill" id="header-cloud-pill" title="حالة المزامنة السحابية (24/7)" style="cursor: pointer;">
+                <div class="stat-pill glass-card sync-status-pill" id="header-cloud-pill" title="حالة المزامنة السحابية 24/7 (Supabase)" style="cursor: pointer;">
                     <div class="stat-icon emerald-icon" id="header-cloud-icon"><i class="fa-solid fa-cloud"></i></div>
                     <div class="stat-info">
-                        <span class="stat-label">المزامنة</span>
-                        <span class="stat-value" id="header-cloud-text" style="font-size: 0.8rem; font-weight: 600;">محلي</span>
-                    </div>
-                </div>
-                <div class="stat-pill glass-card" id="header-storage-pill" title="حالة نظام التخزين" style="cursor: pointer;">
-                    <div class="stat-icon emerald-icon" id="header-storage-icon"><i class="fa-solid fa-hard-drive"></i></div>
-                    <div class="stat-info">
-                        <span class="stat-label">نوع التخزين</span>
-                        <span class="stat-value" id="header-storage-text" style="font-size: 0.8rem; font-weight: 600;">متصفح</span>
+                        <span class="stat-label">المزامنة السحابية</span>
+                        <span class="stat-value" id="header-cloud-text" style="font-size: 0.8rem; font-weight: 600;">سحابي ⚡</span>
                     </div>
                 </div>
                 <button class="stat-pill glass-card" id="btn-header-quick-lock" title="قفل لوحة التحكم فوراً 🔒" style="cursor: pointer; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;">
@@ -117,19 +110,6 @@
 
     <!-- Main Application Container -->
     <main class="main-content container">
-        <!-- Persistent Disk Storage Prompt Banner -->
-        <div id="disk-storage-prompt-banner" class="glass-card" style="margin-bottom: 20px; padding: 15px 20px; background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(239, 68, 68, 0.1) 100%); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px;">
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <i class="fa-solid fa-triangle-exclamation" style="font-size: 1.4rem; color: #f59e0b;"></i>
-                <div>
-                    <h4 style="margin:0; font-size: 0.95rem; font-weight: 700; color: #fff;">احمِ بياناتك من مسح المتصفح نهائياً!</h4>
-                    <p style="margin: 2px 0 0 0; font-size: 0.85rem; color: #cbd5e1;">قم بربط التخزين المباشر بملف على جهازك لتعمل البيانات وتُحفظ كملف حقيقي على الهارد ديسك.</p>
-                </div>
-            </div>
-            <button class="btn-primary btn-glow" id="btn-banner-connect-disk" style="padding: 8px 16px; font-size: 0.85rem; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #fff;">
-                <i class="fa-solid fa-hard-drive"></i> <span>ربط ملف التخزين على الجهاز الآن</span>
-            </button>
-        </div>
 
         <!-- TAB 1: DAILY VIEW -->
         <section id="view-daily" class="tab-view active">
@@ -143,13 +123,14 @@
                 <span class="badge badge-amber" id="lunar-badge-text">تلقائي</span>
             </div>
 
-            <!-- Tomorrow Fasting Reminder -->
-            <div id="tomorrow-fasting-banner" class="lunar-banner glass-card hidden" style="border-left-color: #3b82f6; margin-top: 10px;">
-                <div class="lunar-icon"><i class="fa-solid fa-bell" style="color: #3b82f6;"></i></div>
+            <!-- Tomorrow Fasting Reminder (The Day Before: Monday, Thursday, White Days) -->
+            <div id="tomorrow-fasting-banner" class="lunar-banner glass-card hidden" style="background: linear-gradient(90deg, rgba(59, 130, 246, 0.15), rgba(16, 27, 22, 0.7)); border-color: rgba(59, 130, 246, 0.45); box-shadow: 0 0 25px rgba(59, 130, 246, 0.15); margin-bottom: 20px;">
+                <div class="lunar-icon" style="background: rgba(59, 130, 246, 0.2);"><i class="fa-solid fa-bell" style="color: #60a5fa;"></i></div>
                 <div class="lunar-text">
-                    <h4 id="tomorrow-fasting-title" style="color: #3b82f6;">تذكير بصيام الغد</h4>
+                    <h4 id="tomorrow-fasting-title" style="color: #93c5fd;">تذكير بصيام الغد</h4>
                     <p id="tomorrow-fasting-desc">غداً يوم يستحب فيه الصيام.</p>
                 </div>
+                <span class="badge badge-blue" id="tomorrow-fasting-badge" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; font-weight: 700;">سُنة</span>
             </div>
 
             <!-- Date Controls and Seasonal Bar -->
@@ -369,45 +350,8 @@
                     <button class="btn-primary btn-glow" id="btn-open-cloud-config" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
                         <i class="fa-solid fa-sliders"></i> <span>ضبط إعدادات السحابة (Supabase)</span>
                     </button>
-                    <button class="btn-outline" id="btn-upload-local-to-cloud" style="border-color: #10b981; color: #10b981;">
-                        <i class="fa-solid fa-cloud-arrow-up"></i> <span>رفع بيانات الهاردسك للسحابة الآن</span>
-                    </button>
                     <button class="btn-outline" id="btn-download-cloud-backup" style="border-color: #f59e0b; color: #f59e0b;">
-                        <i class="fa-solid fa-cloud-arrow-down"></i> <span>تنزيل نسخة من السحابة إلى ملف</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Featured Card: Persistent Disk Storage Sync -->
-            <div class="glass-card gold-border-hover" style="margin-bottom: 25px; padding: 25px; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 20px;">
-                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
-                    <div style="display: flex; align-items: center; gap: 15px;">
-                        <div style="width: 50px; height: 50px; border-radius: 14px; background: rgba(16, 185, 129, 0.2); color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
-                            <i class="fa-solid fa-hard-drive"></i>
-                        </div>
-                        <div>
-                            <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: #fff;">الحفظ المباشر على الكمبيوتر (خارج المتصفح)</h3>
-                            <p style="margin: 4px 0 0 0; color: #9ca3af; font-size: 0.9rem;">احمِ بياناتك من المسح التلقائي عن طريق ربط الحفظ الفوري بملف JSON مخزن على جهازك الهارد ديسك.</p>
-                        </div>
-                    </div>
-                    <div id="file-sync-status-badge" style="padding: 8px 16px; border-radius: 30px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px; border: 1px solid rgba(245, 158, 11, 0.3);">
-                        <i class="fa-solid fa-triangle-exclamation"></i> <span id="file-sync-status-text">تخزين المتصفح المؤقت</span>
-                    </div>
-                </div>
-
-                <div id="connected-file-info" style="display: none; background: rgba(0, 0, 0, 0.25); padding: 12px 18px; border-radius: 12px; margin-bottom: 15px; border: 1px dashed rgba(16, 185, 129, 0.4);">
-                    <div style="display: flex; align-items: center; justify-content: space-between;">
-                        <span style="color: #34d399; font-size: 0.9rem;"><i class="fa-solid fa-file-circle-check"></i> الملف المرتبط حالياً: <strong id="connected-filename-text" style="color: #fff;">-</strong></span>
-                        <span style="color: #9ca3af; font-size: 0.8rem;">يتم الحفظ فيه تلقائياً لحظة بلحظة ⚡</span>
-                    </div>
-                </div>
-
-                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                    <button class="btn-primary btn-glow" id="btn-connect-local-file" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                        <i class="fa-solid fa-folder-open"></i> <span>ربط / إنشاء ملف حفظ على الكمبيوتر</span>
-                    </button>
-                    <button class="btn-outline" id="btn-disconnect-local-file" style="display: none; border-color: #ef4444; color: #ef4444;">
-                        <i class="fa-solid fa-link-slash"></i> <span>إلغاء ربط الملف الحالي</span>
+                        <i class="fa-solid fa-cloud-arrow-down"></i> <span>تنزيل نسخة احتياطية من السحابة (JSON)</span>
                     </button>
                 </div>
             </div>
@@ -444,14 +388,14 @@
 
             <div class="data-mgmt-grid">
                 <div class="glass-card info-card-data">
-                    <div class="icon-header gold"><i class="fa-solid fa-shield-halved"></i></div>
-                    <h3>حماية وتخزين متعدد الطبقات</h3>
-                    <p>يعمل التطبيق على حماية بياناتك تلقائياً عبر طرق متعددة للنسخ والاحتفاظ.</p>
+                    <div class="icon-header gold"><i class="fa-solid fa-cloud"></i></div>
+                    <h3>تخزين سحابي فوري 24/7 (Supabase)</h3>
+                    <p>يتم حفظ ومزامنة بياناتك وسجلاتك تلقائياً على خوادم Supabase السحابية مع إمكانية التصدير اليدوي في أي وقت.</p>
                     <ul class="data-checklist">
-                        <li><i class="fa-solid fa-check emerald-text"></i> حفظ تلقائي على ملف الهارد ديسك</li>
-                        <li><i class="fa-solid fa-check emerald-text"></i> دعم خادم محلي Node.js (اختياري)</li>
-                        <li><i class="fa-solid fa-check emerald-text"></i> حماية IndexedDB ضد المسح المفاجئ</li>
-                        <li><i class="fa-solid fa-check emerald-text"></i> تصدير واستيراد يدوي JSON</li>
+                        <li><i class="fa-solid fa-check emerald-text"></i> مزامنة سحابية لحظية 24/7 عبر Supabase</li>
+                        <li><i class="fa-solid fa-check emerald-text"></i> وصول مشترك من كافة الأجهزة (هاتف، تابلت، كمبيوتر)</li>
+                        <li><i class="fa-solid fa-check emerald-text"></i> أمان وحماية للخصوصية برمز المرور (PIN)</li>
+                        <li><i class="fa-solid fa-check emerald-text"></i> تصدير واستيراد يدوي بنسق JSON للنسخ الاحتياطي</li>
                     </ul>
                 </div>
 
@@ -887,29 +831,6 @@
         </div>
     </div>
 
-    <!-- FILE PERMISSION FULL SCREEN LOCK MODAL -->
-    <div id="file-permission-lock-modal" class="modal-overlay hidden" style="z-index: 9999; background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(12px);">
-        <div class="modal-container glass-card" style="max-width: 500px; text-align: center; border: 1px solid rgba(245, 158, 11, 0.5); padding: 30px 25px;">
-            <div style="width: 70px; height: 70px; margin: 0 auto 20px; background: rgba(245, 158, 11, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(245, 158, 11, 0.4);">
-                <i class="fa-solid fa-key" style="font-size: 2.2rem; color: #f59e0b;"></i>
-            </div>
-            
-            <h3 style="margin: 0 0 10px; font-size: 1.3rem; font-weight: 700; color: #fff;">تأكيد إذن الوصول لملف التخزين المحفوظ</h3>
-            <p id="lock-modal-file-name" style="margin: 0 0 15px; font-size: 0.95rem; color: #f59e0b; font-weight: 600;"></p>
-            <p style="margin: 0 0 25px; font-size: 0.88rem; color: #94a3b8; line-height: 1.6;">
-                لحماية بياناتك وضمان عمل التطبيق على أحدث نسخة من الهارد ديسك بدون أي تضارب، يُرجى تأكيد الإذن لقراءة البيانات من الملف لمواصلة الاستخدام.
-            </p>
-            
-            <div style="display: flex; flex-direction: column; gap: 12px;">
-                <button id="btn-lock-confirm-perm" class="btn-primary btn-glow" style="padding: 12px 20px; font-size: 1rem; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #fff; width: 100%;">
-                    <i class="fa-solid fa-key"></i> <span>تأكيد الإذن وقراءة بيانات الملف الآن</span>
-                </button>
-                <button id="btn-lock-disconnect-file" class="btn-secondary" style="padding: 10px 20px; font-size: 0.85rem; width: 100%;">
-                    <i class="fa-solid fa-ban"></i> <span>إلغاء ربط الملف واستخدام تخزين المتصفح</span>
-                </button>
-            </div>
-        </div>
-    </div>
 
     <!-- CLOUD CONFIG MODAL -->
     <div id="cloud-config-modal" class="modal-overlay hidden" style="z-index: 9998; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(10px);">
@@ -979,7 +900,7 @@
             <div class="pin-lock-icon">
                 <i class="fa-solid fa-lock"></i>
             </div>
-            <h3 id="pin-lock-title" style="margin: 0 0 8px; font-size: 1.25rem; font-weight: 700; color: #fff;">لوحة أورادي وإنجازي مقفلة 🔒</h3>
+            <h3 id="pin-lock-title" style="margin: 0 0 8px; font-size: 1.25rem; font-weight: 700; color: #fff;">لوحة أورادي مقفلة 🔒</h3>
             <p id="pin-lock-subtitle" style="margin: 0 0 20px; font-size: 0.85rem; color: #94a3b8; line-height: 1.5;">أدخل رمز المرور للوصول إلى مهامك اليومية.</p>
 
             <!-- Animated PIN dots -->
@@ -1021,22 +942,22 @@
     <script src="js/config/default-data.js?v=20260920_2"></script>
     <script src="js/utils/debounce.js?v=20260920_2"></script>
     <script src="js/utils/date-utils.js?v=20260920_2"></script>
-    <script src="js/core/cloud-adapter.js?v=20260920_4"></script>
-    <script src="js/core/storage-engine.js?v=20260920_4"></script>
-    <script src="js/core/state-manager.js?v=20260920_3"></script>
-    <script src="js/core/schedule-migration.js?v=20260920_3"></script>
-    <script src="js/core/schedule-engine.js?v=20260920_3"></script>
-    <script src="js/core/scoring-engine.js?v=20260920_3"></script>
-    <script src="js/components/pomodoro.js?v=20260920_3"></script>
-    <script src="js/components/nawafel-toast.js?v=20260920_3"></script>
-    <script src="js/components/weekly-modal.js?v=20260920_3"></script>
-    <script src="js/components/daily-view.js?v=20260920_3"></script>
-    <script src="js/components/task-manager.js?v=20260920_3"></script>
-    <script src="js/components/category-manager.js?v=20260920_3"></script>
-    <script src="js/components/analytics-view.js?v=20260920_3"></script>
-    <script src="js/components/data-manager.js?v=20260920_3"></script>
-    <script src="js/components/security-lock.js?v=20260920_4"></script>
-    <script src="js/app.js?v=20260920_4"></script>
+    <script src="js/core/cloud-adapter.js?v=20260926_3"></script>
+    <script src="js/core/storage-engine.js?v=20260926_3"></script>
+    <script src="js/core/state-manager.js?v=20260926_3"></script>
+    <script src="js/core/schedule-migration.js?v=20260926_3"></script>
+    <script src="js/core/schedule-engine.js?v=20260926_3"></script>
+    <script src="js/core/scoring-engine.js?v=20260926_3"></script>
+    <script src="js/components/pomodoro.js?v=20260926_3"></script>
+    <script src="js/components/nawafel-toast.js?v=20260926_3"></script>
+    <script src="js/components/weekly-modal.js?v=20260926_3"></script>
+    <script src="js/components/daily-view.js?v=20260926_3"></script>
+    <script src="js/components/task-manager.js?v=20260926_3"></script>
+    <script src="js/components/category-manager.js?v=20260926_3"></script>
+    <script src="js/components/analytics-view.js?v=20260926_3"></script>
+    <script src="js/components/data-manager.js?v=20260926_3"></script>
+    <script src="js/components/security-lock.js?v=20260926_3"></script>
+    <script src="js/app.js?v=20260926_3"></script>
 
     <!-- PWA Service Worker Registration -->
     <script>

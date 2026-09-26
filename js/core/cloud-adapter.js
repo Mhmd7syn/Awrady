@@ -1,5 +1,5 @@
 /**
- * Awrad & Enjaz Dashboard - Cloud Storage & Real-Time Sync Adapter
+ * Awrady Dashboard - Cloud Storage & Real-Time Sync Adapter
  * Multi-Device 24/7 Cloud Persistence via Supabase (PostgreSQL JSONB + Realtime WebSockets)
  * Features:
  * - Native Supabase SDK support with REST Fetch Fallback (Zero-build resilient)
@@ -11,7 +11,7 @@
 class CloudAdapter {
     constructor() {
         this.CONFIG_STORAGE_KEY = "AWRAD_SUPABASE_CONFIG";
-        this.TABLE_NAME = "enjaz_sync";
+        this.TABLE_NAME = "awrady_sync";
         this.DEFAULT_USER_ID = "primary_user";
         
         this.config = this.loadStoredConfig();
@@ -159,7 +159,7 @@ class CloudAdapter {
                 }
                 // If table doesn't exist yet, error code 42P01 in postgres
                 if (error.code === "42P01" || error.message?.includes("does not exist")) {
-                    return { success: false, needsSchema: true, message: "جدول enjaz_sync غير موجود بقاعدة بياناتك. يرجى تشغيل كود SQL أولاً." };
+                    return { success: false, needsSchema: true, message: "جدول awrady_sync غير موجود بقاعدة بياناتك. يرجى تشغيل كود SQL أولاً." };
                 }
                 return { success: false, message: "فشل الاستعلام: " + error.message };
             }
@@ -344,7 +344,7 @@ class CloudAdapter {
 
         try {
             this.realtimeChannel = this.client
-                .channel("enjaz-cloud-sync")
+                .channel("awrady-cloud-sync")
                 .on(
                     "postgres_changes",
                     {

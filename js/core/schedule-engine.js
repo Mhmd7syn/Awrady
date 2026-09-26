@@ -1,5 +1,5 @@
 /**
- * Awrad & Enjaz Dashboard - Schedule & Task Eligibility Engine
+ * Awrady Dashboard - Schedule & Task Eligibility Engine
  * Pure logic for task history resolution, schedule matching, bonus task detection, and prayer categorization.
  */
 

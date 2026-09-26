@@ -1,5 +1,5 @@
 /**
- * Awrad & Enjaz Dashboard - Weekly Schedule & Hours Breakdown Modal Component
+ * Awrady Dashboard - Weekly Schedule & Hours Breakdown Modal Component
  */
 
 let weeklyModalOptions = {

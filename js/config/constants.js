@@ -1,5 +1,5 @@
 /**
- * Awrad & Enjaz Dashboard - Application Constants
+ * Awrady Dashboard - Application Constants
  */
 var APP_CONSTANTS = {
     STORAGE_KEY: "AWRAD_APP_DATA_V1",

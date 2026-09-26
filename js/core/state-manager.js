@@ -1,5 +1,5 @@
 /**
- * Awrad & Enjaz Dashboard - State Manager & Reactive Store
+ * Awrady Dashboard - State Manager & Reactive Store
  * Manages global application state, data migration, state subscription, and debounced persistence.
  */
 
@@ -52,17 +52,6 @@ class StateManager {
 
         if (window.storageEngine) {
             savedData = await window.storageEngine.loadData(this.STORAGE_KEY);
-        }
-
-        if (!savedData) {
-            const rawLocal = localStorage.getItem(this.STORAGE_KEY);
-            if (rawLocal) {
-                try {
-                    savedData = JSON.parse(rawLocal);
-                } catch (e) {
-                    console.error("[StateManager] Failed to parse local storage fallback:", e);
-                }
-            }
         }
 
         if (savedData) {
@@ -352,15 +341,9 @@ class StateManager {
     }
 
     /**
-     * Synchronously/Immediately execute underlying storage save
+     * Synchronously/Immediately execute underlying storage save (Supabase Cloud)
      */
     async persistImmediate() {
-        try {
-            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.data));
-        } catch (e) {
-            console.error("[StateManager] localStorage quota/save error:", e);
-        }
-
         if (window.storageEngine) {
             await window.storageEngine.saveData(this.STORAGE_KEY, this.data);
         }

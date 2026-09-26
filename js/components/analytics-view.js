@@ -167,7 +167,9 @@ function updateChartAndAnalytics() {
     let bestDayLabel = "--";
 
     selectedDates.forEach(dateStr => {
-        const hours = calculateDayScore(dateStr, null, true);
+        const hours = (typeof ScoringEngine !== "undefined")
+            ? ScoringEngine.calculateDayScore(dateStr, (typeof appData !== "undefined" ? appData : null), true)
+            : calculateDayScore(dateStr, null, true);
         const hoursFormatted = Math.round(hours * 10) / 10;
 
         const d = new Date(dateStr);

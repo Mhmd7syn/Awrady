@@ -1,5 +1,5 @@
 /**
- * Awrad & Enjaz Dashboard - Date & Hijri Calculation Utilities
+ * Awrady Dashboard - Date & Hijri Calculation Utilities
  */
 
 /**

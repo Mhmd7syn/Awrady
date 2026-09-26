@@ -1,5 +1,5 @@
 /**
- * Awrad & Enjaz Dashboard - Scoring Engine
+ * Awrady Dashboard - Scoring Engine
  * Weighted-average equation system, daily score aggregation, time estimation, and streak statistics.
  */
 
@@ -165,5 +165,5 @@ if (typeof window !== "undefined") {
     window.ScoringEngine = ScoringEngine;
     window.scoringEngine = ScoringEngine;
     window.calculateDayScore = (dateStr, appDataRef, returnHours) => ScoringEngine.calculateDayScore(dateStr, appDataRef, returnHours);
-    window.getTaskWeightMinutes = (task, dateStr) => ScoringEngine.getTaskWeightMinutes(task, dateStr);
+    window.getTaskWeightMinutes = (task, dateStr, appDataRef) => ScoringEngine.getTaskWeightMinutes(task, dateStr, appDataRef);
 }

@@ -1,9 +1,9 @@
 /**
- * Awrad & Enjaz Dashboard - Progressive Web App (PWA) Service Worker
+ * Awrady Dashboard - Progressive Web App (PWA) Service Worker
  * Provides offline caching, lightning-fast app shell loading, and network resilience.
  */
 
-const CACHE_NAME = "awrad-enjaz-pwa-v2";
+const CACHE_NAME = "awrady-pwa-v2";
 
 const PRECACHE_ASSETS = [
     "./",

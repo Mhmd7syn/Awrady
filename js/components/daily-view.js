@@ -1,5 +1,5 @@
 /**
- * Awrad & Enjaz Dashboard - Daily View Component
+ * Awrady Dashboard - Daily View Component
  */
 
 function getTaskVal(taskId) {

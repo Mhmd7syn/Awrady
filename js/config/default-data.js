@@ -1,5 +1,5 @@
 /**
- * Awrad & Enjaz Dashboard - Unified Default Dataset & Configuration
+ * Awrady Dashboard - Unified Default Dataset & Configuration
  */
 
 var DEFAULT_CATEGORIES = [

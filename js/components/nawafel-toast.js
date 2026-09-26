@@ -1,5 +1,5 @@
 /**
- * Awrad & Enjaz Dashboard - Interactive Nawafel & Qiyam Toasts Component
+ * Awrady Dashboard - Interactive Nawafel & Qiyam Toasts Component
  */
 
 let currentPrayerTaskId = null;

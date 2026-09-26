@@ -43,6 +43,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (window.securityLock) {
         window.securityLock.init();
     }
+    if (typeof setupDataManagement === "function") setupDataManagement();
     if (window.storageEngine) {
         await window.storageEngine.init(updateStorageUIStatus);
     }
@@ -53,7 +54,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (typeof setupCategoryManager === "function") setupCategoryManager();
     if (typeof setupNawafelToast === "function") setupNawafelToast();
     if (typeof setupQiyamToast === "function") setupQiyamToast();
-    if (typeof setupDataManagement === "function") setupDataManagement();
     if (typeof setupPomodoroControls === "function") setupPomodoroControls();
     
     // Initial Render
@@ -69,56 +69,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function initData() {
     let data = null;
 
-    if (window.storageEngine && (window.storageEngine.storageMode === "file" || window.storageEngine.storageMode === "server")) {
+    // Load exclusively from Supabase Cloud
+    if (window.storageEngine) {
         data = await window.storageEngine.loadData(STORAGE_KEY);
-    }
-    
-    if (!data) {
-        const localSaved = localStorage.getItem(STORAGE_KEY);
-        if (localSaved) {
-            try {
-                data = JSON.parse(localSaved);
-            } catch (e) {
-                console.error("Error parsing localStorage data", e);
-            }
-        }
-    }
-
-    // Auto-sync with local disk backup if running on HTTP server and local storage is missing new reorganized tasks
-    if (window.location && window.location.protocol.startsWith("http")) {
-        try {
-            const resp = await fetch("Data/awrad_enjaz_backup.json?v=" + Date.now());
-            if (resp.ok) {
-                const diskData = await resp.json();
-                if (diskData && diskData.tasks && diskData.tasks.length > 0) {
-                    const isMissingNewTasks = !data || !data.tasks || !data.tasks.some(t => t.id === "task_dw_videos");
-                    if (isMissingNewTasks) {
-                        console.log("[initData] Syncing with Data/awrad_enjaz_backup.json (applying new schedule reorg)...");
-                        if (data && data.logs) {
-                            // Merge any local logs into diskData
-                            Object.keys(data.logs).forEach(dateStr => {
-                                if (!diskData.logs[dateStr]) {
-                                    diskData.logs[dateStr] = data.logs[dateStr];
-                                } else if (data.logs[dateStr].entries) {
-                                    Object.keys(data.logs[dateStr].entries).forEach(tid => {
-                                        if (diskData.logs[dateStr].entries[tid] === undefined) {
-                                            diskData.logs[dateStr].entries[tid] = data.logs[dateStr].entries[tid];
-                                        }
-                                    });
-                                }
-                            });
-                        }
-                        data = diskData;
-                        // Immediately persist to localStorage
-                        try {
-                            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-                        } catch (e) {}
-                    }
-                }
-            }
-        } catch (e) {
-            console.warn("[initData] Could not fetch Data/awrad_enjaz_backup.json:", e);
-        }
     }
 
     if (data && data.tasks && data.tasks.length > 0 && data.logs) {
@@ -130,6 +83,10 @@ async function initData() {
         }
     } else {
         loadDefaultAppData();
+        // If Supabase is configured but has no record yet, upload the initial defaults
+        if (window.cloudAdapter && window.cloudAdapter.isConfigured()) {
+            window.cloudAdapter.saveDataImmediate(appData);
+        }
     }
 
     // Apply Weekly Schedule Reorganization (2026-09-21) if not already applied
@@ -148,7 +105,16 @@ async function initData() {
     if (window.stateManager) {
         window.stateManager.data = appData;
     }
-    saveData(true);
+
+    // If Supabase is not configured, open the cloud configuration modal to guide the user
+    if (window.cloudAdapter && !window.cloudAdapter.isConfigured()) {
+        const cloudModal = document.getElementById("cloud-config-modal");
+        if (cloudModal) {
+            setTimeout(() => {
+                cloudModal.classList.remove("hidden");
+            }, 600);
+        }
+    }
 }
 
 function loadDefaultAppData() {
@@ -169,11 +135,11 @@ function saveData(immediate = false) {
     if (window.stateManager) {
         window.stateManager.data = appData;
         window.stateManager.save(immediate);
-    } else {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
-        } catch (e) {
-            console.error("Failed to save to localStorage:", e);
+    } else if (window.storageEngine) {
+        if (immediate) {
+            window.storageEngine.saveDataImmediate(STORAGE_KEY, appData);
+        } else {
+            window.storageEngine.saveData(STORAGE_KEY, appData);
         }
     }
 }
@@ -422,7 +388,7 @@ function renderDailyView() {
         hijriPill.innerHTML = `<i class="fa-solid fa-calendar-alt gold-text"></i> ${hijriText}${tagsHtml}`;
     }
 
-    // Update lunar event banner
+    // Update lunar event banner (today's active seasonal events)
     const lunarBanner = document.getElementById("lunar-event-banner");
     if (lunarBanner) {
         if (hijri.isRamadan || hijri.isWhiteDay) {
@@ -433,11 +399,70 @@ function renderDailyView() {
                 if (lunarTitle) lunarTitle.textContent = "🌙 شهر رمضان المبارك";
                 if (lunarDesc) lunarDesc.textContent = "تم تفعيل برنامج رمضان تلقائياً.";
             } else if (hijri.isWhiteDay) {
-                if (lunarTitle) lunarTitle.textContent = `✨ الأيام البيض — ${hijri.day} ${hijri.monthName || ''}`;
-                if (lunarDesc) lunarDesc.textContent = "يوم ${hijri.day} من الشهر الهجري — يُستحب الصيام.";
+                if (lunarTitle) lunarTitle.textContent = `✨ اليوم من الأيام البيض — ${hijri.day} ${hijri.monthName || ''}`;
+                if (lunarDesc) lunarDesc.textContent = `اليوم ${hijri.day} من الشهر الهجري — تقبّل الله صيامكم وطاعتكم.`;
             }
         } else {
             lunarBanner.classList.add("hidden");
+        }
+    }
+
+    // Update Tomorrow Fasting Reminder banner (triggered the day before: Sunday for Monday, Wednesday for Thursday, and before each White Day)
+    const fastingBanner = document.getElementById("tomorrow-fasting-banner");
+    if (fastingBanner) {
+        const tomorrowStr = typeof addDays === "function" ? addDays(currentDateStr, 1) : null;
+        if (tomorrowStr) {
+            const tomorrowDayAbbrev = typeof getDayOfWeekAbbrev === "function" ? getDayOfWeekAbbrev(tomorrowStr) : "";
+            const tomorrowHijri = typeof getHijriDateDetails === "function" ? getHijriDateDetails(tomorrowStr) : { isWhiteDay: false, isRamadan: false };
+
+            const isTomorrowMonday = (tomorrowDayAbbrev === "Mon");
+            const isTomorrowThursday = (tomorrowDayAbbrev === "Thu");
+            const isTomorrowWhiteDay = !!tomorrowHijri.isWhiteDay;
+
+            // In Ramadan, daily fasting is obligatory so voluntary reminders are disabled
+            const isFastingTomorrow = !hijri.isRamadan && !tomorrowHijri.isRamadan && (isTomorrowMonday || isTomorrowThursday || isTomorrowWhiteDay);
+
+            if (isFastingTomorrow) {
+                fastingBanner.classList.remove("hidden");
+                const fTitle = document.getElementById("tomorrow-fasting-title");
+                const fDesc = document.getElementById("tomorrow-fasting-desc");
+                const fBadge = document.getElementById("tomorrow-fasting-badge");
+
+                let titleText = "تذكير: غداً يوم صيام مستحب 🌿";
+                let descText = "يُستحب تبييت نية الصيام الليلة والسحور.";
+                let badgeText = "تذكير بالصيام";
+
+                if (isTomorrowMonday && isTomorrowWhiteDay) {
+                    titleText = `✨ تذكير: غداً صيام الإثنين ومن الأيام البيض (${tomorrowHijri.day} ${tomorrowHijri.monthName})`;
+                    descText = `اجتماع فضيلتين: غداً الإثنين ومن الأيام البيض — لا تنسَ تبييت نية الصيام والسحور.`;
+                    badgeText = "سُنة مؤكدة";
+                } else if (isTomorrowThursday && isTomorrowWhiteDay) {
+                    titleText = `✨ تذكير: غداً صيام الخميس ومن الأيام البيض (${tomorrowHijri.day} ${tomorrowHijri.monthName})`;
+                    descText = `اجتماع فضيلتين: غداً الخميس ومن الأيام البيض — لا تنسَ تبييت نية الصيام والسحور.`;
+                    badgeText = "سُنة مؤكدة";
+                } else if (isTomorrowMonday) {
+                    titleText = "🌿 تذكير: غداً صيام الإثنين";
+                    descText = `سُنّة مؤكدة: تُعرَض الأعمال يوم الإثنين — لا تنسَ تبييت نية الصيام والسحور.`;
+                    badgeText = "سُنة الإثنين";
+                } else if (isTomorrowThursday) {
+                    titleText = "🌿 تذكير: غداً صيام الخميس";
+                    descText = `سُنّة مؤكدة: تُعرَض الأعمال يوم الخميس — لا تنسَ تبييت نية الصيام والسحور.`;
+                    badgeText = "سُنة الخميس";
+                } else if (isTomorrowWhiteDay) {
+                    const whiteDayIndex = (tomorrowHijri.day === 13) ? "أول" : ((tomorrowHijri.day === 14) ? "ثاني" : "ثالث");
+                    titleText = `🌕 تذكير: غداً صيام ${whiteDayIndex} الأيام البيض (${tomorrowHijri.day} ${tomorrowHijri.monthName})`;
+                    descText = `سُنّة صيام الأيام البيض (13 و 14 و 15) — لا تنسَ تبييت نية الصيام والسحور.`;
+                    badgeText = "الأيام البيض";
+                }
+
+                if (fTitle) fTitle.textContent = titleText;
+                if (fDesc) fDesc.textContent = descText;
+                if (fBadge) fBadge.textContent = badgeText;
+            } else {
+                fastingBanner.classList.add("hidden");
+            }
+        } else {
+            fastingBanner.classList.add("hidden");
         }
     }
 
@@ -1034,13 +1059,14 @@ function getTaskWeightMinutes(task, dateStr = null) {
     return 15;
 }
 
-function calculateDayScore(dateStr) {
+function calculateDayScore(dateStr, appDataRef = null, returnHours = false) {
+    const data = appDataRef || (typeof appData !== "undefined" ? appData : null);
     if (typeof ScoringEngine !== "undefined") {
-        return ScoringEngine.calculateDayScore(dateStr, appData);
+        return ScoringEngine.calculateDayScore(dateStr, data, returnHours);
     }
     const engine = window.ScoringEngine || window.scoringEngine;
     if (engine) {
-        return engine.calculateDayScore(dateStr, appData);
+        return engine.calculateDayScore(dateStr, data, returnHours);
     }
     return 0;
 }

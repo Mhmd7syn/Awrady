@@ -6,288 +6,20 @@
  */
 
 function updateStorageUIStatus(status) {
-    const pillText = document.getElementById("header-storage-text");
-    const pillIcon = document.getElementById("header-storage-icon");
-    const syncBadge = document.getElementById("file-sync-status-badge");
-    const syncText = document.getElementById("file-sync-status-text");
-    const fileInfoBox = document.getElementById("connected-file-info");
-    const fileNameText = document.getElementById("connected-filename-text");
-    const btnConnect = document.getElementById("btn-connect-local-file");
-    const btnDisconnect = document.getElementById("btn-disconnect-local-file");
-    const promptBanner = document.getElementById("disk-storage-prompt-banner");
-
-    const lockModal = document.getElementById("file-permission-lock-modal");
-    const lockModalFileName = document.getElementById("lock-modal-file-name");
-
-    if (lockModal) {
-        if (status.mode === "file_pending_permission") {
-            lockModal.classList.remove("hidden");
-            if (lockModalFileName) lockModalFileName.textContent = `اسم الملف: "${status.fileName || 'ملف محلي'}"`;
-        } else {
-            lockModal.classList.add("hidden");
-        }
-    }
-
-    if (status.mode === "file") {
-        if (promptBanner) promptBanner.style.display = "none";
-        if (pillText) pillText.textContent = "ملف محلي 💾";
-        if (pillIcon) pillIcon.innerHTML = `<i class="fa-solid fa-hard-drive" style="color:#10b981;"></i>`;
-        
-        if (syncBadge) {
-            syncBadge.style.background = "rgba(16, 185, 129, 0.15)";
-            syncBadge.style.color = "#10b981";
-            syncBadge.style.borderColor = "rgba(16, 185, 129, 0.3)";
-        }
-        if (syncText) syncText.innerHTML = `<i class="fa-solid fa-circle-check"></i> مرتبط بملف الهارد ديسك`;
-        if (fileInfoBox) fileInfoBox.style.display = "block";
-        if (fileNameText) fileNameText.textContent = status.fileName || "ملف محلي (.json)";
-        if (btnConnect && btnConnect.querySelector("span")) {
-            btnConnect.querySelector("span").textContent = "تغيير ملف الحفظ المحلي";
-        }
-        if (btnDisconnect) btnDisconnect.style.display = "inline-flex";
-    } else if (status.mode === "file_pending_permission") {
-        if (promptBanner) {
-            promptBanner.style.display = "flex";
-            const bannerTitle = promptBanner.querySelector("h4");
-            const bannerDesc = promptBanner.querySelector("p");
-            const bannerBtnSpan = promptBanner.querySelector("#btn-banner-connect-disk span");
-            const bannerBtnIcon = promptBanner.querySelector("#btn-banner-connect-disk i");
-            if (bannerTitle) bannerTitle.textContent = `ملف البيانات المقترن بحاجة لإذنك: "${status.fileName || 'ملف محلي'}" 🔑`;
-            if (bannerDesc) bannerDesc.textContent = `انقر على الزر لتأكيد السماح وقراءة البيانات المحدثة مباشرة من الملف على جهازك.`;
-            if (bannerBtnSpan) bannerBtnSpan.textContent = "تأكيد الإذن وقراءة بيانات الملف الآن";
-            if (bannerBtnIcon) bannerBtnIcon.className = "fa-solid fa-key";
-        }
-        if (pillText) pillText.textContent = "تأكيد الملف 🔑";
-        if (pillIcon) pillIcon.innerHTML = `<i class="fa-solid fa-key" style="color:#f59e0b;"></i>`;
-        
-        if (syncBadge) {
-            syncBadge.style.background = "rgba(245, 158, 11, 0.15)";
-            syncBadge.style.color = "#f59e0b";
-            syncBadge.style.borderColor = "rgba(245, 158, 11, 0.3)";
-        }
-        if (syncText) syncText.innerHTML = `<i class="fa-solid fa-key"></i> بانتظار تأكيد إذن الملف`;
-        if (fileInfoBox) fileInfoBox.style.display = "block";
-        if (fileNameText) fileNameText.textContent = (status.fileName || "ملف محلي (.json)") + " (بانتظار التأكيد)";
-        if (btnConnect && btnConnect.querySelector("span")) {
-            btnConnect.querySelector("span").textContent = "تأكيد إذن الملف المرتبط";
-        }
-        if (btnDisconnect) btnDisconnect.style.display = "inline-flex";
-    } else if (status.mode === "server") {
-        if (promptBanner) promptBanner.style.display = "none";
-        if (pillText) pillText.textContent = "سيرفر محلي 🖥️";
-        if (pillIcon) pillIcon.innerHTML = `<i class="fa-solid fa-server" style="color:#3b82f6;"></i>`;
-        
-        if (syncBadge) {
-            syncBadge.style.background = "rgba(59, 130, 246, 0.15)";
-            syncBadge.style.color = "#3b82f6";
-            syncBadge.style.borderColor = "rgba(59, 130, 246, 0.3)";
-        }
-        if (syncText) syncText.innerHTML = `<i class="fa-solid fa-server"></i> مرتبط بسيرفر Node.js محلي`;
-        if (fileInfoBox) fileInfoBox.style.display = "none";
-        if (btnDisconnect) btnDisconnect.style.display = "none";
-    } else {
-        if (promptBanner) {
-            promptBanner.style.display = "flex";
-            const bannerTitle = promptBanner.querySelector("h4");
-            const bannerDesc = promptBanner.querySelector("p");
-            const bannerBtnSpan = promptBanner.querySelector("#btn-banner-connect-disk span");
-            const bannerBtnIcon = promptBanner.querySelector("#btn-banner-connect-disk i");
-            if (bannerTitle) bannerTitle.textContent = "احمِ بياناتك من مسح المتصفح نهائياً!";
-            if (bannerDesc) bannerDesc.textContent = "قم بربط التخزين المباشر بملف على جهازك لتعمل البيانات وتُحفظ كملف حقيقي على الهارد ديسك.";
-            if (bannerBtnSpan) bannerBtnSpan.textContent = "ربط ملف التخزين على الجهاز الآن";
-            if (bannerBtnIcon) bannerBtnIcon.className = "fa-solid fa-hard-drive";
-        }
-        if (pillText) pillText.textContent = "متصفح 🔒";
-        if (pillIcon) pillIcon.innerHTML = `<i class="fa-solid fa-shield-halved" style="color:#f59e0b;"></i>`;
-        
-        if (syncBadge) {
-            syncBadge.style.background = "rgba(245, 158, 11, 0.15)";
-            syncBadge.style.color = "#f59e0b";
-            syncBadge.style.borderColor = "rgba(245, 158, 11, 0.3)";
-        }
-        if (syncText) syncText.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> تخزين المتصفح المؤقت`;
-        if (fileInfoBox) fileInfoBox.style.display = "none";
-        if (btnConnect && btnConnect.querySelector("span")) {
-            btnConnect.querySelector("span").textContent = "ربط / إنشاء ملف حفظ على الكمبيوتر";
-        }
-        if (btnDisconnect) btnDisconnect.style.display = "none";
-    }
-}
-
-/**
- * Update 24/7 Cloud Sync UI status badge & header pill
- */
-function updateCloudSyncUI(syncInfo) {
-    if (!syncInfo) return;
-    const headerPill = document.getElementById("header-cloud-pill");
-    const headerIcon = document.getElementById("header-cloud-icon");
-    const headerText = document.getElementById("header-cloud-text");
-    const badge = document.getElementById("cloud-sync-status-badge");
-    const badgeText = document.getElementById("cloud-sync-status-text");
-
-    const state = syncInfo.state; // 'synced', 'syncing', 'offline', 'disconnected', 'idle'
-
-    if (state === "synced") {
-        if (headerPill) {
-            headerPill.className = "stat-pill glass-card sync-status-pill sync-active";
-            headerPill.title = syncInfo.message || "متزامن مع السحابة 24/7";
-        }
-        if (headerIcon) headerIcon.innerHTML = `<i class="fa-solid fa-cloud-bolt" style="color:#10b981;"></i>`;
-        if (headerText) {
-            headerText.textContent = "سحابي ⚡";
-            headerText.style.color = "#10b981";
-        }
-        if (badge) {
-            badge.style.background = "rgba(16, 185, 129, 0.15)";
-            badge.style.color = "#10b981";
-            badge.style.borderColor = "rgba(16, 185, 129, 0.3)";
-        }
-        if (badgeText) badgeText.innerHTML = `<i class="fa-solid fa-cloud-bolt"></i> متزامن سحابياً 24/7`;
-    } else if (state === "syncing") {
-        if (headerPill) {
-            headerPill.className = "stat-pill glass-card sync-status-pill sync-pulse";
-            headerPill.title = syncInfo.message || "جارِ مزامنة التغييرات...";
-        }
-        if (headerIcon) headerIcon.innerHTML = `<i class="fa-solid fa-arrows-rotate fa-spin" style="color:#f59e0b;"></i>`;
-        if (headerText) {
-            headerText.textContent = "مزامنة...";
-            headerText.style.color = "#f59e0b";
-        }
-        if (badge) {
-            badge.style.background = "rgba(245, 158, 11, 0.15)";
-            badge.style.color = "#f59e0b";
-            badge.style.borderColor = "rgba(245, 158, 11, 0.3)";
-        }
-        if (badgeText) badgeText.innerHTML = `<i class="fa-solid fa-arrows-rotate fa-spin"></i> جارِ رفع التحديثات...`;
-    } else if (state === "offline") {
-        if (headerPill) {
-            headerPill.className = "stat-pill glass-card sync-status-pill sync-offline";
-            headerPill.title = syncInfo.message || "وضع عدم الاتصال (محفوظ محلياً)";
-        }
-        if (headerIcon) headerIcon.innerHTML = `<i class="fa-solid fa-cloud-slash" style="color:#ef4444;"></i>`;
-        if (headerText) {
-            headerText.textContent = "أوفلاين";
-            headerText.style.color = "#ef4444";
-        }
-        if (badge) {
-            badge.style.background = "rgba(239, 68, 68, 0.15)";
-            badge.style.color = "#ef4444";
-            badge.style.borderColor = "rgba(239, 68, 68, 0.3)";
-        }
-        if (badgeText) badgeText.innerHTML = `<i class="fa-solid fa-cloud-slash"></i> غير متصل (تخزين محلي)`;
-    } else {
-        if (headerPill) {
-            headerPill.className = "stat-pill glass-card sync-status-pill";
-            headerPill.title = syncInfo.message || "تخزين محلي (غير مقترن بالسحابة)";
-        }
-        if (headerIcon) headerIcon.innerHTML = `<i class="fa-solid fa-cloud" style="color:#94a3b8;"></i>`;
-        if (headerText) {
-            headerText.textContent = "محلي";
-            headerText.style.color = "#94a3b8";
-        }
-        if (badge) {
-            badge.style.background = "rgba(255, 255, 255, 0.08)";
-            badge.style.color = "#94a3b8";
-            badge.style.borderColor = "rgba(255, 255, 255, 0.15)";
-        }
-        if (badgeText) badgeText.innerHTML = `<i class="fa-solid fa-cloud"></i> تخزين محلي (غير مقترن بالسحابة)`;
-    }
+    // Cloud-only mode (Supabase)
 }
 
 function setupDataManagement() {
-    const btnConnectFile = document.getElementById("btn-connect-local-file");
-    const btnBannerConnect = document.getElementById("btn-banner-connect-disk");
-    const btnDisconnectFile = document.getElementById("btn-disconnect-local-file");
-    const headerStoragePill = document.getElementById("header-storage-pill");
-
-    const triggerConnectFlow = async () => {
-        if (window.storageEngine && window.storageEngine.storageMode === "file_pending_permission") {
-            const confirmed = await window.storageEngine.confirmFilePermission();
-            if (confirmed) {
-                const loaded = await window.storageEngine.loadData(STORAGE_KEY);
-                if (loaded) {
-                    appData = loaded;
-                    window.appData = appData;
-                    if (window.stateManager) window.stateManager.data = loaded;
-                }
-                renderDailyView();
-                renderAllTimeStats();
-                updateHeaderTodayScore();
-                alert("🎉 تم تأكيد وتفعيل إذن الملف المحلي وقراءة البيانات المحدثة بنجاح من الهارد ديسك!");
-                return;
-            }
-        }
-        
-        if (window.storageEngine) {
-            const res = await window.storageEngine.connectLocalFile();
-            if (res && res.success) {
-                if (!res.isNew) {
-                    const loaded = await window.storageEngine.loadData(STORAGE_KEY);
-                    if (loaded) {
-                        appData = loaded;
-                        window.appData = appData;
-                        if (window.stateManager) window.stateManager.data = loaded;
-                    }
-                } else {
-                    saveData();
-                }
-                renderDailyView();
-                renderAllTimeStats();
-                updateHeaderTodayScore();
-                alert("🎉 تم ربط التطبيق بملف الحفظ على جهازك بنجاح وقراءة البيانات من الملف!");
-            }
-        }
-    };
-
-    const btnLockConfirm = document.getElementById("btn-lock-confirm-perm");
-    const btnLockDisconnect = document.getElementById("btn-lock-disconnect-file");
-
-    if (btnConnectFile) {
-        btnConnectFile.addEventListener("click", triggerConnectFlow);
-    }
-    if (btnBannerConnect) {
-        btnBannerConnect.addEventListener("click", triggerConnectFlow);
-    }
-    if (btnLockConfirm) {
-        btnLockConfirm.addEventListener("click", triggerConnectFlow);
-    }
-    const lockModalEl = document.getElementById("file-permission-lock-modal");
-    if (lockModalEl) {
-        lockModalEl.addEventListener("click", (e) => {
-            if (e.target.id === "btn-lock-disconnect-file" || e.target.closest("#btn-lock-disconnect-file")) return;
-            triggerConnectFlow();
-        });
-    }
-    if (btnLockDisconnect) {
-        btnLockDisconnect.addEventListener("click", async () => {
-            if (confirm("هل تريد إلغاء ربط ملف الكمبيوتر والاعتماد على تخزين المتصفح فقط؟")) {
-                if (window.storageEngine) await window.storageEngine.clearFileHandle();
-                const lockModal = document.getElementById("file-permission-lock-modal");
-                if (lockModal) lockModal.classList.add("hidden");
-                saveData(true);
-                renderDailyView();
-                alert("تم إلغاء ربط الملف المحفوظ وتفعيل تخزين المتصفح.");
-            }
-        });
-    }
-
-    if (btnDisconnectFile) {
-        btnDisconnectFile.addEventListener("click", async () => {
-            if (confirm("هل أنت متأكد من إلغاء ربط الملف المحلي الحالي والعودة للتخزين داخل المتصفح؟")) {
-                if (window.storageEngine) await window.storageEngine.clearFileHandle();
-                alert("تم إلغاء ربط الملف المحلي.");
-            }
-        });
-    }
-
-    if (headerStoragePill) {
-        headerStoragePill.addEventListener("click", () => {
-            document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
-            document.querySelectorAll(".tab-view").forEach(v => v.classList.remove("active"));
-            const dataTabBtn = document.querySelector('.nav-tab[data-tab="view-data"]');
-            const dataViewSec = document.getElementById("view-data");
-            if (dataTabBtn) dataTabBtn.classList.add("active");
-            if (dataViewSec) dataViewSec.classList.add("active");
+    const btnExport = document.getElementById("btn-export-json");
+    if (btnExport) {
+        btnExport.addEventListener("click", () => {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `awrady_backup_${getLocalTodayString()}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
         });
     }
 
@@ -311,7 +43,7 @@ function setupDataManagement() {
             if (!file) return;
             
             const reader = new FileReader();
-            reader.onload = function(event) {
+            reader.onload = async function(event) {
                 try {
                     const imported = JSON.parse(event.target.result);
                     if (imported && imported.tasks && imported.logs) {
@@ -320,17 +52,25 @@ function setupDataManagement() {
                             appData.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
                         }
                         window.appData = appData;
-                        saveData();
+                        if (window.stateManager) window.stateManager.data = appData;
+                        
+                        // Immediately sync imported data with Supabase Cloud
+                        if (window.storageEngine) {
+                            await window.storageEngine.saveDataImmediate(STORAGE_KEY, appData);
+                        } else {
+                            saveData(true);
+                        }
+                        
                         renderDailyView();
                         if (typeof renderAllTimeStats === "function") renderAllTimeStats();
                         if (typeof updateChartAndAnalytics === "function") updateChartAndAnalytics();
                         if (typeof updateHeaderTodayScore === "function") updateHeaderTodayScore();
-                        alert("✅ تم استعادة النسخة الاحتياطية بنجاح وتحديث جداولك!");
+                        alert("✅ تم استعادة النسخة الاحتياطية بنجاح ومزامنتها سحابياً مع Supabase!");
                     } else {
                         alert("❌ ملف JSON غير صحيح أو مفقود للبنية.");
                     }
                 } catch (err) {
-                    alert("❌ حدث خطأ أثناء قراءة ملف JSON.");
+                    alert("❌ حدث خطأ أثناء قراءة ملف JSON: " + err.message);
                 }
             };
             reader.readAsText(file);
@@ -339,11 +79,16 @@ function setupDataManagement() {
 
     const btnResetProgress = document.getElementById("btn-reset-progress");
     if (btnResetProgress) {
-        btnResetProgress.addEventListener("click", () => {
+        btnResetProgress.addEventListener("click", async () => {
             if (confirm("هل أنت متأكد من مسح جميع السجلات ونقاط الإنجاز التاريخية؟ (ستبقى المهام والتصنيفات كما هي)")) {
                 appData.logs = {};
-                saveData();
-                alert("🧹 تم مسح سجلات الإنجاز بنجاح!");
+                if (window.stateManager) window.stateManager.data = appData;
+                if (window.storageEngine) {
+                    await window.storageEngine.saveDataImmediate(STORAGE_KEY, appData);
+                } else {
+                    saveData(true);
+                }
+                alert("🧹 تم مسح سجلات الإنجاز بنجاح وتحديث السحابة!");
                 location.reload();
             }
         });
@@ -351,10 +96,16 @@ function setupDataManagement() {
 
     const btnResetData = document.getElementById("btn-reset-data");
     if (btnResetData) {
-        btnResetData.addEventListener("click", () => {
-            if (confirm("هل أنت متأكد من إعادة ضبط التعديلات واستعادة البيانات والمهام الافتراضية الملحقة بالنظام؟")) {
-                localStorage.removeItem(STORAGE_KEY);
-                alert("🔄 تم إعادة ضبط التطبيق بنجاح على السجلات والبيانات الافتراضية!");
+        btnResetData.addEventListener("click", async () => {
+            if (confirm("هل أنت متأكد من إعادة ضبط التعديلات واستعادة البيانات والمهام الافتراضية للنظام في السحابة؟")) {
+                loadDefaultAppData();
+                if (window.stateManager) window.stateManager.data = appData;
+                if (window.storageEngine) {
+                    await window.storageEngine.saveDataImmediate(STORAGE_KEY, appData);
+                } else {
+                    saveData(true);
+                }
+                alert("🔄 تم إعادة ضبط التطبيق بنجاح على البيانات الافتراضية وتحديث السحابة!");
                 location.reload();
             }
         });
@@ -470,7 +221,7 @@ function setupDataManagement() {
                 window.cloudAdapter.saveCredentials(url, key, user);
                 const test = await window.cloudAdapter.testConnection();
                 if (!test.success && test.needsSchema) {
-                    alert("⚠️ تحذير: تم حفظ المفاتيح ولكن جدول enjaz_sync غير موجود في Supabase بعد.\n\nيرجى فتح SQL Editor في Supabase وتشغيل كود Data/supabase_schema.sql.");
+                    alert("⚠️ تحذير: تم حفظ المفاتيح ولكن جدول awrady_sync غير موجود في Supabase بعد.\n\nيرجى فتح SQL Editor في Supabase وتشغيل كود Data/supabase_schema.sql.");
                 } else if (!test.success) {
                     alert("⚠️ تم حفظ المفاتيح، ولكن فحص الاتصال أظهر:\n" + test.message);
                 } else {
@@ -492,35 +243,13 @@ function setupDataManagement() {
 
     if (btnClearCloud) {
         btnClearCloud.addEventListener("click", () => {
-            if (confirm("هل أنت متأكد من فصل المزامنة السحابية وإزالة المفاتيح من هذا المتصفح؟\n(بياناتك المحلية لن تتأثر)")) {
+            if (confirm("هل أنت متأكد من فصل المزامنة السحابية وإزالة المفاتيح من هذا المتصفح؟")) {
                 if (window.cloudAdapter) {
                     window.cloudAdapter.clearCredentials();
                 }
                 closeCloudModal();
-                alert("تم فصل السحابة بنجاح والرجوع للتخزين المحلي.");
-            }
-        });
-    }
-
-    if (btnUploadLocalToCloud) {
-        btnUploadLocalToCloud.addEventListener("click", async () => {
-            if (!window.cloudAdapter || !window.cloudAdapter.isConfigured()) {
-                alert("يرجى ضبط وتفعيل إعدادات السحابة أولاً.");
-                openCloudModal();
-                return;
-            }
-            if (confirm("هل تريد رفع كامل بياناتك المحلية الحالية لتحديث السحابة بها؟")) {
-                btnUploadLocalToCloud.disabled = true;
-                btnUploadLocalToCloud.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> جارِ الرفع...`;
-                const currentData = (window.stateManager && window.stateManager.data) ? window.stateManager.data : window.appData;
-                const ok = await window.cloudAdapter.saveDataImmediate(currentData);
-                btnUploadLocalToCloud.disabled = false;
-                btnUploadLocalToCloud.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> <span>رفع بيانات الهاردسك للسحابة الآن</span>`;
-                if (ok) {
-                    alert("🎉 تم رفع بياناتك وتحديث قاعدة البيانات السحابية بنجاح!");
-                } else {
-                    alert("❌ تعذر الرفع إلى السحابة. تأكد من اتصال الإنترنت وصلاحية المفاتيح.");
-                }
+                alert("تم فصل السحابة بنجاح وإزالة المفاتيح.");
+                location.reload();
             }
         });
     }
@@ -536,7 +265,7 @@ function setupDataManagement() {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
-                a.download = `awrad_enjaz_backup_${new Date().toISOString().split("T")[0]}.json`;
+                a.download = `awrady_backup_${new Date().toISOString().split("T")[0]}.json`;
                 a.click();
                 URL.revokeObjectURL(url);
             }

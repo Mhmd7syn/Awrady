@@ -1,5 +1,5 @@
 /**
- * Awrad & Enjaz Dashboard - Pomodoro Focus Timer Component
+ * Awrady Dashboard - Pomodoro Focus Timer Component
  * Ultra-simple, robust, and bug-free focus timer engine.
  */
 
@@ -45,7 +45,7 @@ function setupPomodoroControls() {
     }
     pomoControlsInitialized = true;
 
-    PomodoroTimer.originalTitle = document.title || "أورادي وإنجازي";
+    PomodoroTimer.originalTitle = document.title || "أورادي";
 
     const btnStart = document.getElementById("btn-pomo-start");
     const btnPause = document.getElementById("btn-pomo-pause");
@@ -526,7 +526,7 @@ function restoreDocumentTitle() {
     if (PomodoroTimer.originalTitle) {
         document.title = PomodoroTimer.originalTitle;
     } else {
-        document.title = "أورادي وإنجازي | Awrad & Enjaz Dashboard";
+        document.title = "أورادي | Awrady Dashboard";
     }
 }
 

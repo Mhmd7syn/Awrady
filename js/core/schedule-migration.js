@@ -1,5 +1,5 @@
 /**
- * Awrad & Enjaz Dashboard - Automatic Weekly Schedule Migration
+ * Awrady Dashboard - Automatic Weekly Schedule Migration
  * Applies the 2026-09-21 weekly schedule re-organization in-memory across any storage mode.
  */
 
