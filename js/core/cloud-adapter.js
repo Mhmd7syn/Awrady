@@ -35,25 +35,56 @@ class CloudAdapter {
     }
 
     /**
-     * Load credentials from local storage
+     * Helper to build REST API headers (handles both JWT anon keys and sb_publishable keys)
+     */
+    getRestHeaders(additional = {}) {
+        const headers = {
+            "apikey": this.config.anonKey,
+            ...additional
+        };
+        // Legacy anon keys are JWTs (start with ey).
+        // New sb_publishable_ keys are not JWTs and should NOT be passed in Authorization: Bearer.
+        if (this.config.anonKey && this.config.anonKey.startsWith("ey")) {
+            headers["Authorization"] = `Bearer ${this.config.anonKey}`;
+        }
+        return headers;
+    }
+
+    /**
+     * Load credentials from local storage or built-in defaults for zero-setup multi-device sync
      */
     loadStoredConfig() {
+        const defaults = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.SUPABASE) ? APP_CONSTANTS.SUPABASE : {
+            DEFAULT_URL: "https://krmatocnrjzivwpmbxgu.supabase.co",
+            DEFAULT_ANON_KEY: "sb_publishable_JGajulg_tl67UJBKLyJZrA_E2tdQoZQ",
+            DEFAULT_USER_ID: "primary_user"
+        };
+
         try {
             const raw = localStorage.getItem(this.CONFIG_STORAGE_KEY);
             if (raw) {
                 const parsed = JSON.parse(raw);
+                if (parsed.disabled === true) {
+                    return { url: "", anonKey: "", userId: this.DEFAULT_USER_ID };
+                }
                 if (parsed.url && parsed.anonKey) {
                     return {
                         url: parsed.url.trim().replace(/\/+$/, ''),
                         anonKey: parsed.anonKey.trim(),
-                        userId: (parsed.userId || this.DEFAULT_USER_ID).trim()
+                        userId: (parsed.userId || defaults.DEFAULT_USER_ID || this.DEFAULT_USER_ID).trim()
                     };
                 }
             }
         } catch (e) {
             console.error("[CloudAdapter] Error loading config from localStorage:", e);
         }
-        return { url: "", anonKey: "", userId: this.DEFAULT_USER_ID };
+
+        // Automatic connection on all devices: fall back to built-in project defaults
+        return {
+            url: (defaults.DEFAULT_URL || "").trim().replace(/\/+$/, ''),
+            anonKey: (defaults.DEFAULT_ANON_KEY || "").trim(),
+            userId: (defaults.DEFAULT_USER_ID || this.DEFAULT_USER_ID).trim()
+        };
     }
 
     /**
@@ -87,11 +118,24 @@ class CloudAdapter {
     clearCredentials() {
         this.config = { url: "", anonKey: "", userId: this.DEFAULT_USER_ID };
         try {
-            localStorage.removeItem(this.CONFIG_STORAGE_KEY);
+            localStorage.setItem(this.CONFIG_STORAGE_KEY, JSON.stringify({ disabled: true }));
         } catch (e) {}
         this.disconnectRealtime();
         this.client = null;
-        this.notifyStatus("disconnected", "تخزين محلي فقط (غير مقترن بالسحاب)");
+        this.notifyStatus("disconnected", "تخزين محلي فقط (تم إيقاف المزامنة السحابية)");
+    }
+
+    /**
+     * Reset back to default built-in credentials
+     */
+    resetToDefaultCredentials() {
+        try {
+            localStorage.removeItem(this.CONFIG_STORAGE_KEY);
+        } catch (e) {}
+        this.config = this.loadStoredConfig();
+        this.disconnectRealtime();
+        this.initClient();
+        return this.config;
     }
 
     /**
@@ -171,10 +215,7 @@ class CloudAdapter {
                 // REST Fetch fallback test
                 const res = await fetch(`${this.config.url}/rest/v1/${tbl}?id=eq.${encodeURIComponent(this.config.userId)}&select=id`, {
                     method: "GET",
-                    headers: {
-                        "apikey": this.config.anonKey,
-                        "Authorization": `Bearer ${this.config.anonKey}`
-                    }
+                    headers: this.getRestHeaders()
                 });
 
                 if (res.ok) {
@@ -232,11 +273,9 @@ class CloudAdapter {
                 const endpoint = `${this.config.url}/rest/v1/${tbl}?id=eq.${encodeURIComponent(this.config.userId)}&select=data`;
                 const res = await fetch(endpoint, {
                     method: "GET",
-                    headers: {
-                        "apikey": this.config.anonKey,
-                        "Authorization": `Bearer ${this.config.anonKey}`,
+                    headers: this.getRestHeaders({
                         "Accept": "application/json"
-                    }
+                    })
                 });
 
                 if (res.ok) {
@@ -330,12 +369,10 @@ class CloudAdapter {
                 const endpoint = `${this.config.url}/rest/v1/${tbl}`;
                 const res = await fetch(endpoint, {
                     method: "POST",
-                    headers: {
-                        "apikey": this.config.anonKey,
-                        "Authorization": `Bearer ${this.config.anonKey}`,
+                    headers: this.getRestHeaders({
                         "Content-Type": "application/json",
                         "Prefer": "resolution=merge-duplicates"
-                    },
+                    }),
                     body: JSON.stringify(payload)
                 });
 

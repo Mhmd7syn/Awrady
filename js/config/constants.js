@@ -6,6 +6,11 @@ var APP_CONSTANTS = {
     SERVERS: {
         LOCAL_NODE_URL: "http://localhost:3000/api/storage"
     },
+    SUPABASE: {
+        DEFAULT_URL: "https://krmatocnrjzivwpmbxgu.supabase.co",
+        DEFAULT_ANON_KEY: "sb_publishable_JGajulg_tl67UJBKLyJZrA_E2tdQoZQ",
+        DEFAULT_USER_ID: "primary_user"
+    },
     AUDIO: {
         ALARM_URL: "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"
     },
