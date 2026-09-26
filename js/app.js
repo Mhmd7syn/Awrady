@@ -391,24 +391,6 @@ function renderDailyView() {
         hijriPill.innerHTML = `<i class="fa-solid fa-calendar-alt gold-text"></i> ${hijriText}${tagsHtml}`;
     }
 
-    // Update lunar event banner (today's active seasonal events)
-    const lunarBanner = document.getElementById("lunar-event-banner");
-    if (lunarBanner) {
-        if (hijri.isRamadan || hijri.isWhiteDay) {
-            lunarBanner.classList.remove("hidden");
-            const lunarTitle = document.getElementById("lunar-title");
-            const lunarDesc = document.getElementById("lunar-desc");
-            if (hijri.isRamadan) {
-                if (lunarTitle) lunarTitle.textContent = "🌙 شهر رمضان المبارك";
-                if (lunarDesc) lunarDesc.textContent = "تم تفعيل برنامج رمضان تلقائياً.";
-            } else if (hijri.isWhiteDay) {
-                if (lunarTitle) lunarTitle.textContent = `✨ اليوم من الأيام البيض — ${hijri.day} ${hijri.monthName || ''}`;
-                if (lunarDesc) lunarDesc.textContent = `اليوم ${hijri.day} من الشهر الهجري — تقبّل الله صيامكم وطاعتكم.`;
-            }
-        } else {
-            lunarBanner.classList.add("hidden");
-        }
-    }
 
     // Update Tomorrow Fasting Reminder banner (triggered the day before: Sunday for Monday, Wednesday for Thursday, and before each White Day)
     const fastingBanner = document.getElementById("tomorrow-fasting-banner");
