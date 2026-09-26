@@ -69,9 +69,21 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function initData() {
     let data = null;
 
-    // Load exclusively from Supabase Cloud
+    // Load from Storage Engine (Cloud if configured -> IndexedDB -> localStorage)
     if (window.storageEngine) {
         data = await window.storageEngine.loadData(STORAGE_KEY);
+    }
+
+    // Direct fallback to localStorage if storageEngine returned null
+    if (!data) {
+        try {
+            const localSaved = localStorage.getItem(STORAGE_KEY);
+            if (localSaved) {
+                data = JSON.parse(localSaved);
+            }
+        } catch (e) {
+            console.error("[initData] Error parsing localStorage data:", e);
+        }
     }
 
     if (data && data.tasks && data.tasks.length > 0 && data.logs) {
@@ -105,16 +117,7 @@ async function initData() {
     if (window.stateManager) {
         window.stateManager.data = appData;
     }
-
-    // If Supabase is not configured, open the cloud configuration modal to guide the user
-    if (window.cloudAdapter && !window.cloudAdapter.isConfigured()) {
-        const cloudModal = document.getElementById("cloud-config-modal");
-        if (cloudModal) {
-            setTimeout(() => {
-                cloudModal.classList.remove("hidden");
-            }, 600);
-        }
-    }
+    saveData(true);
 }
 
 function loadDefaultAppData() {

@@ -5,6 +5,86 @@
  * ============================================================================
  */
 
+/**
+ * Update 24/7 Cloud Sync UI status badge & header pill
+ */
+function updateCloudSyncUI(syncInfo) {
+    if (!syncInfo) return;
+    const headerPill = document.getElementById("header-cloud-pill");
+    const headerIcon = document.getElementById("header-cloud-icon");
+    const headerText = document.getElementById("header-cloud-text");
+    const badge = document.getElementById("cloud-sync-status-badge");
+    const badgeText = document.getElementById("cloud-sync-status-text");
+
+    const state = syncInfo.state; // 'synced', 'syncing', 'offline', 'disconnected', 'idle'
+
+    if (state === "synced") {
+        if (headerPill) {
+            headerPill.className = "stat-pill glass-card sync-status-pill sync-active";
+            headerPill.title = syncInfo.message || "متزامن مع السحابة 24/7";
+        }
+        if (headerIcon) headerIcon.innerHTML = `<i class="fa-solid fa-cloud-bolt" style="color:#10b981;"></i>`;
+        if (headerText) {
+            headerText.textContent = "سحابي ⚡";
+            headerText.style.color = "#10b981";
+        }
+        if (badge) {
+            badge.style.background = "rgba(16, 185, 129, 0.15)";
+            badge.style.color = "#10b981";
+            badge.style.borderColor = "rgba(16, 185, 129, 0.3)";
+        }
+        if (badgeText) badgeText.innerHTML = `<i class="fa-solid fa-cloud-bolt"></i> متزامن سحابياً 24/7`;
+    } else if (state === "syncing") {
+        if (headerPill) {
+            headerPill.className = "stat-pill glass-card sync-status-pill sync-pulse";
+            headerPill.title = syncInfo.message || "جارِ مزامنة التغييرات...";
+        }
+        if (headerIcon) headerIcon.innerHTML = `<i class="fa-solid fa-arrows-rotate fa-spin" style="color:#f59e0b;"></i>`;
+        if (headerText) {
+            headerText.textContent = "مزامنة...";
+            headerText.style.color = "#f59e0b";
+        }
+        if (badge) {
+            badge.style.background = "rgba(245, 158, 11, 0.15)";
+            badge.style.color = "#f59e0b";
+            badge.style.borderColor = "rgba(245, 158, 11, 0.3)";
+        }
+        if (badgeText) badgeText.innerHTML = `<i class="fa-solid fa-arrows-rotate fa-spin"></i> جارِ رفع التحديثات...`;
+    } else if (state === "offline") {
+        if (headerPill) {
+            headerPill.className = "stat-pill glass-card sync-status-pill sync-offline";
+            headerPill.title = syncInfo.message || "وضع عدم الاتصال (محفوظ محلياً)";
+        }
+        if (headerIcon) headerIcon.innerHTML = `<i class="fa-solid fa-cloud-slash" style="color:#ef4444;"></i>`;
+        if (headerText) {
+            headerText.textContent = "أوفلاين";
+            headerText.style.color = "#ef4444";
+        }
+        if (badge) {
+            badge.style.background = "rgba(239, 68, 68, 0.15)";
+            badge.style.color = "#ef4444";
+            badge.style.borderColor = "rgba(239, 68, 68, 0.3)";
+        }
+        if (badgeText) badgeText.innerHTML = `<i class="fa-solid fa-cloud-slash"></i> غير متصل (تخزين محلي)`;
+    } else {
+        if (headerPill) {
+            headerPill.className = "stat-pill glass-card sync-status-pill";
+            headerPill.title = syncInfo.message || "تخزين محلي (غير مقترن بالسحابة)";
+        }
+        if (headerIcon) headerIcon.innerHTML = `<i class="fa-solid fa-cloud" style="color:#94a3b8;"></i>`;
+        if (headerText) {
+            headerText.textContent = "محلي";
+            headerText.style.color = "#94a3b8";
+        }
+        if (badge) {
+            badge.style.background = "rgba(255, 255, 255, 0.08)";
+            badge.style.color = "#94a3b8";
+            badge.style.borderColor = "rgba(255, 255, 255, 0.15)";
+        }
+        if (badgeText) badgeText.innerHTML = `<i class="fa-solid fa-cloud"></i> تخزين محلي (غير مقترن بالسحابة)`;
+    }
+}
+
 function updateStorageUIStatus(status) {
     // Cloud-only mode (Supabase)
 }
@@ -13,23 +93,12 @@ function setupDataManagement() {
     const btnExport = document.getElementById("btn-export-json");
     if (btnExport) {
         btnExport.addEventListener("click", () => {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData, null, 2));
+            const dataToSave = (typeof appData !== "undefined" && appData) || (window.stateManager ? window.stateManager.data : null);
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataToSave, null, 2));
             const downloadAnchor = document.createElement('a');
             downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `awrady_backup_${getLocalTodayString()}.json`);
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
-        });
-    }
-
-    const btnExport = document.getElementById("btn-export-json");
-    if (btnExport) {
-        btnExport.addEventListener("click", () => {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appData, null, 2));
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            downloadAnchor.setAttribute("download", `awrad_backup_${getLocalTodayString()}.json`);
+            const dateStr = (typeof getLocalTodayString === "function") ? getLocalTodayString() : new Date().toISOString().split("T")[0];
+            downloadAnchor.setAttribute("download", `awrady_backup_${dateStr}.json`);
             document.body.appendChild(downloadAnchor);
             downloadAnchor.click();
             downloadAnchor.remove();
