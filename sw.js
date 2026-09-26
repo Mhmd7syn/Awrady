@@ -3,7 +3,7 @@
  * Provides offline caching, lightning-fast app shell loading, and network resilience.
  */
 
-const CACHE_NAME = "awrady-pwa-v2";
+const CACHE_NAME = "awrady-pwa-v6";
 
 const PRECACHE_ASSETS = [
     "./",
@@ -33,26 +33,27 @@ const PRECACHE_ASSETS = [
     "./js/app.js"
 ];
 
-// Install Event: Precache App Shell
+// Install Event: Precache App Shell and activate immediately
 self.addEventListener("install", (event) => {
+    self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
-            console.log("[ServiceWorker] Precaching App Shell assets...");
+            console.log("[ServiceWorker] Precaching fresh assets for", CACHE_NAME);
             return cache.addAll(PRECACHE_ASSETS).catch((err) => {
-                console.warn("[ServiceWorker] Non-critical precache error:", err);
+                console.warn("[ServiceWorker] Precache warning:", err);
             });
-        }).then(() => self.skipWaiting())
+        })
     );
 });
 
-// Activate Event: Clean up outdated cache versions
+// Activate Event: Purge ALL older cache versions immediately
 self.addEventListener("activate", (event) => {
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
                 cacheNames.map((name) => {
                     if (name !== CACHE_NAME) {
-                        console.log("[ServiceWorker] Removing legacy cache:", name);
+                        console.log("[ServiceWorker] Purging outdated cache:", name);
                         return caches.delete(name);
                     }
                 })
@@ -61,7 +62,7 @@ self.addEventListener("activate", (event) => {
     );
 });
 
-// Fetch Event: Cache-first for static local assets, Network-first for Cloud/API
+// Fetch Event: Network-first for HTML & dynamic scripts, Cache-fallback for offline
 self.addEventListener("fetch", (event) => {
     const requestUrl = new URL(event.request.url);
 
@@ -73,20 +74,35 @@ self.addEventListener("fetch", (event) => {
         return; // Normal network fetch
     }
 
+    // Network-first for navigation (index.html) and scripts to avoid stale deployments
+    if (event.request.mode === "navigate" || requestUrl.pathname.endsWith(".html") || requestUrl.pathname.endsWith(".js") || requestUrl.search.includes("?v=")) {
+        event.respondWith(
+            fetch(event.request).then((networkResponse) => {
+                if (networkResponse && networkResponse.status === 200) {
+                    const responseClone = networkResponse.clone();
+                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+                }
+                return networkResponse;
+            }).catch(() => {
+                return caches.match(event.request).then((cached) => {
+                    if (cached) return cached;
+                    if (event.request.mode === "navigate") {
+                        return caches.match("./index.html");
+                    }
+                });
+            })
+        );
+        return;
+    }
+
+    // Cache-first for images, fonts, icons, sound effects
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
             if (cachedResponse) {
-                // Fetch in background to keep cache fresh (stale-while-revalidate)
-                fetch(event.request).then((networkResponse) => {
-                    if (networkResponse && networkResponse.status === 200) {
-                        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
-                    }
-                }).catch(() => {});
                 return cachedResponse;
             }
-
             return fetch(event.request).then((networkResponse) => {
-                if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== "basic") {
+                if (!networkResponse || networkResponse.status !== 200) {
                     return networkResponse;
                 }
                 const responseToCache = networkResponse.clone();
@@ -94,11 +110,6 @@ self.addEventListener("fetch", (event) => {
                     cache.put(event.request, responseToCache);
                 });
                 return networkResponse;
-            }).catch(() => {
-                // Offline fallback for navigation requests
-                if (event.request.mode === "navigate") {
-                    return caches.match("./index.html");
-                }
             });
         })
     );

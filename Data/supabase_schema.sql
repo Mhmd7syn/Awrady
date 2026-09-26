@@ -4,6 +4,9 @@
 -- ============================================================================
 -- Run this script in your Supabase project: SQL Editor -> New Query -> Run
 
+-- 0. Migration (if you already created the previous enjaz_sync table, simply rename it):
+-- ALTER TABLE IF EXISTS public.enjaz_sync RENAME TO awrady_sync;
+
 -- 1. Create the sync table
 CREATE TABLE IF NOT EXISTS public.awrady_sync (
     id TEXT PRIMARY KEY DEFAULT 'primary_user',

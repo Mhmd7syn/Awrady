@@ -3,6 +3,7 @@
  * Multi-Device 24/7 Cloud Persistence via Supabase (PostgreSQL JSONB + Realtime WebSockets)
  * Features:
  * - Native Supabase SDK support with REST Fetch Fallback (Zero-build resilient)
+ * - Auto-detection and dual-compatibility with both awrady_sync and legacy enjaz_sync tables
  * - Real-time two-way synchronization across multiple devices (Mobile, Tablet, Desktop)
  * - Offline queue & reconnection listener
  * - Safe credential storage in localStorage
@@ -11,6 +12,7 @@
 class CloudAdapter {
     constructor() {
         this.CONFIG_STORAGE_KEY = "AWRAD_SUPABASE_CONFIG";
+        this.FALLBACK_TABLES = ["awrady_sync", "enjaz_sync"];
         this.TABLE_NAME = "awrady_sync";
         this.DEFAULT_USER_ID = "primary_user";
         
@@ -107,7 +109,7 @@ class CloudAdapter {
                 return true;
             } else {
                 console.warn("[CloudAdapter] Supabase SDK not yet loaded globally; using REST fallback mode.");
-                return true; // REST fetch will handle it
+                return true;
             }
         } catch (e) {
             console.error("[CloudAdapter] Client initialization error:", e);
@@ -138,54 +140,61 @@ class CloudAdapter {
     }
 
     /**
-     * Test connection to Supabase instance
+     * Test connection to Supabase instance (auto-probes awrady_sync and enjaz_sync)
      */
     async testConnection() {
         if (!this.isConfigured()) {
             return { success: false, message: "لم يتم ضبط إعدادات السحابة بعد." };
         }
 
-        try {
-            // First try via SDK if available
-            if (this.client) {
-                const { data, error } = await this.client
-                    .from(this.TABLE_NAME)
-                    .select("id, updated_at")
-                    .eq("id", this.config.userId)
-                    .limit(1);
+        const candidateTables = [this.TABLE_NAME, ...this.FALLBACK_TABLES.filter(t => t !== this.TABLE_NAME)];
 
-                if (!error) {
-                    return { success: true, message: "الاتصال بالسحابة يعمل بنجاح! ⚡" };
+        for (const tbl of candidateTables) {
+            try {
+                if (this.client) {
+                    const { data, error } = await this.client
+                        .from(tbl)
+                        .select("id, updated_at")
+                        .eq("id", this.config.userId)
+                        .limit(1);
+
+                    if (!error) {
+                        this.TABLE_NAME = tbl;
+                        return { success: true, message: `الاتصال بالسحابة يعمل بنجاح! ⚡ (الجدول: ${tbl})` };
+                    }
+                    if (error.code === "42P01" || error.message?.includes("does not exist")) {
+                        continue;
+                    }
+                    return { success: false, message: "فشل الاستعلام: " + error.message };
                 }
-                // If table doesn't exist yet, error code 42P01 in postgres
-                if (error.code === "42P01" || error.message?.includes("does not exist")) {
-                    return { success: false, needsSchema: true, message: "جدول awrady_sync غير موجود بقاعدة بياناتك. يرجى تشغيل كود SQL أولاً." };
+
+                // REST Fetch fallback test
+                const res = await fetch(`${this.config.url}/rest/v1/${tbl}?id=eq.${encodeURIComponent(this.config.userId)}&select=id`, {
+                    method: "GET",
+                    headers: {
+                        "apikey": this.config.anonKey,
+                        "Authorization": `Bearer ${this.config.anonKey}`
+                    }
+                });
+
+                if (res.ok) {
+                    this.TABLE_NAME = tbl;
+                    return { success: true, message: `الاتصال بالسحابة عبر REST يعمل بنجاح! ⚡ (الجدول: ${tbl})` };
                 }
-                return { success: false, message: "فشل الاستعلام: " + error.message };
+            } catch (e) {
+                console.warn(`[CloudAdapter] Error probing ${tbl}:`, e);
             }
-
-            // REST Fetch fallback
-            const res = await fetch(`${this.config.url}/rest/v1/${this.TABLE_NAME}?id=eq.${encodeURIComponent(this.config.userId)}&select=id`, {
-                method: "GET",
-                headers: {
-                    "apikey": this.config.anonKey,
-                    "Authorization": `Bearer ${this.config.anonKey}`
-                }
-            });
-
-            if (res.ok) {
-                return { success: true, message: "الاتصال بالسحابة عبر REST يعمل بنجاح! ⚡" };
-            } else {
-                const errText = await res.text();
-                return { success: false, message: `رمز الخطأ ${res.status}: ${errText}` };
-            }
-        } catch (e) {
-            return { success: false, message: "تعذر الاتصال بالسيرفر: " + e.message };
         }
+
+        return { 
+            success: false, 
+            needsSchema: true, 
+            message: "لم يتم العثور على جدول awrady_sync أو enjaz_sync في قاعدة بياناتك. يرجى تشغيل كود SQL أولاً." 
+        };
     }
 
     /**
-     * Load dashboard state from Supabase
+     * Load dashboard state from Supabase with auto-table fallback
      */
     async loadData() {
         if (!this.isConfigured() || !this.isOnline) {
@@ -194,47 +203,56 @@ class CloudAdapter {
 
         this.notifyStatus("syncing", "جارِ تحميل أحدث البيانات من السحابة...");
 
-        try {
-            // 1. Try SDK query
-            if (this.client) {
-                const { data, error } = await this.client
-                    .from(this.TABLE_NAME)
-                    .select("data, updated_at, version")
-                    .eq("id", this.config.userId)
-                    .maybeSingle();
+        const tablesToTry = [this.TABLE_NAME, ...this.FALLBACK_TABLES.filter(t => t !== this.TABLE_NAME)];
 
-                if (!error && data && data.data) {
-                    this.notifyStatus("synced", "متزامن مع السحابة ☁️");
-                    return data.data;
+        for (const tbl of tablesToTry) {
+            try {
+                // 1. Try SDK query
+                if (this.client) {
+                    const { data, error } = await this.client
+                        .from(tbl)
+                        .select("data, updated_at, version")
+                        .eq("id", this.config.userId)
+                        .maybeSingle();
+
+                    if (!error && data && data.data) {
+                        this.TABLE_NAME = tbl;
+                        this.notifyStatus("synced", `متزامن مع السحابة ☁️`);
+                        return data.data;
+                    }
+                    if (error && (error.code === "42P01" || error.message?.includes("does not exist"))) {
+                        continue; // try next candidate table
+                    }
+                    if (error && error.code !== "PGRST116") {
+                        console.warn(`[CloudAdapter] SDK load warning on ${tbl}:`, error.message);
+                    }
                 }
-                if (error && error.code !== "PGRST116") { // PGRST116 = no rows returned
-                    console.warn("[CloudAdapter] SDK load warning:", error.message);
+
+                // 2. Direct REST fetch
+                const endpoint = `${this.config.url}/rest/v1/${tbl}?id=eq.${encodeURIComponent(this.config.userId)}&select=data`;
+                const res = await fetch(endpoint, {
+                    method: "GET",
+                    headers: {
+                        "apikey": this.config.anonKey,
+                        "Authorization": `Bearer ${this.config.anonKey}`,
+                        "Accept": "application/json"
+                    }
+                });
+
+                if (res.ok) {
+                    const rows = await res.json();
+                    if (Array.isArray(rows) && rows.length > 0 && rows[0].data) {
+                        this.TABLE_NAME = tbl;
+                        this.notifyStatus("synced", `متزامن مع السحابة ☁️`);
+                        return rows[0].data;
+                    }
                 }
+            } catch (e) {
+                console.warn(`[CloudAdapter] Error querying table ${tbl}:`, e);
             }
-
-            // 2. Fallback to direct REST fetch
-            const endpoint = `${this.config.url}/rest/v1/${this.TABLE_NAME}?id=eq.${encodeURIComponent(this.config.userId)}&select=data`;
-            const res = await fetch(endpoint, {
-                method: "GET",
-                headers: {
-                    "apikey": this.config.anonKey,
-                    "Authorization": `Bearer ${this.config.anonKey}`,
-                    "Accept": "application/json"
-                }
-            });
-
-            if (res.ok) {
-                const rows = await res.json();
-                if (Array.isArray(rows) && rows.length > 0 && rows[0].data) {
-                    this.notifyStatus("synced", "متزامن مع السحابة ☁️");
-                    return rows[0].data;
-                }
-            }
-        } catch (e) {
-            console.warn("[CloudAdapter] Cloud load failed, falling back to local cache:", e);
-            this.notifyStatus("offline", "تعذر الاتصال بالسحابة (تم استخدام النسخة المحلية)");
         }
 
+        this.notifyStatus("offline", "تعذر الاتصال بالسحابة (تم استخدام النسخة المحلية)");
         return null;
     }
 
@@ -249,16 +267,15 @@ class CloudAdapter {
             clearTimeout(this._pushDebounceTimer);
         }
 
-        return new Promise((resolve) => {
-            this._pushDebounceTimer = setTimeout(async () => {
-                const result = await this.saveDataImmediate(this._pendingAppData);
-                resolve(result);
-            }, debounceMs);
-        });
+        this._pushDebounceTimer = setTimeout(() => {
+            this.saveDataImmediate(this._pendingAppData);
+        }, debounceMs);
+
+        return true;
     }
 
     /**
-     * Immediate upsert to Supabase
+     * Immediate upsert to Supabase with auto-table fallback
      */
     async saveDataImmediate(appData) {
         if (!appData || !this.isConfigured()) {
@@ -286,46 +303,52 @@ class CloudAdapter {
             updated_at: new Date().toISOString()
         };
 
-        try {
-            // 1. Try SDK Upsert
-            if (this.client) {
-                const { error } = await this.client
-                    .from(this.TABLE_NAME)
-                    .upsert(payload, { onConflict: "id" });
+        const tablesToTry = [this.TABLE_NAME, ...this.FALLBACK_TABLES.filter(t => t !== this.TABLE_NAME)];
 
-                if (!error) {
+        for (const tbl of tablesToTry) {
+            try {
+                // 1. Try SDK Upsert
+                if (this.client) {
+                    const { error } = await this.client
+                        .from(tbl)
+                        .upsert(payload, { onConflict: "id" });
+
+                    if (!error) {
+                        this.TABLE_NAME = tbl;
+                        this._pendingAppData = null;
+                        this._isPushing = false;
+                        this.notifyStatus("synced", "تمت المزامنة بنجاح ☁️");
+                        return true;
+                    }
+                    if (error.code === "42P01" || error.message?.includes("does not exist")) {
+                        continue;
+                    }
+                    console.warn(`[CloudAdapter] SDK Upsert error on ${tbl}:`, error.message);
+                }
+
+                // 2. Direct REST Upsert Fallback
+                const endpoint = `${this.config.url}/rest/v1/${tbl}`;
+                const res = await fetch(endpoint, {
+                    method: "POST",
+                    headers: {
+                        "apikey": this.config.anonKey,
+                        "Authorization": `Bearer ${this.config.anonKey}`,
+                        "Content-Type": "application/json",
+                        "Prefer": "resolution=merge-duplicates"
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    this.TABLE_NAME = tbl;
                     this._pendingAppData = null;
                     this._isPushing = false;
                     this.notifyStatus("synced", "تمت المزامنة بنجاح ☁️");
                     return true;
                 }
-                console.warn("[CloudAdapter] SDK Upsert failed, attempting REST fallback:", error.message);
+            } catch (e) {
+                console.error(`[CloudAdapter] Error saving to ${tbl}:`, e);
             }
-
-            // 2. Direct REST Upsert Fallback
-            const endpoint = `${this.config.url}/rest/v1/${this.TABLE_NAME}`;
-            const res = await fetch(endpoint, {
-                method: "POST",
-                headers: {
-                    "apikey": this.config.anonKey,
-                    "Authorization": `Bearer ${this.config.anonKey}`,
-                    "Content-Type": "application/json",
-                    "Prefer": "resolution=merge-duplicates"
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (res.ok) {
-                this._pendingAppData = null;
-                this._isPushing = false;
-                this.notifyStatus("synced", "تمت المزامنة بنجاح ☁️");
-                return true;
-            } else {
-                const errText = await res.text();
-                console.error("[CloudAdapter] REST Upsert failed:", res.status, errText);
-            }
-        } catch (e) {
-            console.error("[CloudAdapter] Cloud push network error:", e);
         }
 
         this._isPushing = false;
@@ -343,8 +366,9 @@ class CloudAdapter {
         this.disconnectRealtime();
 
         try {
+            const channelName = `${this.TABLE_NAME}-cloud-sync`;
             this.realtimeChannel = this.client
-                .channel("awrady-cloud-sync")
+                .channel(channelName)
                 .on(
                     "postgres_changes",
                     {
@@ -364,21 +388,18 @@ class CloudAdapter {
                     }
                 )
                 .subscribe((status) => {
-                    console.log(`[CloudAdapter] Realtime subscription status: ${status}`);
-                    if (status === "SUBSCRIBED") {
-                        this.notifyStatus("synced", "المزامنة اللحظية مفعلة ⚡");
-                    }
+                    console.log(`[CloudAdapter] Realtime WebSocket subscription status for ${this.TABLE_NAME}:`, status);
                 });
 
             return true;
         } catch (e) {
-            console.warn("[CloudAdapter] Could not connect realtime channel:", e);
+            console.error("[CloudAdapter] Realtime subscription error:", e);
             return false;
         }
     }
 
     /**
-     * Disconnect Realtime Channel
+     * Disconnect and clean up Realtime WebSocket
      */
     disconnectRealtime() {
         if (this.realtimeChannel && this.client) {
@@ -390,24 +411,19 @@ class CloudAdapter {
     }
 
     /**
-     * Set listener for sync status changes
-     */
-    onStatusChange(callback) {
-        this.onSyncStatusCallback = callback;
-    }
-
-    /**
-     * Broadcast status update to UI
+     * Status notification dispatcher
      */
     notifyStatus(state, message) {
         if (typeof this.onSyncStatusCallback === "function") {
-            this.onSyncStatusCallback({
-                state: state, // 'synced', 'syncing', 'offline', 'disconnected', 'idle'
-                message: message,
-                isConfigured: this.isConfigured(),
-                isOnline: this.isOnline
-            });
+            this.onSyncStatusCallback({ state, message });
         }
+    }
+
+    /**
+     * Register sync status listener
+     */
+    onStatusChange(callback) {
+        this.onSyncStatusCallback = callback;
     }
 }
 
