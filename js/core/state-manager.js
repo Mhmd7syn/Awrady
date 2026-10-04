@@ -168,17 +168,17 @@ class StateManager {
                 t.category = "صوم";
             }
             if (t.id === "task_fasting") {
-                t.name = "صيام الإثنين والخميس";
-                t.category = "صوم";
-                t.schedule = "Mon, Thu";
+                if (!t.name) t.name = "صيام الإثنين والخميس";
+                if (!t.category) t.category = "صوم";
+                if (!t.schedule) t.schedule = "Mon, Thu";
             }
             if (t.id === "task_fasting_white_days") {
-                t.name = "صيام الأيام البيض";
-                t.category = "صوم";
-                t.schedule = "WhiteDays";
+                if (!t.name) t.name = "صيام الأيام البيض";
+                if (!t.category) t.category = "صوم";
+                if (!t.schedule) t.schedule = "WhiteDays";
             }
             if (t.id === "task_fasting_voluntary") {
-                t.category = "صوم";
+                if (!t.category) t.category = "صوم";
             }
         });
 
@@ -292,10 +292,6 @@ class StateManager {
                 }
             }
         });
-
-        if (typeof applyWeeklyScheduleReorg === "function" && this.data && this.data.tasks) {
-            this.data = applyWeeklyScheduleReorg(this.data);
-        }
     }
 
     /**

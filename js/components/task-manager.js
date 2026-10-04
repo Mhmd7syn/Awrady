@@ -248,18 +248,37 @@ function renderGroupedTasks(containerEl, tasksList, isArchivedList = false) {
     return totalTaskCount;
 }
 
+function formatScheduleDisplay(sched) {
+    if (!sched || sched === "Everyday") return "يومياً";
+    if (sched === "Ramadan") return "شهر رمضان";
+    if (sched === "WhiteDays") return "الأيام البيض (13، 14، 15)";
+    if (sched === "Optional") return "اختياري / عند التنفيذ";
+    if (sched === "OneTime") return "لمرة واحدة فقط";
+
+    const dayNameMap = {
+        "Sat": "السبت",
+        "Sun": "الأحد",
+        "Mon": "الإثنين",
+        "Tue": "الثلاثاء",
+        "Wed": "الأربعاء",
+        "Thu": "الخميس",
+        "Fri": "الجمعة"
+    };
+
+    const parts = sched.split(",").map(s => s.trim()).filter(Boolean);
+    if (parts.length > 0) {
+        const mapped = parts.map(p => dayNameMap[p] || (p === "WhiteDays" ? "الأيام البيض" : p));
+        return mapped.join("، ");
+    }
+    return sched;
+}
+
 function createTaskRowElement(task, isArchived) {
     const row = document.createElement("div");
     row.className = `manager-row ${task.isArchived ? 'archived' : ''}`;
     const iconHtml = getCategoryIconHtml(task);
 
-    let schedDisplay = task.schedule || "Everyday";
-    if (schedDisplay === "Everyday") schedDisplay = "يومياً";
-    else if (schedDisplay === "Ramadan") schedDisplay = "شهر رمضان";
-    else if (schedDisplay === "WhiteDays") schedDisplay = "الأيام البيض (13، 14، 15)";
-    else if (schedDisplay === "Optional") schedDisplay = "اختياري / عند التنفيذ";
-    else if (schedDisplay === "Mon, Thu" || schedDisplay === "Mon,Thu") schedDisplay = "الإثنين والخميس";
-    else if (schedDisplay.includes("Mon") && schedDisplay.includes("Thu") && (schedDisplay.includes("WhiteDays") || schedDisplay.includes("البيض"))) schedDisplay = "الإثنين والخميس والأيام البيض";
+    const schedDisplay = formatScheduleDisplay(task.schedule);
     const schedText = `📅 التكرار: ${schedDisplay}`;
     let displayType = isPrayerSelector(task) ? 'صلاة فريضة' : task.type;
     const targetText = task.target ? `🎯 الهدف: ${task.target} ${displayType}` : `🏷️ وحدة: ${displayType}`;
@@ -568,8 +587,9 @@ function saveTaskFromModal() {
     }
 
     const parsedTarget = targetStr === "" ? null : parseFloat(targetStr);
-    const selectedDate = (typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : getLocalTodayString();
-    const effectiveDate = selectedDate;
+    const localToday = typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().split("T")[0];
+    const selectedDate = (typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : localToday;
+    const effectiveDate = (selectedDate > localToday) ? localToday : selectedDate;
 
     if (editingTaskId) {
         const idx = appData.tasks.findIndex(t => t.id === editingTaskId);
@@ -616,14 +636,18 @@ function saveTaskFromModal() {
                 multiplier: oldTask.multiplier !== undefined ? oldTask.multiplier : 1.0,
                 schedule: scheduleVal,
                 isBonus: isBonus,
-                comment: taskComment
+                comment: taskComment,
+                isOneTime: (schedType === "OneTime"),
+                oneTimeDate: (schedType === "OneTime") ? selectedDate : null
             };
 
-            const existingIndex = oldTask.history.findIndex(h => h.effectiveFrom === effectiveDate);
-            if (existingIndex >= 0) {
-                oldTask.history[existingIndex] = snapshot;
-            } else {
-                oldTask.history.push(snapshot);
+            // Remove any snapshot from effectiveDate onwards so stale migration/historical snapshots never override this new edit forward
+            oldTask.history = oldTask.history.filter(h => h.effectiveFrom && h.effectiveFrom < effectiveDate);
+            oldTask.history.push(snapshot);
+
+            // Ensure baseline history snapshot date is not later than creation date if it's the only one
+            if (oldTask.history.length === 1 && oldTask.history[0].effectiveFrom > creationDate) {
+                oldTask.history[0].effectiveFrom = creationDate;
             }
 
             oldTask.name = name;
@@ -636,7 +660,7 @@ function saveTaskFromModal() {
             oldTask.comment = taskComment;
             oldTask.isBonus = isBonus;
             oldTask.isOneTime = (schedType === "OneTime");
-            oldTask.oneTimeDate = (schedType === "OneTime") ? selectedDate : oldTask.oneTimeDate;
+            oldTask.oneTimeDate = (schedType === "OneTime") ? selectedDate : null;
         }
     } else {
         const newTask = {
@@ -666,15 +690,21 @@ function saveTaskFromModal() {
                 multiplier: 1.0,
                 schedule: scheduleVal,
                 isBonus: isBonus,
-                comment: taskComment
+                comment: taskComment,
+                isOneTime: (schedType === "OneTime"),
+                oneTimeDate: (schedType === "OneTime") ? selectedDate : null
             }]
         };
         appData.tasks.push(newTask);
     }
 
     closeTaskModal();
-    saveData();
-    renderDailyView();
+    saveData(true);
+    if (typeof renderDailyView === "function") renderDailyView();
+    if (typeof renderTaskManager === "function") renderTaskManager();
+    if (typeof updateHeaderTodayScore === "function") updateHeaderTodayScore();
+    if (typeof renderAllTimeStats === "function") renderAllTimeStats();
+    if (typeof updateChartAndAnalytics === "function") updateChartAndAnalytics();
 }
 
 function openBonusTaskModal() {

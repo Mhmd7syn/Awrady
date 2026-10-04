@@ -44,6 +44,7 @@ class StorageEngine {
                     this.cacheLocally(key, remoteData);
 
                     if (typeof window.renderDailyView === "function") window.renderDailyView();
+                    if (typeof window.renderTaskManager === "function") window.renderTaskManager();
                     if (typeof window.renderAllTimeStats === "function") window.renderAllTimeStats();
                     if (typeof window.updateHeaderTodayScore === "function") window.updateHeaderTodayScore();
                     if (typeof window.updateChartAndAnalytics === "function") window.updateChartAndAnalytics();

@@ -122,11 +122,6 @@ async function initData() {
         }
     }
 
-    // Apply Weekly Schedule Reorganization (2026-09-21) if not already applied
-    if (typeof applyWeeklyScheduleReorg === "function" && appData && appData.tasks) {
-        appData = applyWeeklyScheduleReorg(appData);
-    }
-
     if (!appData.categories || appData.categories.length === 0) {
         appData.categories = (typeof DEFAULT_CATEGORIES !== "undefined") ? JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)) : [];
     }
