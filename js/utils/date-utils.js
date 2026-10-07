@@ -37,27 +37,74 @@ function formatTimeHM(minutes) {
     return `${m} دقيقة`;
 }
 
+const WEEKDAY_ABBREVS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+let _arabicDateFormatter = null;
+let _hijriArFormatter = null;
+let _hijriEnPartsFormatter = null;
+
+function getArabicDateFormatter() {
+    if (!_arabicDateFormatter) {
+        _arabicDateFormatter = new Intl.DateTimeFormat('ar-EG', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    }
+    return _arabicDateFormatter;
+}
+
+function getHijriArFormatter() {
+    if (!_hijriArFormatter) {
+        _hijriArFormatter = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        });
+    }
+    return _hijriArFormatter;
+}
+
+function getHijriEnPartsFormatter() {
+    if (!_hijriEnPartsFormatter) {
+        _hijriEnPartsFormatter = new Intl.DateTimeFormat('en-US-u-ca-islamic-umalqura', {
+            day: 'numeric',
+            month: 'numeric',
+            year: 'numeric'
+        });
+    }
+    return _hijriEnPartsFormatter;
+}
+
+const _hijriDetailsCache = new Map();
+
+function clearHijriDateCache() {
+    _hijriDetailsCache.clear();
+}
+
 /**
  * Gets 3-letter English weekday abbreviation (e.g. Sun, Mon, Tue)
+ * Fast static array lookup replaces heavy toLocaleDateString
  * @param {string} dateStr YYYY-MM-DD string
  * @returns {string}
  */
 function getDayOfWeekAbbrev(dateStr) {
     if (!dateStr) return "";
     const date = new Date(dateStr.includes("T") ? dateStr : dateStr + "T12:00:00");
-    return date.toLocaleDateString('en-US', { weekday: 'short' });
+    return WEEKDAY_ABBREVS[date.getDay()] || "";
 }
 
 /**
- * Formats YYYY-MM-DD into full Arabic date string
+ * Formats YYYY-MM-DD into full Arabic date string using persistent Intl formatter
  * @param {string} dateStr 
  * @returns {string}
  */
 function getArabicDateFormatted(dateStr) {
+    if (!dateStr) return "";
     const date = new Date(dateStr.includes("T") ? dateStr : dateStr + "T12:00:00");
-    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     try {
-        return date.toLocaleDateString('ar-EG', options);
+        return getArabicDateFormatter().format(date);
     } catch (e) {
         return dateStr;
     }
@@ -65,23 +112,26 @@ function getArabicDateFormatted(dateStr) {
 
 /**
  * Smart Hijri Date & Lunar Calendar details calculation (Umm al-Qura)
+ * Memoized per dateStr to eliminate redundant Intl formatter allocations
  * @param {string} dateStr 
  * @returns {{ hDay: number, hMonth: number, hYear: number, dateStringAr: string, isWhiteDay: boolean, isRamadan: boolean }}
  */
 function getHijriDateDetails(dateStr) {
-    const date = new Date(dateStr.includes("T") ? dateStr : dateStr + "T12:00:00");
-    try {
-        const dateStringAr = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric'
-        }).format(date);
+    if (!dateStr) {
+        return { hDay: 0, hMonth: 0, hYear: 0, day: 0, monthName: "", dateStringAr: "التقويم الهجري", formatted: "التقويم الهجري", hijriFormatted: "التقويم الهجري", isWhiteDay: false, isRamadan: false };
+    }
+    const cleanKey = typeof dateStr === "string" 
+        ? (dateStr.includes("T") ? dateStr.split("T")[0] : dateStr)
+        : (dateStr instanceof Date ? getLocalTodayString(dateStr) : String(dateStr));
 
-        const parts = new Intl.DateTimeFormat('en-US-u-ca-islamic-umalqura', {
-            day: 'numeric',
-            month: 'numeric',
-            year: 'numeric'
-        }).formatToParts(date);
+    if (_hijriDetailsCache.has(cleanKey)) {
+        return _hijriDetailsCache.get(cleanKey);
+    }
+
+    const date = new Date(cleanKey + "T12:00:00");
+    try {
+        const dateStringAr = getHijriArFormatter().format(date);
+        const parts = getHijriEnPartsFormatter().formatToParts(date);
 
         let hDay = 0, hMonth = 0, hYear = 0;
         parts.forEach(p => {
@@ -98,7 +148,7 @@ function getHijriDateDetails(dateStr) {
         const monthName = hijriMonthNames[hMonth] || "";
 
         const formattedHijri = dateStringAr.includes("هـ") ? dateStringAr : dateStringAr + " هـ";
-        return {
+        const result = {
             hDay, hMonth, hYear,
             day: hDay,
             monthName,
@@ -108,8 +158,12 @@ function getHijriDateDetails(dateStr) {
             isWhiteDay,
             isRamadan
         };
+        _hijriDetailsCache.set(cleanKey, result);
+        return result;
     } catch (e) {
-        return { hDay: 0, hMonth: 0, hYear: 0, day: 0, monthName: "", dateStringAr: "التقويم الهجري", formatted: "التقويم الهجري", hijriFormatted: "التقويم الهجري", isWhiteDay: false, isRamadan: false };
+        const fallback = { hDay: 0, hMonth: 0, hYear: 0, day: 0, monthName: "", dateStringAr: "التقويم الهجري", formatted: "التقويم الهجري", hijriFormatted: "التقويم الهجري", isWhiteDay: false, isRamadan: false };
+        _hijriDetailsCache.set(cleanKey, fallback);
+        return fallback;
     }
 }
 
@@ -171,6 +225,7 @@ if (typeof window !== "undefined") {
     window.getHijriDateDetails = getHijriDateDetails;
     window.getDatesForCurrentWeek = getDatesForCurrentWeek;
     window.addDays = addDays;
+    window.clearHijriDateCache = clearHijriDateCache;
 
     // Aliases for backward compatibility with app.js
     window.getHijriDetails = getHijriDateDetails;

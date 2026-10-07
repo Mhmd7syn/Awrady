@@ -6,12 +6,18 @@
 class ScheduleEngine {
     /**
      * Resolves effective task properties for a specific historical date
+     * Memoized per task and dateStr in task._effPropsCache
      * @param {Object} task 
      * @param {string} dateStr YYYY-MM-DD
+     * @param {Object} [dateContext] Optional pre-resolved { dayAbbrev, hijriInfo }
      * @returns {Object} Effective properties object
      */
-    static getTaskEffectiveProps(task, dateStr) {
+    static getTaskEffectiveProps(task, dateStr, dateContext = null) {
         if (!task) return null;
+
+        if (dateStr && task._effPropsCache && task._effPropsCache[dateStr]) {
+            return task._effPropsCache[dateStr];
+        }
 
         const defaultProps = {
             name: task.name,
@@ -31,18 +37,27 @@ class ScheduleEngine {
         if (!dateStr || !task.history || !Array.isArray(task.history) || task.history.length === 0) {
             let effTarget = defaultProps.target;
             if (defaultProps.dayTargets && dateStr) {
-                const dayAbbrev = typeof getDayOfWeekAbbrev === "function" ? getDayOfWeekAbbrev(dateStr) : "";
+                const dayAbbrev = (dateContext && dateContext.dayAbbrev) || (typeof getDayOfWeekAbbrev === "function" ? getDayOfWeekAbbrev(dateStr) : "");
                 if (defaultProps.dayTargets[dayAbbrev] !== undefined) {
                     effTarget = defaultProps.dayTargets[dayAbbrev];
                 }
             }
-            return {
+            const res = {
                 ...defaultProps,
                 target: effTarget
             };
+            if (dateStr) {
+                if (!task._effPropsCache) task._effPropsCache = {};
+                task._effPropsCache[dateStr] = res;
+            }
+            return res;
         }
 
-        const sorted = [...task.history].sort((a, b) => (a.effectiveFrom || "").localeCompare(b.effectiveFrom || ""));
+        if (!task._sortedHistory) {
+            task._sortedHistory = [...task.history].sort((a, b) => (a.effectiveFrom || "").localeCompare(b.effectiveFrom || ""));
+        }
+        const sorted = task._sortedHistory;
+
         let match = null;
         for (let entry of sorted) {
             if (entry.effectiveFrom && entry.effectiveFrom <= dateStr) {
@@ -59,7 +74,7 @@ class ScheduleEngine {
         let effTarget = (match && match.target !== undefined) ? match.target : defaultProps.target;
         const dayTargets = match ? (match.dayTargets || null) : defaultProps.dayTargets;
         if (dayTargets && dateStr) {
-            const dayAbbrev = typeof getDayOfWeekAbbrev === "function" ? getDayOfWeekAbbrev(dateStr) : "";
+            const dayAbbrev = (dateContext && dateContext.dayAbbrev) || (typeof getDayOfWeekAbbrev === "function" ? getDayOfWeekAbbrev(dateStr) : "");
             if (dayTargets[dayAbbrev] !== undefined) {
                 effTarget = dayTargets[dayAbbrev];
             }
@@ -67,8 +82,9 @@ class ScheduleEngine {
 
         const isOneTime = match ? (match.isOneTime !== undefined ? match.isOneTime : (match.schedule === "OneTime")) : defaultProps.isOneTime;
 
+        let res;
         if (match) {
-            return {
+            res = {
                 name: match.name !== undefined ? match.name : defaultProps.name,
                 target: effTarget,
                 type: match.type !== undefined ? match.type : defaultProps.type,
@@ -82,12 +98,18 @@ class ScheduleEngine {
                 oneTimeDate: match.oneTimeDate !== undefined ? match.oneTimeDate : defaultProps.oneTimeDate,
                 dayTargets: dayTargets
             };
+        } else {
+            res = {
+                ...defaultProps,
+                target: effTarget
+            };
         }
 
-        return {
-            ...defaultProps,
-            target: effTarget
-        };
+        if (dateStr) {
+            if (!task._effPropsCache) task._effPropsCache = {};
+            task._effPropsCache[dateStr] = res;
+        }
+        return res;
     }
 
     /**
@@ -95,12 +117,14 @@ class ScheduleEngine {
      * @param {Object} task 
      * @param {string} dateStr 
      * @param {Object} [appDataRef] Optional state object reference
+     * @param {number|null} [loggedVal=null] 
+     * @param {Object|null} [dateContext=null] Optional pre-resolved { dayAbbrev, hijriInfo }
      * @returns {boolean}
      */
-    static isBonusTaskForDate(task, dateStr, appDataRef = null, loggedVal = null) {
+    static isBonusTaskForDate(task, dateStr, appDataRef = null, loggedVal = null, dateContext = null) {
         if (!task) return false;
         const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
-        const effProps = ScheduleEngine.getTaskEffectiveProps(task, dateStr);
+        const effProps = ScheduleEngine.getTaskEffectiveProps(task, dateStr, dateContext);
 
         const log = (appData && appData.logs) ? appData.logs[dateStr] : null;
         if (log && log.bonusTaskIds && Array.isArray(log.bonusTaskIds)) {
@@ -121,7 +145,7 @@ class ScheduleEngine {
 
         const val = (loggedVal !== null) ? loggedVal : ((log && log.entries) ? (log.entries[task.id] || 0) : 0);
         const isEveryday = (sched === "Everyday" || sched === "" || sched.toLowerCase() === "everyday");
-        const dayAbbrev = typeof getDayOfWeekAbbrev === "function" ? getDayOfWeekAbbrev(dateStr) : "";
+        const dayAbbrev = (dateContext && dateContext.dayAbbrev) || (typeof getDayOfWeekAbbrev === "function" ? getDayOfWeekAbbrev(dateStr) : "");
 
         if (!isEveryday && !sched.includes(dayAbbrev) && sched !== "WhiteDays" && sched !== "Ramadan") {
             return val > 0;
@@ -135,23 +159,28 @@ class ScheduleEngine {
      * @param {string} dateStr 
      * @param {Object} [appDataRef] 
      * @param {number|null} [loggedVal=null] 
+     * @param {Object|null} [dateContext=null] Optional pre-resolved { dayAbbrev, hijriInfo }
      * @returns {boolean}
      */
-    static isTaskScheduledForDate(task, dateStr, appDataRef = null, loggedVal = null) {
+    static isTaskScheduledForDate(task, dateStr, appDataRef = null, loggedVal = null, dateContext = null) {
         if (!task) return false;
         let actualAppData = appDataRef;
         let actualVal = loggedVal;
+        let actualDateContext = dateContext;
 
         if (typeof appDataRef === "number" && loggedVal === null) {
             actualVal = appDataRef;
             actualAppData = null;
+        } else if (typeof loggedVal === "object" && loggedVal !== null && dateContext === null && (loggedVal.dayAbbrev !== undefined || loggedVal.hijriInfo !== undefined)) {
+            actualDateContext = loggedVal;
+            actualVal = null;
         }
 
         const appData = actualAppData || (typeof window !== "undefined" ? window.appData : null);
         const log = (appData && appData.logs) ? appData.logs[dateStr] : null;
         const val = (actualVal !== null) ? actualVal : ((log && log.entries) ? (log.entries[task.id] || 0) : 0);
 
-        const effProps = ScheduleEngine.getTaskEffectiveProps(task, dateStr);
+        const effProps = ScheduleEngine.getTaskEffectiveProps(task, dateStr, actualDateContext);
         const sched = ((effProps && effProps.schedule) || task.schedule || "Everyday").trim();
 
         // Explicit bonus task check for this date or logged progress
@@ -175,8 +204,8 @@ class ScheduleEngine {
             return false;
         }
 
-        const dayAbbrev = typeof getDayOfWeekAbbrev === "function" ? getDayOfWeekAbbrev(dateStr) : "";
-        const hijriInfo = typeof getHijriDateDetails === "function" ? getHijriDateDetails(dateStr) : { isWhiteDay: false, isRamadan: false };
+        const dayAbbrev = (actualDateContext && actualDateContext.dayAbbrev) || (typeof getDayOfWeekAbbrev === "function" ? getDayOfWeekAbbrev(dateStr) : "");
+        const hijriInfo = (actualDateContext && actualDateContext.hijriInfo) || (typeof getHijriDateDetails === "function" ? getHijriDateDetails(dateStr) : { isWhiteDay: false, isRamadan: false });
 
         const taskCat = effProps.category || task.category;
         const taskType = effProps.type || task.type;
@@ -199,6 +228,24 @@ class ScheduleEngine {
         if (sched.includes(dayAbbrev)) return true;
 
         return false;
+    }
+
+    /**
+     * Clears cached properties and sorted history on a task or all tasks
+     * @param {Object} [task] 
+     */
+    static invalidateTaskCache(task) {
+        if (!task) return;
+        task._effPropsCache = null;
+        task._sortedHistory = null;
+    }
+
+    static clearAllCaches(tasks) {
+        if (Array.isArray(tasks)) {
+            tasks.forEach(t => ScheduleEngine.invalidateTaskCache(t));
+        } else if (typeof window !== "undefined" && window.appData && Array.isArray(window.appData.tasks)) {
+            window.appData.tasks.forEach(t => ScheduleEngine.invalidateTaskCache(t));
+        }
     }
 
     /**

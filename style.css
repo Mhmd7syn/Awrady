@@ -67,31 +67,33 @@ body {
 .glow-orb {
     position: absolute;
     border-radius: 50%;
-    filter: blur(130px);
-    opacity: 0.18;
+    opacity: 0.22;
+    transform: translateZ(0);
+    will-change: transform;
+    pointer-events: none;
     animation: floatOrb 20s infinite alternate ease-in-out;
 }
 
 .orb-emerald {
-    width: 600px;
-    height: 600px;
-    background: var(--emerald-primary);
+    width: 650px;
+    height: 650px;
+    background: radial-gradient(circle at center, var(--emerald-primary) 0%, rgba(16, 185, 129, 0.45) 30%, rgba(16, 185, 129, 0.1) 60%, transparent 75%);
     top: -100px;
     right: -150px;
 }
 
 .orb-gold {
-    width: 500px;
-    height: 500px;
-    background: var(--gold-primary);
+    width: 550px;
+    height: 550px;
+    background: radial-gradient(circle at center, var(--gold-primary) 0%, rgba(245, 158, 11, 0.45) 30%, rgba(245, 158, 11, 0.1) 60%, transparent 75%);
     bottom: -100px;
     left: -100px;
     animation-delay: -5s;
 }
 
 @keyframes floatOrb {
-    0% { transform: translate(0, 0) scale(1); }
-    100% { transform: translate(-40px, 50px) scale(1.1); }
+    0% { transform: translate3d(0, 0, 0) scale(1); }
+    100% { transform: translate3d(-40px, 50px, 0) scale(1.1); }
 }
 
 /* Utilities */
@@ -109,6 +111,15 @@ body {
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-lg);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Optimization: Strip expensive nested backdrop filters from repeated child items */
+.task-card,
+.task-item-minimal,
+.breakdown-card,
+.stat-pill {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
 }
 
 .hidden { display: none !important; }
@@ -494,7 +505,7 @@ body {
 }
 
 .task-card {
-    background: rgba(13, 22, 18, 0.7);
+    background: rgba(13, 22, 18, 0.85);
     border: 1px solid var(--glass-border);
     border-radius: var(--radius-md);
     padding: 20px 20px 16px;

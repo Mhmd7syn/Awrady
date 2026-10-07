@@ -4,18 +4,38 @@
  */
 
 class ScoringEngine {
+    static _scoreCache = new Map();
+
+    /**
+     * Invalidate cached day scores
+     * @param {string|null} [dateStr=null] Specific date to invalidate, or null to clear all
+     */
+    static invalidateScoreCache(dateStr = null) {
+        if (dateStr) {
+            ScoringEngine._scoreCache.delete(dateStr + "_s");
+            ScoringEngine._scoreCache.delete(dateStr + "_h");
+        } else {
+            ScoringEngine._scoreCache.clear();
+        }
+    }
+
+    static clearScoreCache() {
+        ScoringEngine._scoreCache.clear();
+    }
+
     /**
      * Returns the time weight (in minutes) for a task used in weighted-average scoring
      * @param {Object} task 
      * @param {string|null} [dateStr=null] 
      * @param {Object} [appDataRef] 
+     * @param {Object|null} [dateContext=null] Optional pre-resolved { dayAbbrev, hijriInfo }
      * @returns {number} Weight in minutes
      */
-    static getTaskWeightMinutes(task, dateStr = null, appDataRef = null) {
+    static getTaskWeightMinutes(task, dateStr = null, appDataRef = null, dateContext = null) {
         if (!task) return 1;
         const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
         const effProps = dateStr && typeof ScheduleEngine !== "undefined" 
-            ? ScheduleEngine.getTaskEffectiveProps(task, dateStr) 
+            ? ScheduleEngine.getTaskEffectiveProps(task, dateStr, dateContext) 
             : task;
 
         const targetVal = (effProps.target && effProps.target > 0) ? effProps.target : (task.target && task.target > 0 ? task.target : 1);
@@ -62,8 +82,18 @@ class ScoringEngine {
     static calculateDayScore(dateStr, appDataRef = null, returnHours = false) {
         const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
         if (!appData || !appData.logs) return 0;
+
+        const cacheKey = dateStr + (returnHours ? "_h" : "_s");
+        const isDefaultAppData = !appDataRef || (typeof window !== "undefined" && appDataRef === window.appData);
+        if (isDefaultAppData && ScoringEngine._scoreCache.has(cacheKey)) {
+            return ScoringEngine._scoreCache.get(cacheKey);
+        }
+
         const log = appData.logs[dateStr];
-        if (!log) return 0;
+        if (!log) {
+            if (isDefaultAppData) ScoringEngine._scoreCache.set(cacheKey, 0);
+            return 0;
+        }
 
         let reqWeightedScore = 0.0;
         let reqTotalWeight = 0.0;
@@ -71,21 +101,27 @@ class ScoringEngine {
 
         const disabledIds = log.disabledTaskIds || log.deactivatedTaskIds || [];
 
+        // Pre-resolve date context once per day evaluation loop
+        const dateContext = {
+            dayAbbrev: typeof getDayOfWeekAbbrev === "function" ? getDayOfWeekAbbrev(dateStr) : "",
+            hijriInfo: typeof getHijriDateDetails === "function" ? getHijriDateDetails(dateStr) : { isWhiteDay: false, isRamadan: false }
+        };
+
         (appData.tasks || []).forEach(task => {
             if (task.parentTaskId || task.isArchived) return;
             if (disabledIds.includes(task.id)) return;
 
             const val = (log.entries && log.entries[task.id] !== undefined) ? log.entries[task.id] : 0;
             const isBonus = typeof ScheduleEngine !== "undefined" 
-                ? ScheduleEngine.isBonusTaskForDate(task, dateStr, appData) 
+                ? ScheduleEngine.isBonusTaskForDate(task, dateStr, appData, val, dateContext) 
                 : !!task.isBonus;
             const isScheduled = typeof ScheduleEngine !== "undefined" 
-                ? ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val) 
+                ? ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val, dateContext) 
                 : true;
 
             if (isScheduled || (isBonus && val > 0)) {
                 const effProps = typeof ScheduleEngine !== "undefined" 
-                    ? ScheduleEngine.getTaskEffectiveProps(task, dateStr) 
+                    ? ScheduleEngine.getTaskEffectiveProps(task, dateStr, dateContext) 
                     : task;
 
                 const target = (effProps.target && effProps.target > 0) ? effProps.target : 1;
@@ -107,7 +143,7 @@ class ScoringEngine {
                     const pairedVal = (log.entries && log.entries[task.pairedTaskId]) || 0;
                     const pairedTask = appData.tasks.find(t => t.id === task.pairedTaskId);
                     const pairedEff = pairedTask && typeof ScheduleEngine !== "undefined" 
-                        ? ScheduleEngine.getTaskEffectiveProps(pairedTask, dateStr) 
+                        ? ScheduleEngine.getTaskEffectiveProps(pairedTask, dateStr, dateContext) 
                         : null;
                     const pairedMult = pairedEff ? (pairedEff.multiplier || 0.5) : 0.5;
                     taskRatio = ((normVal * multiplier) + (pairedVal * pairedMult)) / normTarget;
@@ -115,7 +151,7 @@ class ScoringEngine {
                     taskRatio = (normVal * multiplier) / normTarget;
                 }
 
-                const weight = ScoringEngine.getTaskWeightMinutes(task, dateStr, appData);
+                const weight = ScoringEngine.getTaskWeightMinutes(task, dateStr, appData, dateContext);
 
                 if (isBonus) {
                     if (val > 0) {
@@ -128,22 +164,28 @@ class ScoringEngine {
             }
         });
 
+        let finalResult = 0;
         if (returnHours) {
-            return (reqWeightedScore + bonusWeightedScore) / 60;
+            finalResult = (reqWeightedScore + bonusWeightedScore) / 60;
+        } else if (reqTotalWeight === 0) {
+            if (bonusWeightedScore > 0) {
+                finalResult = 1.0;
+            } else if (log.precomputedScore !== undefined && log.precomputedScore !== null) {
+                finalResult = log.precomputedScore;
+            } else if (log.legacyTotalScore !== undefined && log.legacyTotalScore !== null) {
+                finalResult = log.legacyTotalScore;
+            } else {
+                finalResult = 0;
+            }
+        } else {
+            finalResult = (reqWeightedScore + bonusWeightedScore) / reqTotalWeight;
         }
 
-        if (reqTotalWeight === 0) {
-            if (bonusWeightedScore > 0) return 1.0;
-            if (log.precomputedScore !== undefined && log.precomputedScore !== null) {
-                return log.precomputedScore;
-            }
-            if (log.legacyTotalScore !== undefined && log.legacyTotalScore !== null) {
-                return log.legacyTotalScore;
-            }
-            return 0;
+        if (isDefaultAppData) {
+            ScoringEngine._scoreCache.set(cacheKey, finalResult);
         }
 
-        return (reqWeightedScore + bonusWeightedScore) / reqTotalWeight;
+        return finalResult;
     }
 
     /**
@@ -161,9 +203,26 @@ class ScoringEngine {
     }
 }
 
+// Automatically wire cache invalidation to StateManager & StorageEngine
 if (typeof window !== "undefined") {
+    if (window.stateManager && typeof window.stateManager.save === "function") {
+        const origStateSave = window.stateManager.save.bind(window.stateManager);
+        window.stateManager.save = function(immediate = false) {
+            ScoringEngine.invalidateScoreCache();
+            return origStateSave(immediate);
+        };
+    }
+    if (window.storageEngine && typeof window.storageEngine.saveData === "function") {
+        const origStorageSave = window.storageEngine.saveData.bind(window.storageEngine);
+        window.storageEngine.saveData = function(key, data) {
+            ScoringEngine.invalidateScoreCache();
+            return origStorageSave(key, data);
+        };
+    }
+
     window.ScoringEngine = ScoringEngine;
     window.scoringEngine = ScoringEngine;
     window.calculateDayScore = (dateStr, appDataRef, returnHours) => ScoringEngine.calculateDayScore(dateStr, appDataRef, returnHours);
-    window.getTaskWeightMinutes = (task, dateStr, appDataRef) => ScoringEngine.getTaskWeightMinutes(task, dateStr, appDataRef);
+    window.getTaskWeightMinutes = (task, dateStr, appDataRef, dateContext) => ScoringEngine.getTaskWeightMinutes(task, dateStr, appDataRef, dateContext);
+    window.invalidateScoreCache = (dateStr) => ScoringEngine.invalidateScoreCache(dateStr);
 }
