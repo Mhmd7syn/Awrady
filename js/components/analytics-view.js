@@ -96,6 +96,12 @@ function initChart() {
                         padding: 12,
                         displayColors: false,
                         callbacks: {
+                            title: function (tooltipItems) {
+                                if (!tooltipItems || !tooltipItems.length) return "";
+                                const item = tooltipItems[0];
+                                const rawDate = item.dataset?.rawDates?.[item.dataIndex];
+                                return rawDate ? `${rawDate} (${item.label})` : item.label;
+                            },
                             label: function (context) {
                                 return `ساعات الإنجاز: ${context.parsed.y} ساعة`;
                             }
@@ -123,50 +129,92 @@ function initChart() {
             document.querySelectorAll(".chart-range-buttons .btn-range").forEach(b => b.classList.remove("active"));
             btn.classList.add("active");
             chartTimeRange = btn.getAttribute("data-range");
-            const customRangeRow = document.getElementById("chart-custom-range");
-            if (customRangeRow) customRangeRow.style.display = chartTimeRange === "custom" ? "flex" : "none";
-            if (chartTimeRange !== "custom") updateChartAndAnalytics();
+            updateChartAndAnalytics();
         });
     });
+}
 
-    const applyBtn = document.getElementById("btn-apply-custom-range");
-    if (applyBtn) {
-        applyBtn.addEventListener("click", () => {
-            const from = document.getElementById("chart-from-date")?.value;
-            const to = document.getElementById("chart-to-date")?.value;
-            if (from && to && from <= to) {
-                chartFromDate = from;
-                chartToDate = to;
-                updateChartAndAnalytics();
-            }
-        });
+/**
+ * Downsamples time-series data using Largest Triangle Three Buckets (LTTB) algorithm.
+ * Guarantees that first and last points are kept, and significant peaks/valleys are retained.
+ * @param {Array<{dateStr: string, label: string, hours: number}>} data
+ * @param {number} threshold
+ * @returns {Array<{dateStr: string, label: string, hours: number}>}
+ */
+function downsampleLTTB(data, threshold) {
+    if (!data || data.length <= threshold || threshold <= 2) {
+        return data;
     }
+
+    const sampled = [];
+    const dataLength = data.length;
+    const bucketSize = (dataLength - 2) / (threshold - 2);
+
+    let a = 0;
+    sampled.push(data[a]);
+
+    for (let i = 0; i < threshold - 2; i++) {
+        let avgX = 0;
+        let avgY = 0;
+        let avgRangeStart = Math.floor((i + 1) * bucketSize) + 1;
+        let avgRangeEnd = Math.floor((i + 2) * bucketSize) + 1;
+        if (avgRangeEnd > dataLength) avgRangeEnd = dataLength;
+
+        const avgRangeLength = avgRangeEnd - avgRangeStart;
+        for (let j = avgRangeStart; j < avgRangeEnd; j++) {
+            avgX += j;
+            avgY += data[j].hours;
+        }
+        avgX /= (avgRangeLength || 1);
+        avgY /= (avgRangeLength || 1);
+
+        let rangeOffs = Math.floor(i * bucketSize) + 1;
+        let rangeTo = Math.floor((i + 1) * bucketSize) + 1;
+        if (rangeTo > dataLength) rangeTo = dataLength;
+
+        const pointAX = a;
+        const pointAY = data[a].hours;
+
+        let maxArea = -1;
+        let maxAreaIndex = rangeOffs;
+
+        for (let j = rangeOffs; j < rangeTo; j++) {
+            const area = Math.abs(
+                (pointAX - avgX) * (data[j].hours - pointAY) -
+                (pointAX - j) * (avgY - pointAY)
+            ) * 0.5;
+
+            if (area > maxArea) {
+                maxArea = area;
+                maxAreaIndex = j;
+            }
+        }
+
+        sampled.push(data[maxAreaIndex]);
+        a = maxAreaIndex;
+    }
+
+    sampled.push(data[dataLength - 1]);
+    return sampled;
 }
 
 function updateChartAndAnalytics() {
     const allDates = getRecordedDates();
     let selectedDates = allDates;
 
-    if (chartTimeRange === "custom") {
-        const from = chartFromDate || null;
-        const to = chartToDate || null;
-        if (from && to) {
-            selectedDates = allDates.filter(d => d >= from && d <= to);
-        }
-    } else if (chartTimeRange !== "all") {
+    if (chartTimeRange !== "all") {
         const daysLimit = parseInt(chartTimeRange, 10);
         if (allDates.length > daysLimit) {
             selectedDates = allDates.slice(-daysLimit);
         }
     }
 
-    const labels = [];
-    const dataPoints = [];
+    const fullDataList = [];
     let periodSum = 0;
     let bestDayHours = 0;
     let bestDayLabel = "--";
 
-    selectedDates.forEach(dateStr => {
+    selectedDates.forEach((dateStr, idx) => {
         const hours = (typeof ScoringEngine !== "undefined")
             ? ScoringEngine.calculateDayScore(dateStr, (typeof appData !== "undefined" ? appData : null), true)
             : calculateDayScore(dateStr, null, true);
@@ -175,8 +223,13 @@ function updateChartAndAnalytics() {
         const d = new Date(dateStr);
         const label = !isNaN(d) ? `${d.getDate()}/${d.getMonth() + 1}` : dateStr;
 
-        labels.push(label);
-        dataPoints.push(hoursFormatted);
+        fullDataList.push({
+            index: idx,
+            dateStr,
+            label,
+            hours: hoursFormatted
+        });
+
         periodSum += hoursFormatted;
 
         if (hoursFormatted > bestDayHours) {
@@ -185,9 +238,24 @@ function updateChartAndAnalytics() {
         }
     });
 
+    // Automatic undersampling: target 30 points (or 15 points on mobile screens < 500px)
+    const maxPoints = (typeof window !== "undefined" && window.innerWidth < 500) ? 15 : 30;
+    let chartData = fullDataList;
+
+    if (fullDataList.length > maxPoints) {
+        chartData = downsampleLTTB(fullDataList, maxPoints);
+    }
+
+    const labels = chartData.map(item => item.label);
+    const dataPoints = chartData.map(item => item.hours);
+    const rawDates = chartData.map(item => item.dateStr);
+
     if (chartInstance) {
         chartInstance.data.labels = labels;
         chartInstance.data.datasets[0].data = dataPoints;
+        chartInstance.data.datasets[0].rawDates = rawDates;
+        chartInstance.data.datasets[0].pointRadius = 4;
+        chartInstance.data.datasets[0].pointHoverRadius = 7;
         chartInstance.update();
     }
 

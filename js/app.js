@@ -29,8 +29,6 @@ let currentViewCategory = null;
 let currentViewSubcategory = null;
 
 let chartTimeRange = "all";
-let chartFromDate = null;
-let chartToDate = null;
 let chartInstance = null;
 let editingTaskId = null;
 let editingCategoryId = null;
