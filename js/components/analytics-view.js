@@ -199,6 +199,9 @@ function downsampleLTTB(data, threshold) {
 }
 
 function updateChartAndAnalytics() {
+    if (!chartInstance && typeof initChart === "function") {
+        initChart();
+    }
     const allDates = getRecordedDates();
     let selectedDates = allDates;
 

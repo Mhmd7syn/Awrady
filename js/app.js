@@ -58,10 +58,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderDailyView();
     if (typeof renderAllTimeStats === "function") renderAllTimeStats();
     updateHeaderTodayScore();
-    if (typeof initChart === "function") {
-        initChart();
-        if (typeof updateChartAndAnalytics === "function") updateChartAndAnalytics();
-    }
+    // Chart and analytics are lazily loaded when opening the Analytics tab
 });
 
 async function initData() {
@@ -290,8 +287,13 @@ function setupNavigation() {
             });
             document.getElementById(targetViewId).classList.add("active");
 
-            if (targetViewId === "view-analytics" && typeof updateChartAndAnalytics === "function") {
-                updateChartAndAnalytics();
+            if (targetViewId === "view-analytics") {
+                if (typeof initChart === "function" && (typeof chartInstance === "undefined" || !chartInstance)) {
+                    initChart();
+                }
+                if (typeof updateChartAndAnalytics === "function") {
+                    updateChartAndAnalytics();
+                }
             } else if (targetViewId === "view-manager" && typeof renderTaskManager === "function") {
                 renderTaskManager();
             }
@@ -584,6 +586,7 @@ function renderDailyView() {
                 const progressPct = target > 0 ? Math.min(100, Math.round((val / target) * 100)) : (val > 0 ? 100 : 0);
                 
                 card.className = `task-card glass-card ${isBonus ? 'is-bonus-card' : ''}`;
+                card.setAttribute("data-task-id", task.id);
                 
                 const iconHtml = getCategoryIconHtml(task);
                 const bonusBadge = isBonus ? `<span class="tag-badge" style="font-size:0.7rem; background:rgba(245,158,11,0.2); color:#f59e0b; border-color:rgba(245,158,11,0.4);">بونص</span>` : "";
@@ -684,6 +687,7 @@ function renderDailyView() {
             completedInCat.forEach(({ task, val, target }) => {
                 const pill = document.createElement("div");
                 pill.className = "task-item-minimal glass-card";
+                pill.setAttribute("data-task-id", task.id);
                 pill.style.cssText = "display:flex; flex-direction:column; padding:10px 14px; margin-bottom:8px; border-radius:10px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); gap:6px;";
                 
                 const iconHtml = getCategoryIconHtml(task);
@@ -742,8 +746,8 @@ function renderDailyView() {
                         <div style="display:flex; align-items:center; gap:8px;">
                             <span style="color:#10b981;">${iconHtml}</span>
                             <strong style="color:#fff; font-size:0.9rem;">${task.name}</strong>
-                            <span style="font-size:0.8rem; color:#10b981; font-weight:700;">— ${targetStr}</span>
-                            ${overTarget ? '<span style="font-size:0.75rem; color:#f59e0b; background:rgba(245,158,11,0.15); padding:2px 6px; border-radius:8px;">⭐ تجاوز الهدف</span>' : ''}
+                            <span class="task-target-str" style="font-size:0.8rem; color:#10b981; font-weight:700;">— ${targetStr}</span>
+                            <span class="over-target-badge-container">${overTarget ? '<span style="font-size:0.75rem; color:#f59e0b; background:rgba(245,158,11,0.15); padding:2px 6px; border-radius:8px;">⭐ تجاوز الهدف</span>' : ''}</span>
                         </div>
                         ${minControlsHtml}
                     </div>
@@ -863,6 +867,7 @@ function attachTaskControlListeners(grid) {
         const m = Math.max(0, Math.min(59, parseInt(minutesEl ? minutesEl.value : input.value, 10) || 0));
         const newTotal = (h * 60) + m;
 
+        const prevTotal = (appData.logs[currentDateStr] && appData.logs[currentDateStr].entries) ? (appData.logs[currentDateStr].entries[taskId] || 0) : 0;
         if (!appData.logs[currentDateStr]) appData.logs[currentDateStr] = { entries: {} };
         if (!appData.logs[currentDateStr].entries) appData.logs[currentDateStr].entries = {};
         appData.logs[currentDateStr].entries[taskId] = newTotal;
@@ -885,7 +890,12 @@ function attachTaskControlListeners(grid) {
         updateHeaderTodayScore();
 
         if (!isInputEvent) {
-            renderDailyView();
+            const task = (appData.tasks || []).find(t => t.id === taskId);
+            const wasDone = task ? isTaskCompleted(task, prevTotal, currentDateStr) : false;
+            const nowDone = task ? isTaskCompleted(task, newTotal, currentDateStr) : false;
+            if (wasDone !== nowDone) {
+                renderDailyView();
+            }
         }
     };
 
@@ -1017,6 +1027,79 @@ function isQiyamTask(taskId) {
     return (t.subcategory === "قيام ليل" || t.name.includes("قيام") || t.name.includes("تهجد"));
 }
 
+function updateTaskCardInPlace(taskId, val, task = null) {
+    if (!task) {
+        task = (appData && appData.tasks) ? appData.tasks.find(t => t.id === taskId) : null;
+    }
+    if (!task) return false;
+
+    let card = document.querySelector(`.task-card[data-task-id="${taskId}"], .task-item-minimal[data-task-id="${taskId}"]`);
+    if (!card) {
+        const child = document.querySelector(`[data-id="${taskId}"]`);
+        if (child) card = child.closest(".task-card, .task-item-minimal");
+    }
+    if (!card) return false;
+
+    const curDate = (typeof currentDateStr !== "undefined") ? currentDateStr : getLocalTodayString();
+    const target = (typeof getTaskNormalizedTarget === "function") ? getTaskNormalizedTarget(task, curDate) : (task.target || 0);
+    const progressPct = target > 0 ? Math.min(100, Math.round((val / target) * 100)) : (val > 0 ? 100 : 0);
+    const overTarget = target > 0 && val > target;
+    const barColor = overTarget ? "#f59e0b" : "#10b981";
+
+    // 1. Update progress bar fill
+    const progressBar = card.querySelector(".task-progress-bar-fill");
+    if (progressBar) {
+        progressBar.style.width = `${progressPct}%`;
+        if (card.classList.contains("task-item-minimal")) {
+            progressBar.style.background = barColor;
+        }
+    }
+
+    // 2. Update counter input
+    const inputCount = card.querySelector(".input-count");
+    if (inputCount) {
+        inputCount.value = val;
+    }
+
+    // 3. Update time inputs if present
+    const hoursInput = card.querySelector(".input-time-hours");
+    const minsInput = card.querySelector(".input-time-minutes");
+    if (hoursInput) hoursInput.value = Math.floor(val / 60);
+    if (minsInput) minsInput.value = val % 60;
+
+    // 4. Update prayer toggle buttons
+    const prayerBtns = card.querySelectorAll(".btn-prayer");
+    if (prayerBtns.length > 0) {
+        prayerBtns.forEach(btn => {
+            const btnVal = parseFloat(btn.getAttribute("data-prayer-val"));
+            btn.classList.remove("active-mosque", "active-home", "active-none");
+            if (btnVal === 1 && val === 1) btn.classList.add("active-mosque");
+            else if (btnVal === 0.5 && val === 0.5) btn.classList.add("active-home");
+            else if (btnVal === 0 && val === 0) btn.classList.add("active-none");
+        });
+    }
+
+    // 5. Update completed minimal card labels if present
+    const targetStrEl = card.querySelector(".task-target-str");
+    if (targetStrEl) {
+        const rawTarget = task.target || 0;
+        const unitLabel = (task.type === "ساعة" || task.type === "وقت") ? "دقيقة" : (task.type || "");
+        const targetStr = rawTarget > 0 ? `${val}/${target} ${unitLabel}` : `${val}`;
+        targetStrEl.textContent = `— ${targetStr}`;
+    }
+
+    const overTargetEl = card.querySelector(".over-target-badge-container");
+    if (overTargetEl) {
+        overTargetEl.innerHTML = overTarget ? '<span style="font-size:0.75rem; color:#f59e0b; background:rgba(245,158,11,0.15); padding:2px 6px; border-radius:8px;">⭐ تجاوز الهدف</span>' : '';
+    }
+
+    // 6. Update summary scores in real time
+    if (typeof updateDailyScoreSummary === "function") updateDailyScoreSummary();
+    if (typeof updateHeaderTodayScore === "function") updateHeaderTodayScore();
+
+    return true;
+}
+
 function setTaskVal(taskId, val) {
     if (!appData.logs[currentDateStr]) {
         appData.logs[currentDateStr] = { entries: {} };
@@ -1029,7 +1112,17 @@ function setTaskVal(taskId, val) {
     appData.logs[currentDateStr].entries[taskId] = val;
 
     saveData();
-    renderDailyView();
+
+    const task = (appData.tasks || []).find(t => t.id === taskId);
+    const wasDone = task ? isTaskCompleted(task, prevVal, currentDateStr) : false;
+    const nowDone = task ? isTaskCompleted(task, val, currentDateStr) : false;
+
+    // Fast path: In-place DOM update when task completion status has not flipped
+    if (task && wasDone === nowDone && updateTaskCardInPlace(taskId, val, task)) {
+        // Updated in place without full grid re-render!
+    } else {
+        renderDailyView();
+    }
 
     if (val > prevVal) {
         if (isObligatoryPrayerTask(taskId)) {
@@ -1167,4 +1260,5 @@ if (typeof window !== "undefined") {
     window.getTaskVal = getTaskVal;
     window.updateDailyScoreSummary = updateDailyScoreSummary;
     window.updateHeaderTodayScore = updateHeaderTodayScore;
+    window.updateTaskCardInPlace = updateTaskCardInPlace;
 }

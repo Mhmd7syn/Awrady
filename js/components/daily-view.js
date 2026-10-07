@@ -21,9 +21,19 @@ function setTaskVal(taskId, val) {
     if (!window.appData.logs[curDateStr].entries) {
         window.appData.logs[curDateStr].entries = {};
     }
+    const prevVal = (window.appData.logs[curDateStr].entries[taskId]) || 0;
     window.appData.logs[curDateStr].entries[taskId] = val;
     if (typeof saveData === "function") saveData();
-    if (typeof renderDailyView === "function") renderDailyView();
+
+    const task = (window.appData && window.appData.tasks) ? window.appData.tasks.find(t => t.id === taskId) : null;
+    const wasDone = task && typeof isTaskCompleted === "function" ? isTaskCompleted(task, prevVal, curDateStr) : false;
+    const nowDone = task && typeof isTaskCompleted === "function" ? isTaskCompleted(task, val, curDateStr) : false;
+
+    if (task && wasDone === nowDone && typeof window !== "undefined" && typeof window.updateTaskCardInPlace === "function" && window.updateTaskCardInPlace(taskId, val, task)) {
+        // Updated in place without full grid re-render!
+    } else if (typeof renderDailyView === "function") {
+        renderDailyView();
+    }
 }
 
 function adjustTaskVal(taskId, delta) {
