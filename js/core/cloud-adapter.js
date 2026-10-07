@@ -27,6 +27,8 @@ class CloudAdapter {
         this._pushDebounceTimer = null;
         this._pendingAppData = null;
         this._isPushing = false;
+        this.sessionId = "client_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9);
+        this.lastSyncedAt = null;
 
         this.initNetworkListeners();
         if (this.isConfigured()) {
@@ -258,6 +260,7 @@ class CloudAdapter {
 
                     if (!error && data && data.data) {
                         this.TABLE_NAME = tbl;
+                        this.lastSyncedAt = data.updated_at || new Date().toISOString();
                         this.notifyStatus("synced", `متزامن مع السحابة ☁️`);
                         return data.data;
                     }
@@ -270,7 +273,7 @@ class CloudAdapter {
                 }
 
                 // 2. Direct REST fetch
-                const endpoint = `${this.config.url}/rest/v1/${tbl}?id=eq.${encodeURIComponent(this.config.userId)}&select=data`;
+                const endpoint = `${this.config.url}/rest/v1/${tbl}?id=eq.${encodeURIComponent(this.config.userId)}&select=data,updated_at`;
                 const res = await fetch(endpoint, {
                     method: "GET",
                     headers: this.getRestHeaders({
@@ -282,6 +285,7 @@ class CloudAdapter {
                     const rows = await res.json();
                     if (Array.isArray(rows) && rows.length > 0 && rows[0].data) {
                         this.TABLE_NAME = tbl;
+                        this.lastSyncedAt = rows[0].updated_at || new Date().toISOString();
                         this.notifyStatus("synced", `متزامن مع السحابة ☁️`);
                         return rows[0].data;
                     }
@@ -336,13 +340,21 @@ class CloudAdapter {
         this._isPushing = true;
         this.notifyStatus("syncing", "جارِ رفع التحديثات إلى السحابة... ⏳");
 
+        const syncTimestamp = new Date().toISOString();
+        const dataToSave = {
+            ...appData,
+            _lastClientId: this.sessionId,
+            _lastUpdatedAt: syncTimestamp
+        };
+
         const payload = {
             id: this.config.userId,
-            data: appData,
-            updated_at: new Date().toISOString()
+            data: dataToSave,
+            updated_at: syncTimestamp
         };
 
         const tablesToTry = [this.TABLE_NAME, ...this.FALLBACK_TABLES.filter(t => t !== this.TABLE_NAME)];
+        let saveSuccess = false;
 
         for (const tbl of tablesToTry) {
             try {
@@ -354,10 +366,8 @@ class CloudAdapter {
 
                     if (!error) {
                         this.TABLE_NAME = tbl;
-                        this._pendingAppData = null;
-                        this._isPushing = false;
-                        this.notifyStatus("synced", "تمت المزامنة بنجاح ☁️");
-                        return true;
+                        saveSuccess = true;
+                        break;
                     }
                     if (error.code === "42P01" || error.message?.includes("does not exist")) {
                         continue;
@@ -378,10 +388,8 @@ class CloudAdapter {
 
                 if (res.ok) {
                     this.TABLE_NAME = tbl;
-                    this._pendingAppData = null;
-                    this._isPushing = false;
-                    this.notifyStatus("synced", "تمت المزامنة بنجاح ☁️");
-                    return true;
+                    saveSuccess = true;
+                    break;
                 }
             } catch (e) {
                 console.error(`[CloudAdapter] Error saving to ${tbl}:`, e);
@@ -389,8 +397,21 @@ class CloudAdapter {
         }
 
         this._isPushing = false;
-        this.notifyStatus("offline", "فشلت المزامنة السحابية (محفوظ محلياً)");
-        return false;
+
+        if (saveSuccess) {
+            this.lastSyncedAt = syncTimestamp;
+            this.notifyStatus("synced", "تمت المزامنة بنجاح ☁️");
+            // If another change occurred while pushing, push it immediately without dropping
+            if (this._pendingAppData) {
+                const nextData = this._pendingAppData;
+                this._pendingAppData = null;
+                return this.saveDataImmediate(nextData);
+            }
+            return true;
+        } else {
+            this.notifyStatus("offline", "فشلت المزامنة السحابية (محفوظ محلياً)");
+            return false;
+        }
     }
 
     /**
@@ -417,8 +438,15 @@ class CloudAdapter {
                     (payload) => {
                         console.log("[CloudAdapter] Remote update received via WebSocket:", payload);
                         if (payload.new && payload.new.data) {
+                            const incomingData = payload.new.data;
+                            // Ignore self-echo from this exact browser session/tab
+                            if (incomingData._lastClientId && incomingData._lastClientId === this.sessionId) {
+                                console.log("[CloudAdapter] Discarding self-echo from this session.");
+                                return;
+                            }
+                            this.lastSyncedAt = payload.new.updated_at || new Date().toISOString();
                             if (typeof this.onRemoteUpdateCallback === "function") {
-                                this.onRemoteUpdateCallback(payload.new.data);
+                                this.onRemoteUpdateCallback(incomingData);
                             }
                             this.notifyStatus("synced", "تم استلام تحديث جديد من جهاز آخر 📲");
                         }
@@ -433,6 +461,58 @@ class CloudAdapter {
             console.error("[CloudAdapter] Realtime subscription error:", e);
             return false;
         }
+    }
+
+    /**
+     * Lightweight check to see if remote cloud data changed (used on tab focus and periodic background sync)
+     */
+    async checkForRemoteUpdates() {
+        if (!this.isConfigured() || !this.isOnline || this._isPushing) {
+            return null;
+        }
+
+        try {
+            if (this.client) {
+                const { data, error } = await this.client
+                    .from(this.TABLE_NAME)
+                    .select("data, updated_at")
+                    .eq("id", this.config.userId)
+                    .maybeSingle();
+
+                if (!error && data && data.data) {
+                    if (data.data._lastClientId === this.sessionId) {
+                        return null; // Our own write
+                    }
+                    if (this.lastSyncedAt && data.updated_at && data.updated_at <= this.lastSyncedAt) {
+                        return null; // Already up to date
+                    }
+                    this.lastSyncedAt = data.updated_at;
+                    return data.data;
+                }
+            } else {
+                const res = await fetch(`${this.config.url}/rest/v1/${this.TABLE_NAME}?id=eq.${encodeURIComponent(this.config.userId)}&select=data,updated_at`, {
+                    method: "GET",
+                    headers: this.getRestHeaders({ "Accept": "application/json" })
+                });
+                if (res.ok) {
+                    const rows = await res.json();
+                    if (Array.isArray(rows) && rows.length > 0 && rows[0].data) {
+                        const row = rows[0];
+                        if (row.data._lastClientId === this.sessionId) {
+                            return null;
+                        }
+                        if (this.lastSyncedAt && row.updated_at && row.updated_at <= this.lastSyncedAt) {
+                            return null;
+                        }
+                        this.lastSyncedAt = row.updated_at;
+                        return row.data;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn("[CloudAdapter] Check for remote updates warning:", e);
+        }
+        return null;
     }
 
     /**
