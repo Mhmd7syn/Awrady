@@ -3,7 +3,7 @@
  * Provides offline caching, lightning-fast app shell loading, and network resilience.
  */
 
-const CACHE_NAME = "awrady-pwa-v9";
+const CACHE_NAME = "awrady-pwa-v10";
 
 const PRECACHE_ASSETS = [
     "./",
@@ -110,6 +110,23 @@ self.addEventListener("fetch", (event) => {
                 });
                 return networkResponse;
             });
+        })
+    );
+});
+
+// Notification Click Event: Focus or open the dashboard
+self.addEventListener("notificationclick", (event) => {
+    event.notification.close();
+    event.waitUntil(
+        self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+            for (const client of clientList) {
+                if (client.url && "focus" in client) {
+                    return client.focus();
+                }
+            }
+            if (self.clients.openWindow) {
+                return self.clients.openWindow("./index.html");
+            }
         })
     );
 });

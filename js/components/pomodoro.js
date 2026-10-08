@@ -14,7 +14,11 @@ const PomodoroTimer = {
     taskName: "",
     workMinutes: 25,
     restMinutes: 5,
-    originalTitle: ""
+    originalTitle: "",
+    audioContext: null,
+    keepAliveNode: null,
+    worker: null,
+    titleBlinkInterval: null
 };
 
 /**
@@ -52,18 +56,57 @@ function setupPomodoroControls() {
     const btnReset = document.getElementById("btn-pomo-reset");
     const btnFinish = document.getElementById("btn-pomo-finish");
     const btnClose = document.getElementById("btn-close-pomodoro");
+    const btnTestSound = document.getElementById("btn-pomo-test-sound");
 
-    if (btnStart) btnStart.addEventListener("click", startPomoTimer);
-    if (btnPause) btnPause.addEventListener("click", pausePomoTimer);
-    if (btnReset) btnReset.addEventListener("click", resetPomoTimer);
-    if (btnFinish) btnFinish.addEventListener("click", finishPomoSession);
+    if (btnStart) {
+        btnStart.addEventListener("click", () => {
+            ensureAudioUnlocked();
+            startPomoTimer();
+        });
+    }
+    if (btnPause) {
+        btnPause.addEventListener("click", () => {
+            ensureAudioUnlocked();
+            pausePomoTimer();
+        });
+    }
+    if (btnReset) {
+        btnReset.addEventListener("click", () => {
+            ensureAudioUnlocked();
+            resetPomoTimer();
+        });
+    }
+    if (btnFinish) {
+        btnFinish.addEventListener("click", () => {
+            ensureAudioUnlocked();
+            finishPomoSession();
+        });
+    }
     if (btnClose) btnClose.addEventListener("click", closePomodoroModal);
+
+    if (btnTestSound) {
+        btnTestSound.addEventListener("click", () => {
+            ensureAudioUnlocked();
+            playPomoAlarm();
+            requestPomoNotificationPermission();
+        });
+    }
 
     const btnTabWork = document.getElementById("btn-pomo-work");
     const btnTabRest = document.getElementById("btn-pomo-rest");
 
-    if (btnTabWork) btnTabWork.addEventListener("click", () => setPomoMode("work"));
-    if (btnTabRest) btnTabRest.addEventListener("click", () => setPomoMode("rest"));
+    if (btnTabWork) {
+        btnTabWork.addEventListener("click", () => {
+            ensureAudioUnlocked();
+            setPomoMode("work");
+        });
+    }
+    if (btnTabRest) {
+        btnTabRest.addEventListener("click", () => {
+            ensureAudioUnlocked();
+            setPomoMode("rest");
+        });
+    }
 
     const taskSelect = document.getElementById("pomo-task-select");
     if (taskSelect) {
@@ -115,12 +158,29 @@ function setupPomodoroControls() {
         restInput.addEventListener("change", onRestInputChange);
     }
 
+    // Auto-sync immediately whenever tab visibility changes
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) {
+            stopTitleBlinking();
+            if (PomodoroTimer.isRunning) {
+                ensureAudioUnlocked();
+                syncPomoTimer();
+            }
+        }
+    });
+
+    // One-time gesture listener to unlock audio if page was refreshed while timer is running
+    const unlockOnAnyGesture = () => {
+        ensureAudioUnlocked();
+        if (PomodoroTimer.isRunning && !PomodoroTimer.keepAliveNode) {
+            startAudioKeepalive();
+        }
+    };
+    document.addEventListener("click", unlockOnAnyGesture, { once: true });
+    document.addEventListener("keydown", unlockOnAnyGesture, { once: true });
+
     // Request notification permission smoothly if not already decided
-    if ("Notification" in window && Notification.permission === "default") {
-        try {
-            Notification.requestPermission();
-        } catch (e) {}
-    }
+    requestPomoNotificationPermission();
 
     loadPomoState();
 }
@@ -286,12 +346,159 @@ function setPomoMode(mode) {
 }
 
 /**
+ * Unlock Web Audio Context upon user interaction
+ */
+function ensureAudioUnlocked() {
+    try {
+        if (!PomodoroTimer.audioContext) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+                PomodoroTimer.audioContext = new AudioCtx({ latencyHint: "playback" });
+            }
+        }
+        if (PomodoroTimer.audioContext && PomodoroTimer.audioContext.state === "suspended") {
+            PomodoroTimer.audioContext.resume();
+        }
+    } catch (e) {
+        console.warn("[Pomodoro] Audio unlock warning:", e);
+    }
+}
+
+/**
+ * Start inaudible audio stream to exempt tab from background throttling & sleep
+ * Chromium & Firefox exempt tabs actively playing audio from aggressive power saving.
+ */
+function startAudioKeepalive() {
+    ensureAudioUnlocked();
+    stopAudioKeepalive();
+    try {
+        const ctx = PomodoroTimer.audioContext;
+        if (!ctx) return;
+        if (ctx.state === "suspended") {
+            ctx.resume();
+        }
+
+        // Sub-audible oscillator at 1Hz with microscopic gain (0.00005)
+        // Completely silent to humans, but registers with the browser as active media playback.
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(1, ctx.currentTime);
+        gain.gain.setValueAtTime(0.00005, ctx.currentTime);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+
+        PomodoroTimer.keepAliveNode = { osc, gain };
+    } catch (e) {
+        console.warn("[Pomodoro] Keepalive error:", e);
+    }
+}
+
+/**
+ * Stop inaudible background audio stream
+ */
+function stopAudioKeepalive() {
+    try {
+        if (PomodoroTimer.keepAliveNode) {
+            const { osc, gain } = PomodoroTimer.keepAliveNode;
+            if (osc) {
+                try { osc.stop(); } catch (e) {}
+                try { osc.disconnect(); } catch (e) {}
+            }
+            if (gain) {
+                try { gain.disconnect(); } catch (e) {}
+            }
+            PomodoroTimer.keepAliveNode = null;
+        }
+    } catch (e) {}
+}
+
+/**
+ * Dedicated inline Web Worker for accurate background clocking
+ */
+function getPomoWorker() {
+    if (PomodoroTimer.worker) return PomodoroTimer.worker;
+    if (typeof Worker === "undefined") return null;
+
+    try {
+        const workerBlob = new Blob([`
+            let tickId = null;
+            self.onmessage = function(e) {
+                if (!e.data) return;
+                if (e.data.action === "start") {
+                    if (tickId) clearInterval(tickId);
+                    tickId = setInterval(function() {
+                        self.postMessage({ type: "tick", now: Date.now() });
+                    }, 1000);
+                } else if (e.data.action === "stop") {
+                    if (tickId) clearInterval(tickId);
+                    tickId = null;
+                }
+            };
+        `], { type: "application/javascript" });
+
+        const workerUrl = URL.createObjectURL(workerBlob);
+        const worker = new Worker(workerUrl);
+
+        worker.onmessage = function(e) {
+            if (e.data && e.data.type === "tick") {
+                if (PomodoroTimer.isRunning) {
+                    syncPomoTimer();
+                }
+            }
+        };
+
+        PomodoroTimer.worker = worker;
+        return worker;
+    } catch (e) {
+        console.warn("[Pomodoro] Web worker fallback:", e);
+        return null;
+    }
+}
+
+function startWorkerTicker() {
+    const worker = getPomoWorker();
+    if (worker) {
+        try {
+            worker.postMessage({ action: "start" });
+        } catch (e) {}
+    }
+}
+
+function stopWorkerTicker() {
+    if (PomodoroTimer.worker) {
+        try {
+            PomodoroTimer.worker.postMessage({ action: "stop" });
+        } catch (e) {}
+    }
+}
+
+/**
+ * Request notification permission smoothly
+ */
+function requestPomoNotificationPermission() {
+    if ("Notification" in window && Notification.permission === "default") {
+        try {
+            Notification.requestPermission().catch(() => {});
+        } catch (e) {}
+    }
+}
+
+/**
  * Start the countdown timer
  */
 function startPomoTimer() {
     if (PomodoroTimer.isRunning) return;
 
-    // Read current settings
+    // 1. Immediately unlock audio context on this click gesture
+    ensureAudioUnlocked();
+
+    // 2. Request notification permission if not yet decided
+    requestPomoNotificationPermission();
+
+    // 3. Read current settings
     readDurationInputs();
 
     if (PomodoroTimer.remainingSeconds <= 0) {
@@ -302,14 +509,21 @@ function startPomoTimer() {
     PomodoroTimer.isRunning = true;
     PomodoroTimer.targetEndTime = Date.now() + (PomodoroTimer.remainingSeconds * 1000);
 
+    stopTitleBlinking();
+
+    // 4. Start background anti-throttling defenses
+    startAudioKeepalive();
+    startWorkerTicker();
+
+    // 5. Main thread interval fallback (1 second tick for minimal CPU)
+    if (PomodoroTimer.intervalId) clearInterval(PomodoroTimer.intervalId);
+    PomodoroTimer.intervalId = setInterval(syncPomoTimer, 1000);
+
     // Toggle button visibility
     const btnStart = document.getElementById("btn-pomo-start");
     const btnPause = document.getElementById("btn-pomo-pause");
     if (btnStart) btnStart.classList.add("hidden");
     if (btnPause) btnPause.classList.remove("hidden");
-
-    if (PomodoroTimer.intervalId) clearInterval(PomodoroTimer.intervalId);
-    PomodoroTimer.intervalId = setInterval(syncPomoTimer, 250);
 
     savePomoState();
     syncPomoTimer();
@@ -349,6 +563,11 @@ function pausePomoTimer() {
         PomodoroTimer.intervalId = null;
     }
 
+    // Stop background defenses
+    stopWorkerTicker();
+    stopAudioKeepalive();
+    stopTitleBlinking();
+
     restoreDocumentTitle();
 
     const btnStart = document.getElementById("btn-pomo-start");
@@ -372,6 +591,8 @@ function resetPomoTimer() {
     PomodoroTimer.remainingSeconds = PomodoroTimer.totalSeconds;
     PomodoroTimer.targetEndTime = null;
 
+    stopTitleBlinking();
+    restoreDocumentTitle();
     updatePomoDisplay();
     savePomoState();
 }
@@ -413,38 +634,31 @@ function finishPomoSession() {
 function handlePomoCompletion() {
     pausePomoTimer();
     playPomoAlarm();
+    startTitleBlinking();
+    dispatchSystemNotification();
 
     const isWork = PomodoroTimer.mode === "work";
-    const notifTitle = isWork ? "انتهى وقت التركيز! 🎯" : "انتهت فترة الاستراحة! ☕";
-    const notifBody = isWork ? "أحسنت! تم حفظ وقت العمل تلقائياً." : "هل ترغب في بدء جلسة تركيز جديدة؟";
-
-    if ("Notification" in window && Notification.permission === "granted") {
-        try {
-            new Notification(notifTitle, { body: notifBody, icon: "app-icon.ico" });
-        } catch (e) {}
-    }
+    const completedMins = PomodoroTimer.workMinutes;
 
     if (isWork) {
-        const completedMins = PomodoroTimer.workMinutes;
         commitWorkMinutesToDisk(completedMins, false);
-        resetPomoTimer();
-
-        setTimeout(() => {
-            const taskLabel = PomodoroTimer.taskName ? `مهمتك (${PomodoroTimer.taskName})` : "سجل اليوم";
-            if (confirm(`🎉 أحسنت! انتهى وقت العمل وتم حفظ ${completedMins} دقيقة تلقائياً في ${taskLabel}.\n\nهل ترغب في بدء فترة استراحة الآن؟`)) {
-                setPomoMode("rest");
-                startPomoTimer();
-            }
-        }, 300);
-    } else {
-        resetPomoTimer();
-        setTimeout(() => {
-            if (confirm("☕ انتهت فترة الاستراحة! هل ترغب في العودة للعمل والتركيز؟")) {
-                setPomoMode("work");
-                startPomoTimer();
-            }
-        }, 300);
     }
+    resetPomoTimer();
+
+    // Prompt user smoothly without cutting audio or blocking execution
+    setTimeout(() => {
+        const msg = isWork
+            ? `🎉 أحسنت! انتهى وقت العمل (${completedMins} دقيقة) وتم حفظه تلقائياً.\n\nهل ترغب في بدء فترة استراحة الآن؟`
+            : "☕ انتهت فترة الاستراحة! هل ترغب في العودة للعمل والتركيز؟";
+
+        if (confirm(msg)) {
+            stopTitleBlinking();
+            setPomoMode(isWork ? "rest" : "work");
+            startPomoTimer();
+        } else {
+            stopTitleBlinking();
+        }
+    }, 600);
 }
 
 /**
@@ -531,53 +745,168 @@ function restoreDocumentTitle() {
 }
 
 /**
- * Play alarm chime (Audio element + Web Audio fallback)
+ * Dispatch desktop / OS level notification using Service Worker or Notification API
  */
-function playPomoAlarm() {
-    // 1. Try HTML Audio element
-    const alarm = document.getElementById("pomodoro-alarm");
-    if (alarm) {
-        alarm.currentTime = 0;
-        const playPromise = alarm.play();
-        if (playPromise !== undefined) {
-            playPromise.catch(() => playWebAudioChime());
+function dispatchSystemNotification() {
+    const isWork = PomodoroTimer.mode === "work";
+    const notifTitle = isWork ? "انتهى وقت التركيز! 🎯" : "انتهت فترة الاستراحة! ☕";
+    const notifBody = isWork ? "أحسنت! تم حفظ وقت العمل تلقائياً." : "هل ترغب في بدء جلسة تركيز جديدة؟";
+
+    if (!("Notification" in window) || Notification.permission !== "granted") {
+        return;
+    }
+
+    try {
+        if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.ready.then((reg) => {
+                if (reg && reg.showNotification) {
+                    reg.showNotification(notifTitle, {
+                        body: notifBody,
+                        icon: "app-icon.ico",
+                        badge: "app-icon.ico",
+                        tag: "pomodoro-alarm",
+                        requireInteraction: true,
+                        silent: false,
+                        vibrate: [300, 150, 300, 150, 300]
+                    });
+                    return;
+                }
+                new Notification(notifTitle, { body: notifBody, icon: "app-icon.ico", requireInteraction: true });
+            }).catch(() => {
+                new Notification(notifTitle, { body: notifBody, icon: "app-icon.ico", requireInteraction: true });
+            });
+        } else {
+            new Notification(notifTitle, { body: notifBody, icon: "app-icon.ico", requireInteraction: true });
         }
-    } else {
-        playWebAudioChime();
+    } catch (e) {
+        console.warn("[Pomodoro] Notification dispatch warning:", e);
     }
 }
 
 /**
- * Synthesize a harmonious audio chime using Web Audio API (100% offline & reliable)
+ * Start tab title flashing when alarm fires
+ */
+function startTitleBlinking() {
+    stopTitleBlinking();
+    const isWork = PomodoroTimer.mode === "work";
+    const alertTitle = isWork ? "🔔 انتهى وقت التركيز! ⏰" : "☕ انتهت فترة الاستراحة! ⏰";
+    let state = false;
+
+    PomodoroTimer.titleBlinkInterval = setInterval(() => {
+        document.title = state ? alertTitle : (PomodoroTimer.originalTitle || "أورادي");
+        state = !state;
+    }, 600);
+
+    const onUserFocus = () => {
+        stopTitleBlinking();
+        window.removeEventListener("focus", onUserFocus);
+        document.removeEventListener("click", onUserFocus);
+    };
+    window.addEventListener("focus", onUserFocus);
+    document.addEventListener("click", onUserFocus);
+}
+
+/**
+ * Stop tab title flashing and restore normal title
+ */
+function stopTitleBlinking() {
+    if (PomodoroTimer.titleBlinkInterval) {
+        clearInterval(PomodoroTimer.titleBlinkInterval);
+        PomodoroTimer.titleBlinkInterval = null;
+    }
+    restoreDocumentTitle();
+}
+
+/**
+ * Play alarm chime (Web Audio API synthesis + HTML Audio fallback)
+ */
+function playPomoAlarm() {
+    ensureAudioUnlocked();
+
+    // 1. Web Audio API synthesis (100% offline, guaranteed, zero latency)
+    playWebAudioChime();
+
+    // 2. Also try HTML Audio element as secondary
+    const alarm = document.getElementById("pomodoro-alarm");
+    if (alarm) {
+        try {
+            alarm.currentTime = 0;
+            const playPromise = alarm.play();
+            if (playPromise !== undefined && typeof playPromise.catch === "function") {
+                playPromise.catch(() => {});
+            }
+        } catch (e) {}
+    }
+}
+
+/**
+ * Synthesize rich harmonious multi-burst chime using Web Audio API
+ * Fully offline, instant response, 3 pleasant chime bursts lasting ~3.5s
  */
 function playWebAudioChime() {
     try {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return;
-        const ctx = new AudioCtx();
+        ensureAudioUnlocked();
+        const ctx = PomodoroTimer.audioContext;
+        if (!ctx) return;
+
+        if (ctx.state === "suspended") {
+            ctx.resume();
+        }
+
         const now = ctx.currentTime;
 
-        // Harmonic notes (C5, E5, G5, C6)
-        const notes = [523.25, 659.25, 783.99, 1046.50];
-        notes.forEach((freq, idx) => {
-            const startTime = now + (idx * 0.15);
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
+        // 3 successive melodic chime bursts spaced 1.1s apart
+        const bursts = [0, 1.1, 2.2];
+        const notes = [
+            { freq: 659.25, time: 0.00, dur: 0.45 }, // E5
+            { freq: 830.61, time: 0.14, dur: 0.45 }, // G#5
+            { freq: 987.77, time: 0.28, dur: 0.45 }, // B5
+            { freq: 1318.51, time: 0.44, dur: 0.65 } // E6
+        ];
 
-            osc.type = "sine";
-            osc.frequency.setValueAtTime(freq, startTime);
+        bursts.forEach((burstOffset) => {
+            const burstStart = now + burstOffset;
 
-            gain.gain.setValueAtTime(0.25, startTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
+            notes.forEach((note) => {
+                const startTime = burstStart + note.time;
+                const endTime = startTime + note.dur;
 
-            osc.connect(gain);
-            gain.connect(ctx.destination);
+                // Primary melodic chime note
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(note.freq, startTime);
 
-            osc.start(startTime);
-            osc.stop(startTime + 0.45);
+                // Quick attack and bell-like decay
+                gain.gain.setValueAtTime(0.0001, startTime);
+                gain.gain.exponentialRampToValueAtTime(0.45, startTime + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.0001, endTime);
+
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                osc.start(startTime);
+                osc.stop(endTime);
+
+                // Harmonic shimmer overtone
+                const osc2 = ctx.createOscillator();
+                const gain2 = ctx.createGain();
+                osc2.type = "triangle";
+                osc2.frequency.setValueAtTime(note.freq * 2, startTime);
+
+                gain2.gain.setValueAtTime(0.0001, startTime);
+                gain2.gain.exponentialRampToValueAtTime(0.15, startTime + 0.015);
+                gain2.gain.exponentialRampToValueAtTime(0.0001, startTime + (note.dur * 0.7));
+
+                osc2.connect(gain2);
+                gain2.connect(ctx.destination);
+
+                osc2.start(startTime);
+                osc2.stop(startTime + (note.dur * 0.75));
+            });
         });
     } catch (e) {
-        console.warn("Audio chime error:", e);
+        console.warn("[Pomodoro] playWebAudioChime error:", e);
     }
 }
 
@@ -643,8 +972,10 @@ function loadPomoState() {
                 if (btnStart) btnStart.classList.add("hidden");
                 if (btnPause) btnPause.classList.remove("hidden");
 
+                startWorkerTicker();
+
                 if (PomodoroTimer.intervalId) clearInterval(PomodoroTimer.intervalId);
-                PomodoroTimer.intervalId = setInterval(syncPomoTimer, 250);
+                PomodoroTimer.intervalId = setInterval(syncPomoTimer, 1000);
                 syncPomoTimer();
             } else {
                 // Timer expired while page was closed: reset safely
@@ -689,4 +1020,6 @@ if (typeof window !== "undefined") {
     window.resetPomoTimer = resetPomoTimer;
     window.finishPomoSession = finishPomoSession;
     window.setPomoMode = setPomoMode;
+    window.playPomoAlarm = playPomoAlarm;
+    window.playWebAudioChime = playWebAudioChime;
 }
