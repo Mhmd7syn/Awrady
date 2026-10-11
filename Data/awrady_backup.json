@@ -458,8 +458,9 @@
       "type": "ساعة",
       "target": 1,
       "multiplier": 1,
-      "schedule": "OneTime",
-      "isArchived": false,
+      "schedule": "Sun, Wed",
+      "isArchived": true,
+      "archivedAt": "2026-09-21",
       "comment": "عايزين ساعة ونص",
       "createdAt": "2000-01-01",
       "history": [
@@ -488,26 +489,10 @@
           "isBonus": false,
           "comment": "عايزين ساعة ونص",
           "isOneTime": false
-        },
-        {
-          "effectiveFrom": "2026-09-21",
-          "name": "استماع بودكاست/محاضرة",
-          "category": "استماع",
-          "subcategory": "",
-          "type": "ساعة",
-          "target": 0,
-          "multiplier": 1,
-          "schedule": "OneTime",
-          "isOneTime": true,
-          "isBonus": false,
-          "comment": ""
         }
       ],
       "isBonus": false,
-      "isOneTime": true,
-      "oneTimeDate": null,
-      "isDeleted": true,
-      "deletedAt": "2026-09-21"
+      "isOneTime": false
     },
     {
       "id": "task_work",
@@ -1003,12 +988,12 @@
       "type": "ساعة",
       "target": 1,
       "multiplier": 1,
-      "schedule": "OneTime",
-      "isArchived": false,
+      "schedule": "Sat, Tue, Thu",
+      "isArchived": true,
+      "archivedAt": "2026-09-21",
       "comment": "عايزين ساعة ونص",
       "isBonus": false,
-      "isOneTime": true,
-      "oneTimeDate": null,
+      "isOneTime": false,
       "createdAt": "2026-08-11",
       "history": [
         {
@@ -1036,23 +1021,8 @@
           "isBonus": false,
           "comment": "عايزين ساعة ونص",
           "isOneTime": false
-        },
-        {
-          "effectiveFrom": "2026-09-21",
-          "name": "Homework",
-          "category": "شغل",
-          "subcategory": "",
-          "type": "ساعة",
-          "target": 0,
-          "multiplier": 1,
-          "schedule": "OneTime",
-          "isOneTime": true,
-          "isBonus": false,
-          "comment": ""
         }
-      ],
-      "isDeleted": true,
-      "deletedAt": "2026-09-21"
+      ]
     },
     {
       "id": "task_1786416127846",

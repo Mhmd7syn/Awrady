@@ -214,7 +214,13 @@ function isTaskScheduledForDate(task, dateStr, loggedVal = null) {
     if (typeof ScheduleEngine !== "undefined" && typeof ScheduleEngine.isTaskScheduledForDate === "function") {
         return ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, loggedVal);
     }
-    if (task.isArchived) return false;
+    if (task.isArchived) {
+        const cutoff = task.archivedAt || null;
+        const val = (loggedVal !== null) ? loggedVal : getTaskVal(task.id);
+        if (!cutoff || dateStr > cutoff) {
+            return val > 0;
+        }
+    }
     const effProps = getTaskEffectiveProps(task, dateStr);
     const creationDate = (task.createdAt || (task.history && task.history[0]?.effectiveFrom) || "2000-01-01").slice(0, 10);
     
@@ -471,7 +477,15 @@ function renderDailyView() {
     const disabledIds = log.disabledTaskIds || [];
     const bonusIds = log.bonusTaskIds || [];
 
-    const allScheduled = appData.tasks.filter(t => !t.isArchived && isTaskScheduledForDate(t, currentDateStr, getTaskVal(t.id)));
+    const allScheduled = appData.tasks.filter(t => {
+        if (t.isArchived) {
+            const cutoff = t.archivedAt || null;
+            if (!cutoff || currentDateStr > cutoff) {
+                return getTaskVal(t.id) > 0;
+            }
+        }
+        return isTaskScheduledForDate(t, currentDateStr, getTaskVal(t.id));
+    });
 
     // Group all active tasks (pending & completed) by Category
     const categoryGroupMap = new Map();
@@ -983,14 +997,25 @@ function toggleDeactivateTaskForDate(taskId, dateStr) {
 function removeBonusTaskFromDate(taskId, dateStr) {
     if (appData.logs[dateStr] && appData.logs[dateStr].bonusTaskIds) {
         appData.logs[dateStr].bonusTaskIds = appData.logs[dateStr].bonusTaskIds.filter(id => id !== taskId);
-        saveData();
-        renderDailyView();
     }
+    if (appData.logs[dateStr] && appData.logs[dateStr].entries) {
+        delete appData.logs[dateStr].entries[taskId];
+    }
+    saveData();
+    renderDailyView();
 }
 
 function removeOneTimeTask(taskId, dateStr) {
     if (confirm("هل أنت متأكد من حذف هذه المهمة المؤقتة؟")) {
         appData.tasks = appData.tasks.filter(t => t.id !== taskId);
+        if (!appData.deletedTaskIds) appData.deletedTaskIds = [];
+        if (!appData.deletedTaskIds.includes(taskId)) appData.deletedTaskIds.push(taskId);
+        if (appData.logs[dateStr] && appData.logs[dateStr].entries) {
+            delete appData.logs[dateStr].entries[taskId];
+        }
+        if (appData.logs[dateStr] && appData.logs[dateStr].bonusTaskIds) {
+            appData.logs[dateStr].bonusTaskIds = appData.logs[dateStr].bonusTaskIds.filter(id => id !== taskId);
+        }
         saveData();
         renderDailyView();
     }
@@ -1182,8 +1207,15 @@ function updateDailyScoreSummary() {
     }
 
     // Count completed tasks for the badge
-    const log = appData.logs[currentDateStr];
-    const allScheduled = appData.tasks.filter(t => !t.isArchived && isTaskScheduledForDate(t, currentDateStr, getTaskVal(t.id)));
+    const allScheduled = appData.tasks.filter(t => {
+        if (t.isArchived) {
+            const cutoff = t.archivedAt || null;
+            if (!cutoff || currentDateStr > cutoff) {
+                return getTaskVal(t.id) > 0;
+            }
+        }
+        return isTaskScheduledForDate(t, currentDateStr, getTaskVal(t.id));
+    });
     let completedCount = 0;
     let inProgressCount = 0;
     allScheduled.forEach(t => {

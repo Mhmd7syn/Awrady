@@ -42,9 +42,12 @@ class StorageEngine {
                     const mergedData = this.mergeAppData(currentLocal, remoteData);
 
                     window.stateManager.data = mergedData;
-                    window.appData = mergedData;
+                    if (typeof window.stateManager.ensureDataIntegrity === "function") {
+                        window.stateManager.ensureDataIntegrity();
+                    }
+                    window.appData = window.stateManager.data;
                     const key = window.stateManager.STORAGE_KEY || "AWRAD_APP_DATA_V1";
-                    this.cacheLocally(key, mergedData);
+                    this.cacheLocally(key, window.appData);
 
                     if (typeof window.renderDailyView === "function") window.renderDailyView();
                     if (typeof window.renderTaskManager === "function") window.renderTaskManager();
@@ -77,9 +80,12 @@ class StorageEngine {
                 const mergedData = this.mergeAppData(currentLocal, remoteData);
 
                 window.stateManager.data = mergedData;
-                window.appData = mergedData;
+                if (typeof window.stateManager.ensureDataIntegrity === "function") {
+                    window.stateManager.ensureDataIntegrity();
+                }
+                window.appData = window.stateManager.data;
                 const key = window.stateManager.STORAGE_KEY || "AWRAD_APP_DATA_V1";
-                this.cacheLocally(key, mergedData);
+                this.cacheLocally(key, window.appData);
 
                 if (typeof window.renderDailyView === "function") window.renderDailyView();
                 if (typeof window.renderTaskManager === "function") window.renderTaskManager();
@@ -171,15 +177,21 @@ class StorageEngine {
             }
         }
 
-        // 2. Merge Tasks: Union by task.id
+        // Merge deletedTaskIds tombstones to prevent resurrecting permanently deleted tasks
+        const localDeleted = Array.isArray(local.deletedTaskIds) ? local.deletedTaskIds : [];
+        const remoteDeleted = Array.isArray(remote.deletedTaskIds) ? remote.deletedTaskIds : [];
+        const deletedIdsSet = new Set([...localDeleted, ...remoteDeleted]);
+        merged.deletedTaskIds = Array.from(deletedIdsSet);
+
+        // 2. Merge Tasks: Union by task.id excluding permanently deleted tasks
         const localTasks = Array.isArray(local.tasks) ? local.tasks : [];
         const remoteTasks = Array.isArray(remote.tasks) ? remote.tasks : [];
         const taskMap = new Map();
         for (const t of remoteTasks) {
-            if (t && t.id) taskMap.set(t.id, { ...t });
+            if (t && t.id && !deletedIdsSet.has(t.id)) taskMap.set(t.id, { ...t });
         }
         for (const t of localTasks) {
-            if (t && t.id) {
+            if (t && t.id && !deletedIdsSet.has(t.id)) {
                 if (taskMap.has(t.id)) {
                     taskMap.set(t.id, { ...taskMap.get(t.id), ...t });
                 } else {

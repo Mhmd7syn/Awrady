@@ -306,8 +306,7 @@ const TASK_STATUS_CONFIG = {
 
 function getTaskStatusKey(task) {
     if (!task) return "scheduled";
-    if (task.isDeleted) return "removed";
-    if (task.isArchived) return "archived";
+    if (task.isDeleted || task.isArchived) return "archived";
     if (task.isOneTime || task.schedule === "OneTime") return "onetime";
     return "scheduled";
 }
@@ -338,7 +337,7 @@ function renderTaskBreakdown(allDates) {
 
     setupAnalyticsFilters();
 
-    // 1. Collect all tasks: current active tasks + archived + onetime + removed
+    // 1. Collect all valid tasks: current active tasks + archived + onetime
     const allTasksList = [];
     const seenTaskIds = new Set();
 
@@ -346,32 +345,6 @@ function renderTaskBreakdown(allDates) {
         seenTaskIds.add(t.id);
         allTasksList.push(t);
     });
-
-    // Check for any orphaned tasks in logs that were deleted/removed
-    if (appData.logs) {
-        Object.keys(appData.logs).forEach(dateKey => {
-            const log = appData.logs[dateKey];
-            if (log && log.entries) {
-                Object.keys(log.entries).forEach(taskId => {
-                    if (!seenTaskIds.has(taskId) && log.entries[taskId] > 0) {
-                        seenTaskIds.add(taskId);
-                        allTasksList.push({
-                            id: taskId,
-                            name: `مهمة محذوفة (${taskId})`,
-                            category: "أخرى",
-                            subcategory: "",
-                            type: "مهمة",
-                            target: 1,
-                            multiplier: 1,
-                            isDeleted: true,
-                            deletedAt: dateKey,
-                            schedule: "OneTime"
-                        });
-                    }
-                });
-            }
-        });
-    }
 
     // 2. Update status filter badges count
     const counts = {

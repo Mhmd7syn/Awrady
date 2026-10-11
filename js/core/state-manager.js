@@ -292,6 +292,48 @@ class StateManager {
                 }
             }
         });
+
+        // Migrate any legacy deleted tasks to archived
+        if (Array.isArray(this.data.tasks)) {
+            this.data.tasks.forEach(t => {
+                if (t.isDeleted) {
+                    t.isArchived = true;
+                    if (!t.archivedAt) {
+                        t.archivedAt = t.deletedAt || (typeof currentDateStr !== "undefined" && currentDateStr ? currentDateStr : "2026-09-21");
+                    }
+                    delete t.isDeleted;
+                    delete t.deletedAt;
+
+                    // If it was mutated by legacy deleteForever (made OneTime with target 0 in history)
+                    if (Array.isArray(t.history) && t.history.length > 1) {
+                        const lastH = t.history[t.history.length - 1];
+                        if (lastH.target === 0 && (lastH.schedule === "OneTime" || lastH.isOneTime)) {
+                            t.history.pop();
+                            const prevH = t.history[t.history.length - 1];
+                            if (prevH) {
+                                t.target = prevH.target !== undefined ? prevH.target : t.target;
+                                t.schedule = prevH.schedule || t.schedule;
+                                t.isOneTime = !!prevH.isOneTime;
+                                t.oneTimeDate = prevH.oneTimeDate || null;
+                                if (prevH.multiplier !== undefined) t.multiplier = prevH.multiplier;
+                            }
+                        }
+                    } else if (t.schedule === "OneTime" && !t.oneTimeDate) {
+                        t.isOneTime = false;
+                        if (t.target === 0) t.target = 1;
+                    }
+                    if (typeof ScheduleEngine !== "undefined" && typeof ScheduleEngine.invalidateTaskCache === "function") {
+                        ScheduleEngine.invalidateTaskCache(t);
+                    }
+                }
+            });
+        }
+
+        // Purge permanently deleted tasks if tombstoned
+        if (Array.isArray(this.data.deletedTaskIds) && this.data.deletedTaskIds.length > 0) {
+            const delSet = new Set(this.data.deletedTaskIds);
+            this.data.tasks = this.data.tasks.filter(t => !delSet.has(t.id));
+        }
     }
 
     /**

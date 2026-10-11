@@ -87,11 +87,15 @@ function removeBonusTaskFromDate(taskId, dateStr) {
             return;
         }
         window.appData.tasks = window.appData.tasks.filter(t => t.id !== taskId);
+        if (!window.appData.deletedTaskIds) window.appData.deletedTaskIds = [];
+        if (!window.appData.deletedTaskIds.includes(taskId)) window.appData.deletedTaskIds.push(taskId);
     } else if (task && task.isBonus) {
         if (!confirm("هل أنت متأكد من إلغاء وحذف هذا الورد الإضافي؟")) {
             return;
         }
         window.appData.tasks = window.appData.tasks.filter(t => t.id !== taskId);
+        if (!window.appData.deletedTaskIds) window.appData.deletedTaskIds = [];
+        if (!window.appData.deletedTaskIds.includes(taskId)) window.appData.deletedTaskIds.push(taskId);
     }
 
     if (window.appData.logs[dateStr] && window.appData.logs[dateStr].bonusTaskIds) {
@@ -107,6 +111,8 @@ function removeBonusTaskFromDate(taskId, dateStr) {
 function removeOneTimeTask(taskId, dateStr) {
     if (confirm("هل أنت متأكد من إلغاء وحذف هذه المهمة لمرة واحدة؟")) {
         window.appData.tasks = window.appData.tasks.filter(t => t.id !== taskId);
+        if (!window.appData.deletedTaskIds) window.appData.deletedTaskIds = [];
+        if (!window.appData.deletedTaskIds.includes(taskId)) window.appData.deletedTaskIds.push(taskId);
         if (window.appData.logs[dateStr] && window.appData.logs[dateStr].entries) {
             delete window.appData.logs[dateStr].entries[taskId];
         }

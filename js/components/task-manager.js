@@ -370,32 +370,50 @@ function archiveTask(id, isArchive) {
 
 function deleteForever(id) {
     const t = appData.tasks.find(x => x.id === id);
-    if (t && confirm(`هل أنت متأكد من حذف (${t.name})؟ سيتم إزالته من الجدول وقوائم المهام، مع الحفاظ الكامل على كافة إنجازاته ونقاطه في الأيام السابقة.`)) {
-        const curDateStr = (typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : getLocalTodayString();
-        t.isDeleted = true;
-        t.deletedAt = curDateStr;
-        t.isOneTime = true;
-        t.schedule = "OneTime";
-        t.oneTimeDate = null;
-        if (!t.history || !Array.isArray(t.history)) {
-            t.history = [];
+    if (!t) return;
+    if (confirm(`هل أنت متأكد من حذف مهمة (${t.name}) نهائياً؟\nسيتم إزالة المهمة وجميع بياناتها تماماً من النظام ولن يمكن استعادتها.`)) {
+        // 1. Remove permanently from appData.tasks
+        appData.tasks = appData.tasks.filter(x => x.id !== id);
+
+        // 2. Track deleted ID in tombstones for multi-device & cloud sync
+        if (!appData.deletedTaskIds) {
+            appData.deletedTaskIds = [];
         }
-        t.history.push({
-            effectiveFrom: curDateStr,
-            name: t.name,
-            category: t.category,
-            subcategory: t.subcategory,
-            type: t.type,
-            target: 0,
-            multiplier: t.multiplier !== undefined ? t.multiplier : 1.0,
-            schedule: "OneTime",
-            isOneTime: true,
-            isBonus: false,
-            comment: t.comment || ""
-        });
+        if (!appData.deletedTaskIds.includes(id)) {
+            appData.deletedTaskIds.push(id);
+        }
+
+        // 3. Purge all references and logs for this task
+        if (appData.logs) {
+            Object.keys(appData.logs).forEach(dateStr => {
+                const log = appData.logs[dateStr];
+                if (log) {
+                    if (log.entries && log.entries[id] !== undefined) {
+                        delete log.entries[id];
+                    }
+                    if (Array.isArray(log.bonusTaskIds)) {
+                        log.bonusTaskIds = log.bonusTaskIds.filter(x => x !== id);
+                    }
+                    if (Array.isArray(log.disabledTaskIds)) {
+                        log.disabledTaskIds = log.disabledTaskIds.filter(x => x !== id);
+                    }
+                    if (log.prayerExtras && log.prayerExtras[id]) {
+                        delete log.prayerExtras[id];
+                    }
+                }
+            });
+        }
+
+        if (typeof ScheduleEngine !== "undefined" && typeof ScheduleEngine.invalidateTaskCache === "function") {
+            ScheduleEngine.invalidateTaskCache(t);
+        }
+
         saveData();
         renderDailyView();
         renderTaskManager();
+        if (typeof renderAllTimeStats === "function") renderAllTimeStats();
+        if (typeof updateChartAndAnalytics === "function") updateChartAndAnalytics();
+        if (typeof updateHeaderTodayScore === "function") updateHeaderTodayScore();
     }
 }
 

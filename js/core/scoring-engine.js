@@ -108,7 +108,14 @@ class ScoringEngine {
         };
 
         (appData.tasks || []).forEach(task => {
-            if (task.parentTaskId || task.isArchived) return;
+            if (task.parentTaskId) return;
+            if (task.isArchived) {
+                const archiveCutoff = task.archivedAt || null;
+                const val = (log.entries && log.entries[task.id] !== undefined) ? log.entries[task.id] : 0;
+                if (!archiveCutoff || dateStr > archiveCutoff) {
+                    if (val === 0) return;
+                }
+            }
             if (disabledIds.includes(task.id)) return;
 
             const val = (log.entries && log.entries[task.id] !== undefined) ? log.entries[task.id] : 0;
