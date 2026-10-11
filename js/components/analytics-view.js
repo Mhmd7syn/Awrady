@@ -132,6 +132,8 @@ function initChart() {
             updateChartAndAnalytics();
         });
     });
+
+    setupAnalyticsFilters();
 }
 
 /**
@@ -273,14 +275,144 @@ function updateChartAndAnalytics() {
     renderTaskBreakdown(selectedDates);
 }
 
+let analyticsTaskStatusFilter = "all";
+
+const TASK_STATUS_CONFIG = {
+    scheduled: {
+        key: "scheduled",
+        label: "مجدولة",
+        icon: "fa-calendar-check",
+        badgeClass: "badge-status-scheduled"
+    },
+    onetime: {
+        key: "onetime",
+        label: "لمرة واحدة",
+        icon: "fa-bolt",
+        badgeClass: "badge-status-onetime"
+    },
+    archived: {
+        key: "archived",
+        label: "مؤرشفة",
+        icon: "fa-box-archive",
+        badgeClass: "badge-status-archived"
+    },
+    removed: {
+        key: "removed",
+        label: "محذوفة",
+        icon: "fa-trash-can",
+        badgeClass: "badge-status-removed"
+    }
+};
+
+function getTaskStatusKey(task) {
+    if (!task) return "scheduled";
+    if (task.isDeleted) return "removed";
+    if (task.isArchived) return "archived";
+    if (task.isOneTime || task.schedule === "OneTime") return "onetime";
+    return "scheduled";
+}
+
+function setupAnalyticsFilters() {
+    const buttons = document.querySelectorAll(".analytics-task-filter-strip .btn-filter-status");
+    if (!buttons || buttons.length === 0) return;
+    buttons.forEach(btn => {
+        btn.onclick = () => {
+            buttons.forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            analyticsTaskStatusFilter = btn.getAttribute("data-status-filter") || "all";
+            const allDates = getRecordedDates();
+            let selectedDates = allDates;
+            if (chartTimeRange !== "all") {
+                const daysLimit = parseInt(chartTimeRange, 10);
+                if (allDates.length > daysLimit) selectedDates = allDates.slice(-daysLimit);
+            }
+            renderTaskBreakdown(selectedDates);
+        };
+    });
+}
+
 function renderTaskBreakdown(allDates) {
     const container = document.getElementById("analytics-tasks-breakdown");
     if (!container) return;
     container.innerHTML = "";
 
-    const activeTasks = (appData.tasks || []).filter(t => !t.isArchived && !t.isOneTime && t.schedule !== "OneTime");
-    if (activeTasks.length === 0) {
-        container.innerHTML = `<div class="empty-state"><h3>لا توجد أوراد لعرض نسبة الالتزام</h3></div>`;
+    setupAnalyticsFilters();
+
+    // 1. Collect all tasks: current active tasks + archived + onetime + removed
+    const allTasksList = [];
+    const seenTaskIds = new Set();
+
+    (appData.tasks || []).forEach(t => {
+        seenTaskIds.add(t.id);
+        allTasksList.push(t);
+    });
+
+    // Check for any orphaned tasks in logs that were deleted/removed
+    if (appData.logs) {
+        Object.keys(appData.logs).forEach(dateKey => {
+            const log = appData.logs[dateKey];
+            if (log && log.entries) {
+                Object.keys(log.entries).forEach(taskId => {
+                    if (!seenTaskIds.has(taskId) && log.entries[taskId] > 0) {
+                        seenTaskIds.add(taskId);
+                        allTasksList.push({
+                            id: taskId,
+                            name: `مهمة محذوفة (${taskId})`,
+                            category: "أخرى",
+                            subcategory: "",
+                            type: "مهمة",
+                            target: 1,
+                            multiplier: 1,
+                            isDeleted: true,
+                            deletedAt: dateKey,
+                            schedule: "OneTime"
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    // 2. Update status filter badges count
+    const counts = {
+        all: allTasksList.length,
+        scheduled: 0,
+        onetime: 0,
+        archived: 0,
+        removed: 0
+    };
+
+    allTasksList.forEach(t => {
+        const s = getTaskStatusKey(t);
+        if (counts[s] !== undefined) counts[s]++;
+    });
+
+    const elCountAll = document.getElementById("filter-count-all");
+    const elCountScheduled = document.getElementById("filter-count-scheduled");
+    const elCountOnetime = document.getElementById("filter-count-onetime");
+    const elCountArchived = document.getElementById("filter-count-archived");
+    const elCountRemoved = document.getElementById("filter-count-removed");
+
+    if (elCountAll) elCountAll.textContent = counts.all;
+    if (elCountScheduled) elCountScheduled.textContent = counts.scheduled;
+    if (elCountOnetime) elCountOnetime.textContent = counts.onetime;
+    if (elCountArchived) elCountArchived.textContent = counts.archived;
+    if (elCountRemoved) elCountRemoved.textContent = counts.removed;
+
+    // 3. Filter tasks based on active status filter
+    const filteredTasks = (analyticsTaskStatusFilter === "all")
+        ? allTasksList
+        : allTasksList.filter(t => getTaskStatusKey(t) === analyticsTaskStatusFilter);
+
+    if (filteredTasks.length === 0) {
+        const emptyLabels = {
+            all: "لا توجد أوراد أو مهام لعرض نسبة الالتزام",
+            scheduled: "لا توجد مهام مجدولة حالياً",
+            onetime: "لا توجد مهام لمرة واحدة",
+            archived: "قائمة المهام المؤرشفة فارغة",
+            removed: "لا توجد مهام محذوفة"
+        };
+        container.innerHTML = `<div class="empty-state"><h3>${emptyLabels[analyticsTaskStatusFilter] || 'لا توجد مهام لعرضها'}</h3></div>`;
         return;
     }
 
@@ -295,7 +427,7 @@ function renderTaskBreakdown(allDates) {
         });
     });
 
-    activeTasks.forEach(task => {
+    filteredTasks.forEach(task => {
         const catName = task.category || "أخرى";
         if (!catMap.has(catName)) {
             catMap.set(catName, {
@@ -344,14 +476,62 @@ function renderTaskBreakdown(allDates) {
         const hasSubcategoriesWithTasks = Array.from(subMap.values()).some(arr => arr.length > 0);
 
         const createBreakdownCard = (task) => {
+            const statusKey = getTaskStatusKey(task);
+            const statusCfg = TASK_STATUS_CONFIG[statusKey] || TASK_STATUS_CONFIG.scheduled;
+
             let activeTimes = 0;
             let sumRatio = 0;
             let scheduledDaysCount = 0;
 
+            const targetDate = task.oneTimeDate || (task.createdAt ? task.createdAt.slice(0, 10) : null);
+            const archiveCutoff = task.archivedAt || null;
+            const deletedCutoff = task.deletedAt || null;
+
+            // Check if task has any past logged entries (for legacy tasks without explicit cutoff dates)
+            let taskHasAnyLogs = false;
+            let lastLoggedDate = null;
+            if (appData.logs) {
+                for (const dKey in appData.logs) {
+                    if (appData.logs[dKey]?.entries?.[task.id] > 0) {
+                        taskHasAnyLogs = true;
+                        if (!lastLoggedDate || dKey > lastLoggedDate) {
+                            lastLoggedDate = dKey;
+                        }
+                    }
+                }
+            }
+
             (allDates || []).forEach(d => {
-                const log = appData.logs[d];
+                const log = (appData.logs && appData.logs[d]) ? appData.logs[d] : null;
                 const val = (log && log.entries) ? (log.entries[task.id] || 0) : 0;
-                const isScheduled = isTaskScheduledForDate(task, d, val);
+
+                let isScheduled = false;
+
+                if (statusKey === "onetime") {
+                    if ((targetDate && d === targetDate) || val > 0) {
+                        isScheduled = true;
+                    }
+                } else if (statusKey === "removed") {
+                    if (deletedCutoff && d >= deletedCutoff) {
+                        isScheduled = val > 0;
+                    } else if (!deletedCutoff && lastLoggedDate && d > lastLoggedDate) {
+                        isScheduled = val > 0;
+                    } else {
+                        isScheduled = isTaskScheduledForDate(task, d, val);
+                    }
+                } else if (statusKey === "archived") {
+                    if (archiveCutoff && d > archiveCutoff) {
+                        isScheduled = val > 0;
+                    } else if (!archiveCutoff && !taskHasAnyLogs) {
+                        isScheduled = false;
+                    } else if (!archiveCutoff && lastLoggedDate && d > lastLoggedDate) {
+                        isScheduled = val > 0;
+                    } else {
+                        isScheduled = isTaskScheduledForDate(task, d, val);
+                    }
+                } else {
+                    isScheduled = isTaskScheduledForDate(task, d, val);
+                }
 
                 if (isScheduled) {
                     scheduledDaysCount++;
@@ -369,20 +549,49 @@ function renderTaskBreakdown(allDates) {
                 }
             });
 
+            // Special fallback for one-time task if target date wasn't inside allDates range
+            if (statusKey === "onetime" && scheduledDaysCount === 0 && targetDate) {
+                scheduledDaysCount = 1;
+                const log = (appData.logs && appData.logs[targetDate]) ? appData.logs[targetDate] : null;
+                const val = (log && log.entries) ? (log.entries[task.id] || 0) : 0;
+                if (val > 0) {
+                    activeTimes = 1;
+                    let tgt = (task.target && task.target > 0) ? task.target : 1;
+                    if (task.type === "ساعة" || task.type === "ساعات" || task.type === "ساعات ودقايق" || task.type === "وقت") {
+                        tgt = tgt * 60;
+                    }
+                    sumRatio = val / tgt;
+                }
+            }
+
             const effectiveTotalDays = scheduledDaysCount;
             const consistencyPct = effectiveTotalDays > 0 ? Math.round((sumRatio / effectiveTotalDays) * 100) : 0;
             catSumPct += consistencyPct;
             const iconHtml = getCategoryIconHtml(task);
+            const statusBadgeHtml = `<span class="breakdown-status-badge ${statusCfg.badgeClass}"><i class="fa-solid ${statusCfg.icon}"></i> ${statusCfg.label}</span>`;
+
+            let metaExtra = "";
+            if (statusKey === "onetime" && targetDate) {
+                metaExtra = `<span>•</span><span><i class="fa-regular fa-calendar"></i> ${targetDate}</span>`;
+            } else if (statusKey === "archived" && archiveCutoff) {
+                metaExtra = `<span>•</span><span><i class="fa-solid fa-box-archive"></i> ${archiveCutoff}</span>`;
+            } else if (statusKey === "removed" && deletedCutoff) {
+                metaExtra = `<span>•</span><span><i class="fa-solid fa-trash-can"></i> ${deletedCutoff}</span>`;
+            }
 
             const card = document.createElement("div");
             card.className = "breakdown-card horizontal";
             card.innerHTML = `
                 <div class="breakdown-info">
-                    <span class="breakdown-title">${iconHtml} ${task.name}</span>
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <span class="breakdown-title">${iconHtml} <span>${task.name}</span></span>
+                        ${statusBadgeHtml}
+                    </div>
                     <div class="breakdown-meta">
                         <span>${activeTimes} / ${effectiveTotalDays} يوم</span>
                         <span>•</span>
-                        <span>${task.type}</span>
+                        <span>${task.type || "مهمة"}</span>
+                        ${metaExtra}
                     </div>
                 </div>
                 <div class="breakdown-bar-section">
@@ -437,7 +646,7 @@ function renderTaskBreakdown(allDates) {
             </div>
             <div style="display:flex; gap:10px; align-items:center;">
                 <span class="manager-cat-count-badge" style="background:rgba(59,130,246,0.15); color:#60a5fa; border-color:rgba(59,130,246,0.3);">الالتزام: ${catAvgPct}%</span>
-                <span class="manager-cat-count-badge">${catTasks.length} ${catTasks.length === 1 ? 'ورد' : (catTasks.length <= 10 ? 'أوراد' : 'ورد')}</span>
+                <span class="manager-cat-count-badge">${catTasks.length} ${catTasks.length === 1 ? 'مهمة' : (catTasks.length <= 10 ? 'مهام' : 'مهمة')}</span>
             </div>
         `;
 

@@ -17,7 +17,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
     <!-- Supabase JS Client for 24/7 Cloud Sync -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=20261011_1">
     <link rel="icon" type="image/x-icon" href="app-icon.ico">
 
     <!-- PWA & Mobile Web App Meta Tags -->
@@ -255,8 +255,25 @@
             </div>
 
             <!-- Task Mastery & Consistency breakdown -->
-            <div class="section-header-row">
+            <div class="section-header-row breakdown-header-row">
                 <h3 class="section-title"><i class="fa-solid fa-list-check gold-text"></i> الالتزام بالمهام</h3>
+                <div class="analytics-task-filter-strip">
+                    <button class="btn-filter-status active" data-status-filter="all">
+                        <span>الكل</span> <span class="filter-count" id="filter-count-all">0</span>
+                    </button>
+                    <button class="btn-filter-status" data-status-filter="scheduled">
+                        <i class="fa-solid fa-calendar-check emerald-text"></i> <span>المجدولة</span> <span class="filter-count" id="filter-count-scheduled">0</span>
+                    </button>
+                    <button class="btn-filter-status" data-status-filter="onetime">
+                        <i class="fa-solid fa-bolt blue-text"></i> <span>لمرة واحدة</span> <span class="filter-count" id="filter-count-onetime">0</span>
+                    </button>
+                    <button class="btn-filter-status" data-status-filter="archived">
+                        <i class="fa-solid fa-box-archive gold-text"></i> <span>المؤرشفة</span> <span class="filter-count" id="filter-count-archived">0</span>
+                    </button>
+                    <button class="btn-filter-status" data-status-filter="removed">
+                        <i class="fa-solid fa-trash-can rose-text"></i> <span>المحذوفة</span> <span class="filter-count" id="filter-count-removed">0</span>
+                    </button>
+                </div>
             </div>
             <div id="analytics-tasks-breakdown" class="analytics-breakdown-container">
                 <!-- Dynamically filled with task % consistency cards -->
@@ -813,12 +830,6 @@
                         <input type="number" id="input-pomo-rest-time" value="5" min="1" max="30" style="width: 100%; text-align: center;">
                     </div>
                 </div>
-
-                <div style="display: flex; justify-content: center; margin-bottom: 10px;">
-                    <button id="btn-pomo-test-sound" type="button" class="btn-secondary" style="font-size: 0.82rem; padding: 6px 14px; border-radius: 8px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #cbd5e1; cursor: pointer; display: flex; align-items: center; gap: 6px;">
-                        <i class="fa-solid fa-bell emerald-text"></i> <span>فحص صوت المنبه (تجربة)</span>
-                    </button>
-                </div>
             </div>
         </div>
     </div>
@@ -945,7 +956,7 @@
     <script src="js/components/daily-view.js?v=20261007_2"></script>
     <script src="js/components/task-manager.js?v=20261007_2"></script>
     <script src="js/components/category-manager.js?v=20261007_2"></script>
-    <script src="js/components/analytics-view.js?v=20261007_2"></script>
+    <script src="js/components/analytics-view.js?v=20261011_1"></script>
     <script src="js/components/data-manager.js?v=20261007_2"></script>
     <script src="js/components/security-lock.js?v=20261007_2"></script>
     <script src="js/app.js?v=20261007_2"></script>

@@ -56,7 +56,6 @@ function setupPomodoroControls() {
     const btnReset = document.getElementById("btn-pomo-reset");
     const btnFinish = document.getElementById("btn-pomo-finish");
     const btnClose = document.getElementById("btn-close-pomodoro");
-    const btnTestSound = document.getElementById("btn-pomo-test-sound");
 
     if (btnStart) {
         btnStart.addEventListener("click", () => {
@@ -83,14 +82,6 @@ function setupPomodoroControls() {
         });
     }
     if (btnClose) btnClose.addEventListener("click", closePomodoroModal);
-
-    if (btnTestSound) {
-        btnTestSound.addEventListener("click", () => {
-            ensureAudioUnlocked();
-            playPomoAlarm();
-            requestPomoNotificationPermission();
-        });
-    }
 
     const btnTabWork = document.getElementById("btn-pomo-work");
     const btnTabRest = document.getElementById("btn-pomo-rest");
