@@ -485,6 +485,7 @@ function renderDailyView() {
     const bonusIds = log.bonusTaskIds || [];
 
     const allScheduled = appData.tasks.filter(t => {
+        if (bonusIds.includes(t.id)) return true;
         if (t.isArchived) {
             const cutoff = t.archivedAt || null;
             if (!cutoff || currentDateStr > cutoff) {
@@ -1214,7 +1215,9 @@ function updateDailyScoreSummary() {
     }
 
     // Count completed tasks for the badge
+    const bonusIds = (appData.logs[currentDateStr] && appData.logs[currentDateStr].bonusTaskIds) || [];
     const allScheduled = appData.tasks.filter(t => {
+        if (bonusIds.includes(t.id)) return true;
         if (t.isArchived) {
             const cutoff = t.archivedAt || null;
             if (!cutoff || currentDateStr > cutoff) {

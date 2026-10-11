@@ -18,15 +18,19 @@ function setupTaskManager() {
             document.querySelectorAll(".sub-tab-content").forEach(c => c.classList.remove("active"));
             
             if (sec === "active-tasks") {
-                document.getElementById("manager-active-section").classList.add("active");
+                document.getElementById("manager-active-section")?.classList.add("active");
+                btnAddTask.style.display = "flex";
+                btnAddCat.style.display = "none";
+            } else if (sec === "onetime-tasks") {
+                document.getElementById("manager-onetime-section")?.classList.add("active");
                 btnAddTask.style.display = "flex";
                 btnAddCat.style.display = "none";
             } else if (sec === "archived-tasks") {
-                document.getElementById("manager-archived-section").classList.add("active");
+                document.getElementById("manager-archived-section")?.classList.add("active");
                 btnAddTask.style.display = "flex";
                 btnAddCat.style.display = "none";
             } else if (sec === "categories") {
-                document.getElementById("manager-categories-section").classList.add("active");
+                document.getElementById("manager-categories-section")?.classList.add("active");
                 btnAddTask.style.display = "none";
                 btnAddCat.style.display = "flex";
                 renderCategoriesManager();
@@ -36,7 +40,16 @@ function setupTaskManager() {
 
     // Add task modal
     const openAddBtn = document.getElementById("btn-open-add-task-modal");
-    if (openAddBtn) openAddBtn.addEventListener("click", () => openTaskModal(null));
+    if (openAddBtn) {
+        openAddBtn.addEventListener("click", () => {
+            const activeSub = document.querySelector(".sub-tab.active")?.getAttribute("data-sub");
+            if (activeSub === "onetime-tasks") {
+                openTaskModal(null, { isOneTime: true });
+            } else {
+                openTaskModal(null);
+            }
+        });
+    }
     
     const closeBtn = document.getElementById("btn-close-modal");
     if (closeBtn) closeBtn.addEventListener("click", closeTaskModal);
@@ -48,6 +61,7 @@ function setupTaskManager() {
         radio.addEventListener("change", (e) => {
             const box = document.getElementById("weekdays-selector-box");
             const dtBox = document.getElementById("day-targets-box");
+            const otBox = document.getElementById("onetime-date-selector-box");
             if (box) {
                 if (e.target.value === "Weekdays") {
                     box.classList.remove("hidden");
@@ -55,6 +69,18 @@ function setupTaskManager() {
                 } else {
                     box.classList.add("hidden");
                     if (dtBox) dtBox.classList.add("hidden");
+                }
+            }
+            if (otBox) {
+                if (e.target.value === "OneTime") {
+                    otBox.classList.remove("hidden");
+                    const otDateInput = document.getElementById("task-onetime-date-input");
+                    if (otDateInput && !otDateInput.value) {
+                        const cur = (typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : (typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().split("T")[0]);
+                        otDateInput.value = cur;
+                    }
+                } else {
+                    otBox.classList.add("hidden");
                 }
             }
         });
@@ -129,13 +155,15 @@ function renderDayTargetsInputs(taskDayTargets = null) {
     });
 }
 
-function renderGroupedTasks(containerEl, tasksList, isArchivedList = false) {
+function renderGroupedTasks(containerEl, tasksList, isArchivedList = false, isOneTimeList = false) {
     containerEl.innerHTML = "";
     if (!tasksList || tasksList.length === 0) {
-        if (!isArchivedList) {
-            containerEl.innerHTML = `<div class="empty-state"><h3>لا توجد أوراد نشطة حالياً</h3></div>`;
-        } else {
+        if (isArchivedList) {
             containerEl.innerHTML = `<div class="empty-state"><i class="fa-solid fa-box-open icon-lg gold-text"></i><h3>قائمة الأرشيف فارغة</h3><p>عند الانتهاء الدائم من مهمة معينة، اضغط على زر "إتمام وأرشفة" لتخليد إنجازها وتخفيف جدولك.</p></div>`;
+        } else if (isOneTimeList) {
+            containerEl.innerHTML = `<div class="empty-state"><i class="fa-solid fa-bolt icon-lg gold-text"></i><h3>لا توجد مهام لمرة واحدة حالياً</h3><p>المهام المؤقتة أو المجدولة لمرة واحدة فقط تظهر هنا بشكل مستقل لتسهيل مراجعتها وتعديلها أو أرشفتها.</p></div>`;
+        } else {
+            containerEl.innerHTML = `<div class="empty-state"><h3>لا توجد أوراد نشطة حالياً</h3></div>`;
         }
         return 0;
     }
@@ -278,20 +306,37 @@ function createTaskRowElement(task, isArchived) {
     row.className = `manager-row ${task.isArchived ? 'archived' : ''}`;
     const iconHtml = getCategoryIconHtml(task);
 
-    const schedDisplay = formatScheduleDisplay(task.schedule);
-    const schedText = `📅 التكرار: ${schedDisplay}`;
+    const isOt = !!(task.isOneTime || task.schedule === "OneTime");
+    let schedText;
+    if (isOt) {
+        const dates = Array.isArray(task.oneTimeDates) && task.oneTimeDates.length > 0
+            ? task.oneTimeDates
+            : (task.oneTimeDate ? [task.oneTimeDate] : []);
+        if (dates.length === 1) {
+            schedText = `📅 التاريخ: ${dates[0]}`;
+        } else if (dates.length > 1) {
+            schedText = `📅 التواريخ: ${dates.join("، ")}`;
+        } else {
+            schedText = `📅 لمرة واحدة فقط`;
+        }
+    } else {
+        const schedDisplay = formatScheduleDisplay(task.schedule);
+        schedText = `📅 التكرار: ${schedDisplay}`;
+    }
+
     let displayType = isPrayerSelector(task) ? 'صلاة فريضة' : task.type;
     const targetText = task.target ? `🎯 الهدف: ${task.target} ${displayType}` : `🏷️ وحدة: ${displayType}`;
     const multText = task.multiplier !== undefined && task.multiplier !== 1 ? `⚡ معامل النقاط: ${task.multiplier * 100}%` : '';
 
     const catBadgeText = task.subcategory ? `${task.category} - ${task.subcategory}` : (task.category || 'عام');
+    const otBadge = isOt ? `<span class="badge" style="font-size:0.75rem; background:rgba(245,158,11,0.18); color:#f59e0b; border:1px solid rgba(245,158,11,0.35);"><i class="fa-solid fa-bolt"></i> لمرة واحدة</span>` : '';
 
     if (!isArchived) {
         row.innerHTML = `
             <div class="manager-info">
                 <div class="manager-icon">${iconHtml}</div>
                 <div class="manager-details">
-                    <h4>${task.name} <span class="tag-badge" style="font-size:0.75rem">${catBadgeText}</span></h4>
+                    <h4>${task.name} <span class="tag-badge" style="font-size:0.75rem">${catBadgeText}</span> ${otBadge}</h4>
                     <p>
                         <span>${targetText}</span>
                         <span>${schedText}</span>
@@ -310,9 +355,10 @@ function createTaskRowElement(task, isArchived) {
             <div class="manager-info">
                 <div class="manager-icon">${iconHtml}</div>
                 <div class="manager-details">
-                    <h4>${task.name} <span class="tag-badge" style="font-size:0.75rem">${catBadgeText}</span> <span class="badge badge-amber" style="font-size:0.75rem">✨ مؤرشف</span></h4>
+                    <h4>${task.name} <span class="tag-badge" style="font-size:0.75rem">${catBadgeText}</span> ${otBadge} <span class="badge badge-amber" style="font-size:0.75rem">✨ مؤرشف</span></h4>
                     <p>
                         <span>${targetText}</span>
+                        ${isOt ? `<span>${schedText}</span>` : ''}
                     </p>
                 </div>
             </div>
@@ -329,20 +375,25 @@ function createTaskRowElement(task, isArchived) {
 
 function renderTaskManager() {
     const activeList = document.getElementById("manager-active-list");
+    const onetimeList = document.getElementById("manager-onetime-list");
     const archivedList = document.getElementById("manager-archived-list");
     if (!activeList || !archivedList) return;
 
     const activeTasks = appData.tasks.filter(t => !t.isArchived && !t.isOneTime && t.schedule !== "OneTime");
+    const onetimeTasks = appData.tasks.filter(t => !t.isArchived && (t.isOneTime || t.schedule === "OneTime"));
     const archivedTasks = appData.tasks.filter(t => t.isArchived);
 
-    const activeCount = renderGroupedTasks(activeList, activeTasks, false);
-    const archivedCount = renderGroupedTasks(archivedList, archivedTasks, true);
+    const activeCount = renderGroupedTasks(activeList, activeTasks, false, false);
+    const onetimeCount = onetimeList ? renderGroupedTasks(onetimeList, onetimeTasks, false, true) : 0;
+    const archivedCount = renderGroupedTasks(archivedList, archivedTasks, true, false);
 
     const elActive = document.getElementById("count-active-tasks");
+    const elOnetime = document.getElementById("count-onetime-tasks");
     const elArchived = document.getElementById("count-archived-tasks");
     const elCats = document.getElementById("count-categories");
 
     if (elActive) elActive.textContent = activeCount;
+    if (elOnetime) elOnetime.textContent = onetimeCount;
     if (elArchived) elArchived.textContent = archivedCount;
     if (elCats) elCats.textContent = appData.categories.length;
 
@@ -363,9 +414,11 @@ function archiveTask(id, isArchive) {
         const curDate = (typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : getLocalTodayString();
         t.archivedAt = isArchive ? curDate : null;
         if (!isArchive) {
-            t.isOneTime = false;
-            if (t.schedule === "OneTime" && !t.oneTimeDate) {
-                t.schedule = "Everyday";
+            if (t.schedule === "OneTime") {
+                t.isOneTime = true;
+                if (!t.oneTimeDate) {
+                    t.oneTimeDate = curDate;
+                }
             }
             if (!t.target || t.target === 0) {
                 t.target = 1;
@@ -507,7 +560,8 @@ function openTaskModal(id, options = {}) {
             if (commentInput) commentInput.value = task.comment || "";
             if (bonusCheck) bonusCheck.checked = task.isBonus || false;
 
-            const sched = task.schedule || "Everyday";
+            const isOt = !!(task.isOneTime || task.schedule === "OneTime");
+            const sched = isOt ? "OneTime" : (task.schedule || "Everyday");
             if (sched === "Everyday" || sched === "Ramadan" || sched === "WhiteDays" || sched === "Optional" || sched === "OneTime") {
                 const radio = document.querySelector(`input[name="schedule_type"][value="${sched}"]`);
                 if (radio) radio.checked = true;
@@ -520,6 +574,18 @@ function openTaskModal(id, options = {}) {
                     const chk = weekdaysBox ? weekdaysBox.querySelector(`input[value="${day}"]`) : null;
                     if (chk) chk.checked = true;
                 });
+            }
+
+            const otBox = document.getElementById("onetime-date-selector-box");
+            const otDateInput = document.getElementById("task-onetime-date-input");
+            if (isOt) {
+                if (otBox) otBox.classList.remove("hidden");
+                if (otDateInput) {
+                    const existingDate = task.oneTimeDate || (Array.isArray(task.oneTimeDates) && task.oneTimeDates[0]) || "";
+                    otDateInput.value = existingDate || ((typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : (typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().split("T")[0]));
+                }
+            } else {
+                if (otBox) otBox.classList.add("hidden");
             }
 
             const dtBox = document.getElementById("day-targets-box");
@@ -542,18 +608,26 @@ function openTaskModal(id, options = {}) {
             }
         }
     } else {
+        const otBox = document.getElementById("onetime-date-selector-box");
+        const otDateInput = document.getElementById("task-onetime-date-input");
+        const defaultDate = (typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : (typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().split("T")[0]);
+
         if (options.isOneTime) {
-            if (title) title.innerHTML = `<i class="fa-solid fa-bolt gold-text"></i> إضافة مهمة لمرة واحدة فقط (${currentDateStr})`;
+            if (title) title.innerHTML = `<i class="fa-solid fa-bolt gold-text"></i> إضافة مهمة لمرة واحدة فقط`;
             const radio = document.querySelector(`input[name="schedule_type"][value="OneTime"]`);
             if (radio) radio.checked = true;
+            if (otBox) otBox.classList.remove("hidden");
+            if (otDateInput) otDateInput.value = defaultDate;
         } else if (options.isBonus) {
             if (title) title.innerHTML = `<i class="fa-solid fa-gift gold-text"></i> إنشاء ورد إضافي (بونص)`;
             const radio = document.querySelector(`input[name="schedule_type"][value="Everyday"]`);
             if (radio) radio.checked = true;
+            if (otBox) otBox.classList.add("hidden");
         } else {
             if (title) title.innerHTML = `<i class="fa-solid fa-plus"></i> إضافة ورد أو مهمة مخصصة`;
             const radio = document.querySelector(`input[name="schedule_type"][value="Everyday"]`);
             if (radio) radio.checked = true;
+            if (otBox) otBox.classList.add("hidden");
         }
         
         if (idInput) idInput.value = "";
@@ -619,7 +693,9 @@ function saveTaskFromModal() {
     const parsedTarget = targetStr === "" ? null : parseFloat(targetStr);
     const localToday = typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().split("T")[0];
     const selectedDate = (typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : localToday;
-    const effectiveDate = (selectedDate > localToday) ? localToday : selectedDate;
+    const otDateInput = document.getElementById("task-onetime-date-input");
+    const chosenOneTimeDate = (schedType === "OneTime" && otDateInput && otDateInput.value) ? otDateInput.value : selectedDate;
+    const effectiveDate = (schedType === "OneTime" && chosenOneTimeDate > localToday) ? localToday : ((selectedDate > localToday) ? localToday : selectedDate);
 
     if (editingTaskId) {
         const idx = appData.tasks.findIndex(t => t.id === editingTaskId);
@@ -668,7 +744,7 @@ function saveTaskFromModal() {
                 isBonus: isBonus,
                 comment: taskComment,
                 isOneTime: (schedType === "OneTime"),
-                oneTimeDate: (schedType === "OneTime") ? selectedDate : null
+                oneTimeDate: (schedType === "OneTime") ? chosenOneTimeDate : null
             };
 
             // Remove any snapshot from effectiveDate onwards so stale migration/historical snapshots never override this new edit forward
@@ -690,13 +766,13 @@ function saveTaskFromModal() {
             oldTask.comment = taskComment;
             oldTask.isBonus = isBonus;
             oldTask.isOneTime = (schedType === "OneTime");
-            oldTask.oneTimeDate = (schedType === "OneTime") ? selectedDate : null;
+            oldTask.oneTimeDate = (schedType === "OneTime") ? chosenOneTimeDate : null;
             if (schedType === "OneTime") {
                 if (!Array.isArray(oldTask.oneTimeDates)) {
                     oldTask.oneTimeDates = oldTask.oneTimeDate ? [oldTask.oneTimeDate] : [];
                 }
-                if (!oldTask.oneTimeDates.includes(selectedDate)) {
-                    oldTask.oneTimeDates.push(selectedDate);
+                if (!oldTask.oneTimeDates.includes(chosenOneTimeDate)) {
+                    oldTask.oneTimeDates.push(chosenOneTimeDate);
                 }
             }
         }
@@ -717,10 +793,10 @@ function saveTaskFromModal() {
             if (!Array.isArray(existingOnetimeTask.oneTimeDates)) {
                 existingOnetimeTask.oneTimeDates = existingOnetimeTask.oneTimeDate ? [existingOnetimeTask.oneTimeDate] : [];
             }
-            if (!existingOnetimeTask.oneTimeDates.includes(selectedDate)) {
-                existingOnetimeTask.oneTimeDates.push(selectedDate);
+            if (!existingOnetimeTask.oneTimeDates.includes(chosenOneTimeDate)) {
+                existingOnetimeTask.oneTimeDates.push(chosenOneTimeDate);
             }
-            existingOnetimeTask.oneTimeDate = selectedDate;
+            existingOnetimeTask.oneTimeDate = chosenOneTimeDate;
             if (parsedTarget !== null) existingOnetimeTask.target = parsedTarget;
             if (taskComment) existingOnetimeTask.comment = taskComment;
             if (subcat) existingOnetimeTask.subcategory = subcat;
@@ -743,11 +819,11 @@ function saveTaskFromModal() {
                 comment: taskComment,
                 isBonus: isBonus,
                 isOneTime: (schedType === "OneTime"),
-                oneTimeDate: (schedType === "OneTime") ? selectedDate : null,
-                oneTimeDates: (schedType === "OneTime") ? [selectedDate] : null,
-                createdAt: selectedDate,
+                oneTimeDate: (schedType === "OneTime") ? chosenOneTimeDate : null,
+                oneTimeDates: (schedType === "OneTime") ? [chosenOneTimeDate] : null,
+                createdAt: (schedType === "OneTime") ? chosenOneTimeDate : selectedDate,
                 history: [{
-                    effectiveFrom: selectedDate,
+                    effectiveFrom: (schedType === "OneTime") ? chosenOneTimeDate : selectedDate,
                     name: name,
                     category: cat,
                     subcategory: subcat,
@@ -759,8 +835,8 @@ function saveTaskFromModal() {
                     isBonus: isBonus,
                     comment: taskComment,
                     isOneTime: (schedType === "OneTime"),
-                    oneTimeDate: (schedType === "OneTime") ? selectedDate : null,
-                    oneTimeDates: (schedType === "OneTime") ? [selectedDate] : null
+                    oneTimeDate: (schedType === "OneTime") ? chosenOneTimeDate : null,
+                    oneTimeDates: (schedType === "OneTime") ? [chosenOneTimeDate] : null
                 }]
             };
             appData.tasks.push(newTask);
@@ -851,8 +927,13 @@ function addBonusTaskToDate(taskId, dateStr) {
     if (!appData.logs[dateStr].bonusTaskIds.includes(taskId)) {
         appData.logs[dateStr].bonusTaskIds.push(taskId);
     }
+    if (appData.logs[dateStr].disabledTaskIds && appData.logs[dateStr].disabledTaskIds.includes(taskId)) {
+        appData.logs[dateStr].disabledTaskIds = appData.logs[dateStr].disabledTaskIds.filter(id => id !== taskId);
+    }
     saveData();
     renderDailyView();
+    if (typeof updateDailyScoreSummary === "function") updateDailyScoreSummary();
+    if (typeof updateHeaderTodayScore === "function") updateHeaderTodayScore();
 }
 
 function syncUnitEstMinsState(unitVal, estInput) {
@@ -873,194 +954,181 @@ function syncUnitEstMinsState(unitVal, estInput) {
 }
 
 // ============================================================================
-// QUICK ADD 2-STEP MODAL
+// QUICK ADD MODAL (EXISTING BONUS TASK vs NEW TASK)
 // ============================================================================
+let _qaCurrentFilter = "all";
+
 function openQuickAddModal() {
     const modal = document.getElementById("quick-add-modal");
     if (!modal) return;
 
     // Reset to step 1
-    document.getElementById("quick-add-step1").style.display = "block";
-    document.getElementById("quick-add-step2-existing").style.display = "none";
-    document.getElementById("quick-add-step2-new").style.display = "none";
+    const step1 = document.getElementById("quick-add-step1");
+    const step2 = document.getElementById("quick-add-step2-existing");
+    if (step1) step1.style.display = "block";
+    if (step2) step2.style.display = "none";
 
-    // Wire step 1 → existing
+    // Wire step 1 → existing task picker
     const btnExisting = document.getElementById("btn-qa-existing");
-    const newBtnExisting = btnExisting.cloneNode(true);
-    btnExisting.parentNode.replaceChild(newBtnExisting, btnExisting);
-    newBtnExisting.addEventListener("click", () => {
-        document.getElementById("quick-add-step1").style.display = "none";
-        const step2 = document.getElementById("quick-add-step2-existing");
-        step2.style.display = "block";
-        populateQuickAddExistingList();
-    });
+    if (btnExisting) {
+        const newBtnExisting = btnExisting.cloneNode(true);
+        btnExisting.parentNode.replaceChild(newBtnExisting, btnExisting);
+        newBtnExisting.addEventListener("click", () => {
+            if (step1) step1.style.display = "none";
+            if (step2) step2.style.display = "block";
+            populateQuickAddExistingList();
+        });
+    }
 
-    // Wire step 1 → new
+    // Wire step 1 → new task dialog (opens create task dialog immediately)
     const btnNew = document.getElementById("btn-qa-new");
-    const newBtnNew = btnNew.cloneNode(true);
-    btnNew.parentNode.replaceChild(newBtnNew, btnNew);
-    newBtnNew.addEventListener("click", () => {
-        document.getElementById("quick-add-step1").style.display = "none";
-        document.getElementById("quick-add-step2-new").style.display = "block";
-    });
+    if (btnNew) {
+        const newBtnNew = btnNew.cloneNode(true);
+        btnNew.parentNode.replaceChild(newBtnNew, btnNew);
+        newBtnNew.addEventListener("click", () => {
+            modal.classList.add("hidden");
+            openTaskModal(null);
+        });
+    }
 
-    // Wire back buttons
-    document.getElementById("btn-qa-back-from-existing")?.addEventListener("click", () => {
-        document.getElementById("quick-add-step2-existing").style.display = "none";
-        document.getElementById("quick-add-step1").style.display = "block";
-    });
-    document.getElementById("btn-qa-back-from-new")?.addEventListener("click", () => {
-        document.getElementById("quick-add-step2-new").style.display = "none";
-        document.getElementById("quick-add-step1").style.display = "block";
-    });
-
-    // Wire new task type buttons
-    document.getElementById("btn-qa-new-regular")?.addEventListener("click", () => {
-        modal.classList.add("hidden");
-        openTaskModal(null, {});
-    });
-    document.getElementById("btn-qa-new-bonus")?.addEventListener("click", () => {
-        modal.classList.add("hidden");
-        openTaskModal(null, { isBonus: true });
-    });
-    document.getElementById("btn-qa-new-onetime")?.addEventListener("click", () => {
-        modal.classList.add("hidden");
-        openTaskModal(null, { isOneTime: true });
-    });
+    // Wire back button
+    const backBtn = document.getElementById("btn-qa-back-from-existing");
+    if (backBtn) {
+        const newBackBtn = backBtn.cloneNode(true);
+        backBtn.parentNode.replaceChild(newBackBtn, backBtn);
+        newBackBtn.addEventListener("click", () => {
+            if (step2) step2.style.display = "none";
+            if (step1) step1.style.display = "block";
+        });
+    }
 
     // Wire close button
-    document.getElementById("btn-close-quick-add-modal")?.addEventListener("click", () => {
-        modal.classList.add("hidden");
-    });
+    const closeBtn = document.getElementById("btn-close-quick-add-modal");
+    if (closeBtn) {
+        const newCloseBtn = closeBtn.cloneNode(true);
+        closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+        newCloseBtn.addEventListener("click", () => {
+            modal.classList.add("hidden");
+        });
+    }
 
     modal.classList.remove("hidden");
 }
 
-// State: which type is selected in the existing flow
-let _qaSelectedType = "bonus";
-
 function populateQuickAddExistingList() {
-    _qaSelectedType = "bonus";
+    const list = document.getElementById("quick-add-existing-list");
+    const searchInput = document.getElementById("quick-add-search-input");
+    if (!list) return;
 
-    // Highlight the default selected type
-    document.querySelectorAll(".qa-type-btn").forEach(btn => {
-        btn.style.background = btn.getAttribute("data-type") === _qaSelectedType
-            ? "rgba(245,158,11,0.12)" : "";
-        btn.style.borderColor = btn.getAttribute("data-type") === _qaSelectedType
-            ? "rgba(245,158,11,0.5)" : "";
-    });
+    if (searchInput) searchInput.value = "";
+    _qaCurrentFilter = "all";
 
-    document.querySelectorAll(".qa-type-btn").forEach(btn => {
-        const cloned = btn.cloneNode(true);
-        btn.parentNode.replaceChild(cloned, btn);
+    // Setup filter chips
+    const filterChips = document.querySelectorAll("#quick-add-filter-chips .qa-chip");
+    filterChips.forEach(chip => {
+        chip.classList.toggle("active", chip.getAttribute("data-filter") === "all");
+        const cloned = chip.cloneNode(true);
+        chip.parentNode.replaceChild(cloned, chip);
         cloned.addEventListener("click", () => {
-            _qaSelectedType = cloned.getAttribute("data-type");
-            document.querySelectorAll(".qa-type-btn").forEach(b => {
-                b.style.background = "";
-                b.style.borderColor = "";
-            });
-            cloned.style.background = "rgba(245,158,11,0.12)";
-            cloned.style.borderColor = "rgba(245,158,11,0.5)";
+            document.querySelectorAll("#quick-add-filter-chips .qa-chip").forEach(c => c.classList.remove("active"));
+            cloned.classList.add("active");
+            _qaCurrentFilter = cloned.getAttribute("data-filter") || "all";
+            renderList();
         });
     });
 
-    const list = document.getElementById("quick-add-existing-list");
-    if (!list) return;
-    list.innerHTML = "";
-
-    const curDate = typeof currentDateStr !== "undefined" ? currentDateStr : getLocalTodayString();
-    const available = (appData.tasks || []).filter(t => {
-        if (t.isArchived) return false;
-        const isSched = (typeof ScheduleEngine !== "undefined")
-            ? ScheduleEngine.isTaskScheduledForDate(t, curDate, appData)
-            : false;
-        return !isSched || t.isBonus;
-    });
-
-    if (available.length === 0) {
-        list.innerHTML = `<p style="font-size:0.85rem; color:#64748b; text-align:center; padding:14px 0;">جميع أوردادك ومهامك النشطة مجدولة اليوم بالفعل.</p>`;
-        return;
+    // Setup search input
+    if (searchInput) {
+        const newSearchInput = searchInput.cloneNode(true);
+        searchInput.parentNode.replaceChild(newSearchInput, searchInput);
+        newSearchInput.addEventListener("input", () => {
+            renderList();
+        });
+        setTimeout(() => newSearchInput.focus(), 50);
     }
 
-    available.forEach(task => {
-        const isOt = task.isOneTime || task.schedule === "OneTime";
-        const tagText = isOt ? " (لمرة واحدة)" : (task.isBonus ? " (بونص)" : "");
-        const row = document.createElement("div");
-        row.style.cssText = "display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:rgba(255,255,255,0.04); border-radius:10px; border:1px solid rgba(255,255,255,0.07);";
-        row.innerHTML = `
-            <span style="font-size:0.92rem;">${task.name}<span style="font-size:0.75rem; color:#f59e0b;">${tagText}</span> <span style="font-size:0.75rem; color:#64748b;">${task.category || ""}</span></span>
-            <button class="btn-primary btn-sm" style="font-size:0.78rem; padding:5px 12px;" data-add-task-id="${task.id}"><i class="fa-solid fa-plus"></i> إضافة</button>
-        `;
-        list.appendChild(row);
-    });
+    function renderList() {
+        const curDate = typeof currentDateStr !== "undefined" ? currentDateStr : getLocalTodayString();
+        const log = (appData.logs && appData.logs[curDate]) || { entries: {}, bonusTaskIds: [] };
+        const todayBonusIds = Array.isArray(log.bonusTaskIds) ? log.bonusTaskIds : [];
+        const term = (document.getElementById("quick-add-search-input")?.value || "").trim().toLowerCase();
 
-    list.querySelectorAll("[data-add-task-id]").forEach(btn => {
-        btn.addEventListener("click", () => {
-            const taskId = btn.getAttribute("data-add-task-id");
-            const modal = document.getElementById("quick-add-modal");
-            if (modal) modal.classList.add("hidden");
+        list.innerHTML = "";
 
-            const log = appData.logs[curDate] || { entries: {}, bonusTaskIds: [] };
-            if (!log.bonusTaskIds) log.bonusTaskIds = [];
-            appData.logs[curDate] = log;
+        const allTasks = appData.tasks || [];
+        const filtered = allTasks.filter(task => {
+            const isArchived = !!task.isArchived;
+            const isOneTime = !isArchived && (task.isOneTime || task.schedule === "OneTime");
+            const isScheduled = !isArchived && !isOneTime;
 
-            if (_qaSelectedType === "bonus") {
-                if (!log.bonusTaskIds.includes(taskId)) log.bonusTaskIds.push(taskId);
-                if (typeof saveData === "function") saveData();
-                if (typeof renderDailyView === "function") renderDailyView();
-            } else if (_qaSelectedType === "onetime") {
-                const targetTask = appData.tasks.find(t => t.id === taskId);
-                if (targetTask) {
-                    if (targetTask.isOneTime || targetTask.schedule === "OneTime") {
-                        // Already a one-time task: reuse it and add today to its dates!
-                        if (!Array.isArray(targetTask.oneTimeDates)) {
-                            targetTask.oneTimeDates = targetTask.oneTimeDate ? [targetTask.oneTimeDate] : [];
-                        }
-                        if (!targetTask.oneTimeDates.includes(curDate)) {
-                            targetTask.oneTimeDates.push(curDate);
-                        }
-                        targetTask.oneTimeDate = curDate;
-                        if (typeof ScheduleEngine !== "undefined" && typeof ScheduleEngine.invalidateTaskCache === "function") {
-                            ScheduleEngine.invalidateTaskCache(targetTask);
-                        }
-                    } else {
-                        // Check if a one-time counterpart already exists for this task name & category
-                        let existingOt = appData.tasks.find(t => 
-                            (t.isOneTime || t.schedule === "OneTime") && 
-                            !t.isArchived && 
-                            t.name.trim().toLowerCase() === targetTask.name.trim().toLowerCase() && 
-                            t.category === targetTask.category
-                        );
-                        if (existingOt) {
-                            if (!Array.isArray(existingOt.oneTimeDates)) {
-                                existingOt.oneTimeDates = existingOt.oneTimeDate ? [existingOt.oneTimeDate] : [];
-                            }
-                            if (!existingOt.oneTimeDates.includes(curDate)) {
-                                existingOt.oneTimeDates.push(curDate);
-                            }
-                            existingOt.oneTimeDate = curDate;
-                            if (typeof ScheduleEngine !== "undefined" && typeof ScheduleEngine.invalidateTaskCache === "function") {
-                                ScheduleEngine.invalidateTaskCache(existingOt);
-                            }
-                        } else {
-                            // Create one-time task record once
-                            const newOt = {
-                                ...JSON.parse(JSON.stringify(targetTask)),
-                                id: `task_ot_${Date.now()}`,
-                                isOneTime: true,
-                                schedule: "OneTime",
-                                oneTimeDate: curDate,
-                                oneTimeDates: [curDate],
-                                isBonus: false
-                            };
-                            appData.tasks.push(newOt);
-                        }
-                    }
-                    if (typeof saveData === "function") saveData();
-                    if (typeof renderDailyView === "function") renderDailyView();
-                }
+            if (_qaCurrentFilter === "archived" && !isArchived) return false;
+            if (_qaCurrentFilter === "onetime" && !isOneTime) return false;
+            if (_qaCurrentFilter === "scheduled" && !isScheduled) return false;
+
+            if (term) {
+                const nameMatch = (task.name || "").toLowerCase().includes(term);
+                const catMatch = (task.category || "").toLowerCase().includes(term);
+                const subMatch = (task.subcategory || "").toLowerCase().includes(term);
+                if (!nameMatch && !catMatch && !subMatch) return false;
             }
+            return true;
         });
-    });
+
+        if (filtered.length === 0) {
+            list.innerHTML = `<div style="text-align:center; padding:24px 0; color:#94a3b8; font-size:0.88rem;"><i class="fa-solid fa-magnifying-glass" style="margin-left:6px; opacity:0.6;"></i> لا توجد مهام مطابقة</div>`;
+            return;
+        }
+
+        filtered.forEach(task => {
+            const isArchived = !!task.isArchived;
+            const isOneTime = !isArchived && (task.isOneTime || task.schedule === "OneTime");
+
+            let typeBadgeHtml = `<span style="font-size:0.72rem; padding:2px 8px; border-radius:10px; background:rgba(16,185,129,0.15); color:#34d399; border:1px solid rgba(16,185,129,0.3);">مجدول</span>`;
+            if (isArchived) {
+                typeBadgeHtml = `<span style="font-size:0.72rem; padding:2px 8px; border-radius:10px; background:rgba(239,68,68,0.15); color:#f87171; border:1px solid rgba(239,68,68,0.3);">مؤرشف</span>`;
+            } else if (isOneTime) {
+                typeBadgeHtml = `<span style="font-size:0.72rem; padding:2px 8px; border-radius:10px; background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3);">مرة واحدة</span>`;
+            }
+
+            const isAlreadyBonus = todayBonusIds.includes(task.id);
+            const iconHtml = typeof getCategoryIconHtml === "function" ? getCategoryIconHtml(task) : '<i class="fa-solid fa-list-check"></i>';
+            const catInfo = `${task.category || 'عام'}${task.subcategory ? ' - ' + task.subcategory : ''}`;
+
+            const row = document.createElement("div");
+            row.style.cssText = `display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:rgba(255,255,255,0.04); border-radius:10px; border:1px solid rgba(255,255,255,0.08); transition:all 0.2s ease; ${isAlreadyBonus ? 'opacity:0.6;' : ''}`;
+
+            row.innerHTML = `
+                <div style="display:flex; align-items:center; gap:10px; min-width:0; flex:1;">
+                    <div style="font-size:1.15rem; color:#f59e0b; width:26px; text-align:center; flex-shrink:0;">${iconHtml}</div>
+                    <div style="min-width:0; overflow:hidden;">
+                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                            <span style="font-size:0.92rem; font-weight:600; color:#f8fafc; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">${task.name}</span>
+                            ${typeBadgeHtml}
+                        </div>
+                        <span style="font-size:0.75rem; color:#94a3b8;">${catInfo}</span>
+                    </div>
+                </div>
+                <div style="flex-shrink:0; margin-right:8px;">
+                    ${isAlreadyBonus 
+                        ? `<button class="btn-sm" disabled style="background:rgba(16,185,129,0.12); color:#10b981; border:1px solid rgba(16,185,129,0.25); font-size:0.78rem; padding:5px 10px; border-radius:8px; cursor:default;"><i class="fa-solid fa-check"></i> مضاف كـ بونص</button>`
+                        : `<button class="btn-primary btn-sm btn-qa-pick" data-task-id="${task.id}" style="font-size:0.78rem; padding:5px 12px; border-radius:8px;"><i class="fa-solid fa-plus"></i> إضافة كـ بونص</button>`
+                    }
+                </div>
+            `;
+
+            list.appendChild(row);
+        });
+
+        list.querySelectorAll(".btn-qa-pick").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const taskId = btn.getAttribute("data-task-id");
+                addBonusTaskToDate(taskId, curDate);
+                const modal = document.getElementById("quick-add-modal");
+                if (modal) modal.classList.add("hidden");
+            });
+        });
+    }
+
+    renderList();
 }
 

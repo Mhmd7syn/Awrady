@@ -252,8 +252,13 @@ function addBonusTaskToDate(taskId, dateStr) {
     if (!log.bonusTaskIds.includes(taskId)) {
         log.bonusTaskIds.push(taskId);
     }
+    if (log.disabledTaskIds && log.disabledTaskIds.includes(taskId)) {
+        log.disabledTaskIds = log.disabledTaskIds.filter(id => id !== taskId);
+    }
     if (typeof saveData === "function") saveData();
     if (typeof renderDailyView === "function") renderDailyView();
+    if (typeof updateDailyScoreSummary === "function") updateDailyScoreSummary();
+    if (typeof updateHeaderTodayScore === "function") updateHeaderTodayScore();
 }
 
 if (typeof window !== "undefined") {

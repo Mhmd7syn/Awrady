@@ -17,7 +17,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
     <!-- Supabase JS Client for 24/7 Cloud Sync -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="style.css?v=20261011_1">
+    <link rel="stylesheet" href="style.css?v=20261011_4">
     <link rel="icon" type="image/x-icon" href="app-icon.ico">
 
     <!-- PWA & Mobile Web App Meta Tags -->
@@ -287,6 +287,9 @@
                     <button class="sub-tab active" data-sub="active-tasks">
                         <i class="fa-solid fa-layer-group emerald-text"></i> النشطة (<span id="count-active-tasks">0</span>)
                     </button>
+                    <button class="sub-tab" data-sub="onetime-tasks" title="مهام لمرة واحدة">
+                        <i class="fa-solid fa-bolt gold-text" style="color:#f59e0b;"></i> لمرة واحدة (<span id="count-onetime-tasks">0</span>)
+                    </button>
                     <button class="sub-tab" data-sub="archived-tasks" title="الأرشيف">
                         <i class="fa-solid fa-box-archive gold-text"></i> الأرشيف (<span id="count-archived-tasks">0</span>)
                     </button>
@@ -307,6 +310,13 @@
             <!-- Active Tasks List -->
             <div id="manager-active-section" class="sub-tab-content active">
                 <div id="manager-active-list" class="manager-list">
+                    <!-- Dynamic -->
+                </div>
+            </div>
+
+            <!-- One-time Tasks List -->
+            <div id="manager-onetime-section" class="sub-tab-content">
+                <div id="manager-onetime-list" class="manager-list">
                     <!-- Dynamic -->
                 </div>
             </div>
@@ -607,6 +617,12 @@
                             <!-- Dynamically generated inputs for checked days -->
                         </div>
                     </div>
+
+                    <div id="onetime-date-selector-box" class="form-group hidden" style="margin-top: 12px; background: rgba(245, 158, 11, 0.08); padding: 12px 14px; border-radius: 10px; border: 1px dashed rgba(245, 158, 11, 0.35);">
+                        <label for="task-onetime-date-input" style="font-size:0.9rem; color:#f59e0b; font-weight:700;"><i class="fa-solid fa-calendar-day"></i> تاريخ تنفيذ المهمة (Date)</label>
+                        <input type="date" id="task-onetime-date-input" style="padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.4); background: #0f172a; color: #fff; font-size: 0.9rem; width: 100%; margin-top: 6px;">
+                        <small class="hint-text" style="color: #cbd5e1; margin-top: 4px; display: block;">تاريخ اليوم الذي ستظهر فيه هذه المهمة لمرة واحدة فقط.</small>
+                    </div>
                 </div>
 
                 <div class="modal-footer">
@@ -617,9 +633,9 @@
         </div>
     </div>
 
-    <!-- QUICK ADD 2-STEP MODAL -->
+    <!-- QUICK ADD MODAL -->
     <div id="quick-add-modal" class="modal-overlay hidden">
-        <div class="modal-container glass-card" style="max-width: 480px;">
+        <div class="modal-container glass-card" style="max-width: 500px;">
             <div class="modal-header">
                 <h3 id="quick-add-modal-title"><i class="fa-solid fa-plus gold-text"></i> إضافة ورد أو مهمة لليوم</h3>
                 <button class="btn-close" id="btn-close-quick-add-modal"><i class="fa-solid fa-xmark"></i></button>
@@ -634,8 +650,8 @@
                             <i class="fa-solid fa-list-check"></i>
                         </div>
                         <div>
-                            <h4>من الأوراد الموجودة</h4>
-                            <p>اختر ورداً غير مجدول اليوم وأضفه</p>
+                            <h4>مهمة سابقة</h4>
+                            <p>اختيار من المهام السابقة (مجدولة / مرة واحدة / مؤرشفة) وإضافتها كـ بونص</p>
                         </div>
                         <i class="fa-solid fa-chevron-left" style="margin-right:auto; opacity:0.4;"></i>
                     </button>
@@ -644,50 +660,33 @@
                             <i class="fa-solid fa-pen-to-square"></i>
                         </div>
                         <div>
-                            <h4>إنشاء ورد جديد</h4>
-                            <p>أضف ورداً أو مهمة جديدة من الصفر</p>
+                            <h4>مهمة جديدة</h4>
+                            <p>فتح نافذة إنشاء مهمة جديدة مباشرةً</p>
                         </div>
                         <i class="fa-solid fa-chevron-left" style="margin-right:auto; opacity:0.4;"></i>
                     </button>
                 </div>
             </div>
 
-            <!-- Step 2: Choose type (existing) -->
-            <div id="quick-add-step2-existing" style="display:none; padding: 20px 0;">
-                <button class="btn-icon btn-sm" id="btn-qa-back-from-existing" style="margin-bottom:14px; font-size:0.82rem; gap:5px;"><i class="fa-solid fa-arrow-right"></i> رجوع</button>
-                <p style="font-size:0.88rem; color:#94a3b8; margin-bottom:14px;">كيف تريد إضافة هذا الورد اليوم؟</p>
-                <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
-                    <button class="quick-add-option-btn qa-type-btn" data-type="bonus">
-                        <div class="qa-option-icon" style="background:rgba(245,158,11,0.15); color:#f59e0b;"><i class="fa-solid fa-gift"></i></div>
-                        <div><h4>بونص <span style="font-size:0.75rem; font-weight:normal; color:#94a3b8;">— ورد إضافي يُحتسب لصالحك</span></h4></div>
+            <!-- Step 2: Choose existing task (treated as bonus) -->
+            <div id="quick-add-step2-existing" style="display:none; padding: 15px 0;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+                    <button class="btn-icon btn-sm" id="btn-qa-back-from-existing" style="font-size:0.85rem; gap:6px; padding:6px 12px; border-radius:8px; background:rgba(255,255,255,0.06); color:#cbd5e1;">
+                        <i class="fa-solid fa-arrow-right"></i> رجوع
                     </button>
-                    <button class="quick-add-option-btn qa-type-btn" data-type="onetime">
-                        <div class="qa-option-icon" style="background:rgba(59,130,246,0.15); color:#3b82f6;"><i class="fa-solid fa-bolt"></i></div>
-                        <div><h4>مرة واحدة <span style="font-size:0.75rem; font-weight:normal; color:#94a3b8;">— يختفي تلقائياً بعد اليوم</span></h4></div>
-                    </button>
+                    <span style="font-size:0.82rem; color:#f59e0b; font-weight:600;"><i class="fa-solid fa-gift"></i> تُضاف كـ ورد بونص</span>
                 </div>
-                <div id="quick-add-existing-list" style="display:flex; flex-direction:column; gap:8px; max-height:260px; overflow-y:auto;">
+                <div style="margin-bottom:10px;">
+                    <input type="text" id="quick-add-search-input" placeholder="🔍 ابحث في المهام..." style="width:100%; box-sizing:border-box; padding:10px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.12); background:rgba(0,0,0,0.3); color:#fff; font-family:inherit; font-size:0.9rem; outline:none;">
+                </div>
+                <div id="quick-add-filter-chips" style="display:flex; gap:6px; margin-bottom:12px; overflow-x:auto;">
+                    <button class="qa-chip active" data-filter="all">الكل</button>
+                    <button class="qa-chip" data-filter="scheduled">مجدولة</button>
+                    <button class="qa-chip" data-filter="onetime">مرة واحدة</button>
+                    <button class="qa-chip" data-filter="archived">مؤرشفة</button>
+                </div>
+                <div id="quick-add-existing-list" style="display:flex; flex-direction:column; gap:8px; max-height:280px; overflow-y:auto; padding-right:2px;">
                     <!-- Populated by JS -->
-                </div>
-            </div>
-
-            <!-- Step 2: Choose type (new) -->
-            <div id="quick-add-step2-new" style="display:none; padding: 20px 0;">
-                <button class="btn-icon btn-sm" id="btn-qa-back-from-new" style="margin-bottom:14px; font-size:0.82rem; gap:5px;"><i class="fa-solid fa-arrow-right"></i> رجوع</button>
-                <p style="font-size:0.88rem; color:#94a3b8; margin-bottom:14px;">ما نوع الورد أو المهمة الجديدة؟</p>
-                <div style="display:flex; flex-direction:column; gap:10px;">
-                    <button class="quick-add-option-btn" id="btn-qa-new-regular">
-                        <div class="qa-option-icon" style="background:rgba(255,255,255,0.08); color:#f8fafc;"><i class="fa-solid fa-repeat"></i></div>
-                        <div><h4>ورد عادي <span style="font-size:0.75rem; font-weight:normal; color:#94a3b8;">— يُضاف للجدول الدائم</span></h4></div>
-                    </button>
-                    <button class="quick-add-option-btn" id="btn-qa-new-bonus">
-                        <div class="qa-option-icon" style="background:rgba(245,158,11,0.15); color:#f59e0b;"><i class="fa-solid fa-gift"></i></div>
-                        <div><h4>ورد بونص <span style="font-size:0.75rem; font-weight:normal; color:#94a3b8;">— إضافي بدون هدف إلزامي</span></h4></div>
-                    </button>
-                    <button class="quick-add-option-btn" id="btn-qa-new-onetime">
-                        <div class="qa-option-icon" style="background:rgba(59,130,246,0.15); color:#3b82f6;"><i class="fa-solid fa-bolt"></i></div>
-                        <div><h4>مهمة مؤقتة <span style="font-size:0.75rem; font-weight:normal; color:#94a3b8;">— ليوم واحد فقط</span></h4></div>
-                    </button>
                 </div>
             </div>
         </div>
@@ -953,13 +952,13 @@
     <script src="js/components/pomodoro.js?v=20261011_3"></script>
     <script src="js/components/nawafel-toast.js?v=20261011_3"></script>
     <script src="js/components/weekly-modal.js?v=20261011_3"></script>
-    <script src="js/components/daily-view.js?v=20261011_3"></script>
-    <script src="js/components/task-manager.js?v=20261011_3"></script>
-    <script src="js/components/category-manager.js?v=20261011_3"></script>
-    <script src="js/components/analytics-view.js?v=20261011_3"></script>
-    <script src="js/components/data-manager.js?v=20261011_3"></script>
-    <script src="js/components/security-lock.js?v=20261011_3"></script>
-    <script src="js/app.js?v=20261011_3"></script>
+    <script src="js/components/daily-view.js?v=20261011_4"></script>
+    <script src="js/components/task-manager.js?v=20261011_4"></script>
+    <script src="js/components/category-manager.js?v=20261011_4"></script>
+    <script src="js/components/analytics-view.js?v=20261011_4"></script>
+    <script src="js/components/data-manager.js?v=20261011_4"></script>
+    <script src="js/components/security-lock.js?v=20261011_4"></script>
+    <script src="js/app.js?v=20261011_4"></script>
 
     <!-- PWA Service Worker Registration -->
     <script>
