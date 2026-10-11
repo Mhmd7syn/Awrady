@@ -295,6 +295,7 @@ class StateManager {
 
         // Migrate any legacy deleted tasks to archived
         if (Array.isArray(this.data.tasks)) {
+            let migratedAny = false;
             this.data.tasks.forEach(t => {
                 if (t.isDeleted) {
                     t.isArchived = true;
@@ -303,30 +304,37 @@ class StateManager {
                     }
                     delete t.isDeleted;
                     delete t.deletedAt;
+                    migratedAny = true;
+                }
 
-                    // If it was mutated by legacy deleteForever (made OneTime with target 0 in history)
-                    if (Array.isArray(t.history) && t.history.length > 1) {
-                        const lastH = t.history[t.history.length - 1];
-                        if (lastH.target === 0 && (lastH.schedule === "OneTime" || lastH.isOneTime)) {
-                            t.history.pop();
-                            const prevH = t.history[t.history.length - 1];
-                            if (prevH) {
-                                t.target = prevH.target !== undefined ? prevH.target : t.target;
-                                t.schedule = prevH.schedule || t.schedule;
-                                t.isOneTime = !!prevH.isOneTime;
-                                t.oneTimeDate = prevH.oneTimeDate || null;
-                                if (prevH.multiplier !== undefined) t.multiplier = prevH.multiplier;
-                            }
+                // If an archived task has legacy soft-delete flags (isOneTime or schedule OneTime without oneTimeDate)
+                if (t.isArchived && (t.isOneTime || (t.schedule === "OneTime" && !t.oneTimeDate))) {
+                    t.isOneTime = false;
+                    t.oneTimeDate = null;
+                    if (Array.isArray(t.history) && t.history.length > 0) {
+                        const nonZeroH = [...t.history].reverse().find(h => h.target > 0 && h.schedule !== "OneTime" && !h.isOneTime);
+                        if (nonZeroH) {
+                            t.target = nonZeroH.target;
+                            t.schedule = nonZeroH.schedule;
+                            if (nonZeroH.multiplier !== undefined) t.multiplier = nonZeroH.multiplier;
+                            t.history = t.history.filter(h => h.target > 0 || (h.schedule !== "OneTime" && !h.isOneTime));
+                        } else {
+                            if (t.schedule === "OneTime") t.schedule = "Everyday";
+                            if (!t.target || t.target === 0) t.target = 1;
                         }
-                    } else if (t.schedule === "OneTime" && !t.oneTimeDate) {
-                        t.isOneTime = false;
-                        if (t.target === 0) t.target = 1;
+                    } else {
+                        if (t.schedule === "OneTime") t.schedule = "Everyday";
+                        if (!t.target || t.target === 0) t.target = 1;
                     }
                     if (typeof ScheduleEngine !== "undefined" && typeof ScheduleEngine.invalidateTaskCache === "function") {
                         ScheduleEngine.invalidateTaskCache(t);
                     }
+                    migratedAny = true;
                 }
             });
+            if (migratedAny) {
+                console.log("[Migration] Converted deleted tasks to archived:", this.data.tasks.filter(t => t.isArchived));
+            }
         }
 
         // Deduplicate and consolidate one-time tasks with identical names and categories
@@ -336,7 +344,7 @@ class StateManager {
             const idRedirectMap = new Map();
 
             this.data.tasks.forEach(t => {
-                if (t.isOneTime || t.schedule === "OneTime") {
+                if (!t.isArchived && (t.isOneTime || t.schedule === "OneTime")) {
                     const normName = (t.name || "").trim().toLowerCase();
                     const normCat = (t.category || "").trim().toLowerCase();
                     const key = `${normName}:::${normCat}`;

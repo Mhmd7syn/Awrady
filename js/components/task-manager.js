@@ -333,7 +333,7 @@ function renderTaskManager() {
     if (!activeList || !archivedList) return;
 
     const activeTasks = appData.tasks.filter(t => !t.isArchived && !t.isOneTime && t.schedule !== "OneTime");
-    const archivedTasks = appData.tasks.filter(t => t.isArchived && !t.isOneTime && t.schedule !== "OneTime");
+    const archivedTasks = appData.tasks.filter(t => t.isArchived);
 
     const activeCount = renderGroupedTasks(activeList, activeTasks, false);
     const archivedCount = renderGroupedTasks(archivedList, archivedTasks, true);
@@ -362,7 +362,19 @@ function archiveTask(id, isArchive) {
         t.isArchived = isArchive;
         const curDate = (typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : getLocalTodayString();
         t.archivedAt = isArchive ? curDate : null;
-        saveData();
+        if (!isArchive) {
+            t.isOneTime = false;
+            if (t.schedule === "OneTime" && !t.oneTimeDate) {
+                t.schedule = "Everyday";
+            }
+            if (!t.target || t.target === 0) {
+                t.target = 1;
+            }
+        }
+        if (typeof ScheduleEngine !== "undefined" && typeof ScheduleEngine.invalidateTaskCache === "function") {
+            ScheduleEngine.invalidateTaskCache(t);
+        }
+        saveData(true);
         renderDailyView();
         renderTaskManager();
     }

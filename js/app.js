@@ -127,8 +127,15 @@ async function initData() {
     window.appData = appData;
     if (window.stateManager) {
         window.stateManager.data = appData;
+        window.stateManager.ensureDataIntegrity();
+        appData = window.stateManager.data;
+        window.appData = appData;
     }
-    saveData(true);
+    if (window.storageEngine) {
+        await window.storageEngine.saveDataImmediate(STORAGE_KEY, appData);
+    } else {
+        saveData(true);
+    }
 }
 
 function loadDefaultAppData() {
