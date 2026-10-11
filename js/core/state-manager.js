@@ -293,50 +293,6 @@ class StateManager {
             }
         });
 
-        // Migrate any legacy deleted tasks to archived
-        if (Array.isArray(this.data.tasks)) {
-            let migratedAny = false;
-            this.data.tasks.forEach(t => {
-                if (t.isDeleted) {
-                    t.isArchived = true;
-                    if (!t.archivedAt) {
-                        t.archivedAt = t.deletedAt || (typeof currentDateStr !== "undefined" && currentDateStr ? currentDateStr : "2026-09-21");
-                    }
-                    delete t.isDeleted;
-                    delete t.deletedAt;
-                    migratedAny = true;
-                }
-
-                // If an archived task has legacy soft-delete flags (isOneTime or schedule OneTime without oneTimeDate)
-                if (t.isArchived && (t.isOneTime || (t.schedule === "OneTime" && !t.oneTimeDate))) {
-                    t.isOneTime = false;
-                    t.oneTimeDate = null;
-                    if (Array.isArray(t.history) && t.history.length > 0) {
-                        const nonZeroH = [...t.history].reverse().find(h => h.target > 0 && h.schedule !== "OneTime" && !h.isOneTime);
-                        if (nonZeroH) {
-                            t.target = nonZeroH.target;
-                            t.schedule = nonZeroH.schedule;
-                            if (nonZeroH.multiplier !== undefined) t.multiplier = nonZeroH.multiplier;
-                            t.history = t.history.filter(h => h.target > 0 || (h.schedule !== "OneTime" && !h.isOneTime));
-                        } else {
-                            if (t.schedule === "OneTime") t.schedule = "Everyday";
-                            if (!t.target || t.target === 0) t.target = 1;
-                        }
-                    } else {
-                        if (t.schedule === "OneTime") t.schedule = "Everyday";
-                        if (!t.target || t.target === 0) t.target = 1;
-                    }
-                    if (typeof ScheduleEngine !== "undefined" && typeof ScheduleEngine.invalidateTaskCache === "function") {
-                        ScheduleEngine.invalidateTaskCache(t);
-                    }
-                    migratedAny = true;
-                }
-            });
-            if (migratedAny) {
-                console.log("[Migration] Converted deleted tasks to archived:", this.data.tasks.filter(t => t.isArchived));
-            }
-        }
-
         // Deduplicate and consolidate one-time tasks with identical names and categories
         if (Array.isArray(this.data.tasks)) {
             const onetimeMap = new Map();

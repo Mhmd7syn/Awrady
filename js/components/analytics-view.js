@@ -306,7 +306,7 @@ const TASK_STATUS_CONFIG = {
 
 function getTaskStatusKey(task) {
     if (!task) return "scheduled";
-    if (task.isDeleted || task.isArchived) return "archived";
+    if (task.isArchived) return "archived";
     if (task.isOneTime || task.schedule === "OneTime") return "onetime";
     return "scheduled";
 }
