@@ -18,36 +18,92 @@ function getRecordedDates() {
     }).sort();
 }
 
-function renderAllTimeStats() {
-    if (!appData || !appData.logs) return;
+function getSelectedDates() {
     const allDates = getRecordedDates();
+    if (typeof chartTimeRange === "undefined" || chartTimeRange === "all") return allDates;
+    const daysLimit = parseInt(chartTimeRange, 10);
+    if (isNaN(daysLimit) || daysLimit <= 0) return allDates;
+    return allDates.slice(-daysLimit);
+}
 
-    const elHeaderScore = document.getElementById("header-alltime-score");
-    const elHeaderDays = document.getElementById("header-total-days");
+function updateAnalyticsHeroMetrics(selectedDates = null) {
+    const allDates = getRecordedDates();
+    const activeDates = selectedDates || getSelectedDates();
+
+    const elHeroTitle = document.getElementById("analytics-hero-title");
     const elAnalyticsVal = document.getElementById("analytics-alltime-val");
     const elAnalyticsSub = document.getElementById("analytics-alltime-sub");
 
-    if (allDates.length === 0) {
-        if (elHeaderScore) elHeaderScore.textContent = "0%";
-        if (elHeaderDays) elHeaderDays.textContent = "0";
+    const currentRange = (typeof chartTimeRange !== "undefined") ? chartTimeRange : "all";
+
+    if (elHeroTitle) {
+        if (currentRange === "7") {
+            elHeroTitle.textContent = "معدل الأسبوع";
+        } else if (currentRange === "30") {
+            elHeroTitle.textContent = "معدل الشهر";
+        } else {
+            elHeroTitle.textContent = "المعدل العام";
+        }
+    }
+
+    if (activeDates.length === 0) {
         if (elAnalyticsVal) elAnalyticsVal.textContent = "0%";
         if (elAnalyticsSub) elAnalyticsSub.textContent = "لم يتم تسجيل أيام بعد";
         return;
     }
 
     let sumScores = 0;
-    allDates.forEach(d => {
-        sumScores += calculateDayScore(d);
+    activeDates.forEach(d => {
+        sumScores += (typeof ScoringEngine !== "undefined")
+            ? ScoringEngine.calculateDayScore(d, (typeof appData !== "undefined" ? appData : null), false)
+            : calculateDayScore(d, null, false);
     });
 
-    const averageScore = sumScores / allDates.length;
+    const averageScore = sumScores / activeDates.length;
     const avgPercent = Math.round(averageScore * 100);
 
-    if (elHeaderScore) elHeaderScore.textContent = `${avgPercent}%`;
-    if (elHeaderDays) elHeaderDays.textContent = allDates.length.toString();
-
     if (elAnalyticsVal) elAnalyticsVal.textContent = `${avgPercent}%`;
-    if (elAnalyticsSub) elAnalyticsSub.textContent = `بناءً على ${allDates.length} يوماً مسجلاً في السجل التراكمي`;
+
+    if (elAnalyticsSub) {
+        if (currentRange === "all") {
+            elAnalyticsSub.textContent = `السجل التراكمي لكافة الأيام (${allDates.length} يوماً)`;
+        } else if (currentRange === "7") {
+            elAnalyticsSub.textContent = `بناءً على ${activeDates.length} ${activeDates.length === 1 ? 'يوم' : (activeDates.length <= 10 ? 'أيام' : 'يوماً')} في آخر 7 أيام`;
+        } else if (currentRange === "30") {
+            elAnalyticsSub.textContent = `بناءً على ${activeDates.length} ${activeDates.length === 1 ? 'يوم' : (activeDates.length <= 10 ? 'أيام' : 'يوماً')} في آخر 30 يوماً`;
+        } else {
+            elAnalyticsSub.textContent = `بناءً على ${activeDates.length} يوماً مسجلاً في هذه الفترة`;
+        }
+    }
+}
+
+function renderAllTimeStats() {
+    if (!appData || !appData.logs) return;
+    const allDates = getRecordedDates();
+
+    const elHeaderScore = document.getElementById("header-alltime-score");
+    const elHeaderDays = document.getElementById("header-total-days");
+
+    if (allDates.length === 0) {
+        if (elHeaderScore) elHeaderScore.textContent = "0%";
+        if (elHeaderDays) elHeaderDays.textContent = "0";
+    } else {
+        let sumScores = 0;
+        allDates.forEach(d => {
+            sumScores += (typeof ScoringEngine !== "undefined")
+                ? ScoringEngine.calculateDayScore(d, (typeof appData !== "undefined" ? appData : null), false)
+                : calculateDayScore(d, null, false);
+        });
+
+        const averageScore = sumScores / allDates.length;
+        const avgPercent = Math.round(averageScore * 100);
+
+        if (elHeaderScore) elHeaderScore.textContent = `${avgPercent}%`;
+        if (elHeaderDays) elHeaderDays.textContent = allDates.length.toString();
+    }
+
+    // Keep hero metric card in sync with active period filter
+    updateAnalyticsHeroMetrics();
 }
 
 function initChart() {
@@ -204,19 +260,15 @@ function updateChartAndAnalytics() {
     if (!chartInstance && typeof initChart === "function") {
         initChart();
     }
-    const allDates = getRecordedDates();
-    let selectedDates = allDates;
+    const selectedDates = getSelectedDates();
 
-    if (chartTimeRange !== "all") {
-        const daysLimit = parseInt(chartTimeRange, 10);
-        if (allDates.length > daysLimit) {
-            selectedDates = allDates.slice(-daysLimit);
-        }
-    }
+    // Synchronize hero metric card (percentage, title, subtitle) with selected period
+    updateAnalyticsHeroMetrics(selectedDates);
 
     const fullDataList = [];
     let periodSum = 0;
     let bestDayHours = 0;
+    let bestDayScore = 0;
     let bestDayLabel = "--";
 
     selectedDates.forEach((dateStr, idx) => {
@@ -225,8 +277,12 @@ function updateChartAndAnalytics() {
             : calculateDayScore(dateStr, null, true);
         const hoursFormatted = Math.round(hours * 10) / 10;
 
-        const d = new Date(dateStr);
-        const label = !isNaN(d) ? `${d.getDate()}/${d.getMonth() + 1}` : dateStr;
+        const score = (typeof ScoringEngine !== "undefined")
+            ? ScoringEngine.calculateDayScore(dateStr, (typeof appData !== "undefined" ? appData : null), false)
+            : calculateDayScore(dateStr, null, false);
+
+        const dateParts = dateStr.split("-");
+        const label = dateParts.length === 3 ? `${parseInt(dateParts[2], 10)}/${parseInt(dateParts[1], 10)}` : dateStr;
 
         fullDataList.push({
             index: idx,
@@ -237,9 +293,13 @@ function updateChartAndAnalytics() {
 
         periodSum += hoursFormatted;
 
-        if (hoursFormatted > bestDayHours) {
+        if (hoursFormatted > bestDayHours || (hoursFormatted === bestDayHours && score > bestDayScore && hoursFormatted > 0)) {
             bestDayHours = hoursFormatted;
+            bestDayScore = score;
             bestDayLabel = `${label} (${hoursFormatted} س)`;
+        } else if (bestDayHours === 0 && score > bestDayScore && score > 0) {
+            bestDayScore = score;
+            bestDayLabel = `${label} (${Math.round(score * 100)}%)`;
         }
     });
 
@@ -319,12 +379,7 @@ function setupAnalyticsFilters() {
             buttons.forEach(b => b.classList.remove("active"));
             btn.classList.add("active");
             analyticsTaskStatusFilter = btn.getAttribute("data-status-filter") || "all";
-            const allDates = getRecordedDates();
-            let selectedDates = allDates;
-            if (chartTimeRange !== "all") {
-                const daysLimit = parseInt(chartTimeRange, 10);
-                if (allDates.length > daysLimit) selectedDates = allDates.slice(-daysLimit);
-            }
+            const selectedDates = getSelectedDates();
             renderTaskBreakdown(selectedDates);
         };
     });
@@ -638,4 +693,13 @@ function renderTaskBreakdown(allDates) {
         catCard.appendChild(catBody);
         container.appendChild(catCard);
     });
+}
+
+if (typeof window !== "undefined") {
+    window.renderAllTimeStats = renderAllTimeStats;
+    window.updateChartAndAnalytics = updateChartAndAnalytics;
+    window.updateAnalyticsHeroMetrics = updateAnalyticsHeroMetrics;
+    window.getSelectedDates = getSelectedDates;
+    window.renderTaskBreakdown = renderTaskBreakdown;
+    window.initChart = initChart;
 }
