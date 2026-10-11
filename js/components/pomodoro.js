@@ -203,8 +203,19 @@ function populatePomoTaskSelect() {
     if (appData && Array.isArray(appData.tasks)) {
         const timeTypes = ["ساعة", "ساعات", "ساعات ودقايق", "وقت", "دقيقة"];
         
-        // Filter active tasks (prioritize time-based, then other non-archived tasks)
-        const activeTasks = appData.tasks.filter(t => !t.isArchived);
+        const curDate = (typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : (typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().split("T")[0]);
+        // Filter active tasks (prioritize time-based, then other non-archived tasks; for one-time tasks, only include if scheduled today or logged today)
+        const activeTasks = appData.tasks.filter(t => {
+            if (t.isArchived) return false;
+            if (t.isOneTime || t.schedule === "OneTime") {
+                const isSched = (typeof ScheduleEngine !== "undefined")
+                    ? ScheduleEngine.isTaskScheduledForDate(t, curDate, appData)
+                    : false;
+                const hasLoggedToday = !!(appData.logs && appData.logs[curDate]?.entries?.[t.id] > 0);
+                return isSched || hasLoggedToday;
+            }
+            return true;
+        });
 
         const timeTasks = activeTasks.filter(t => {
             const type = (t.type || "").trim();

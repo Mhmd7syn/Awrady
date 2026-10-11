@@ -456,7 +456,10 @@ function renderTaskBreakdown(allDates) {
             let sumRatio = 0;
             let scheduledDaysCount = 0;
 
-            const targetDate = task.oneTimeDate || (task.createdAt ? task.createdAt.slice(0, 10) : null);
+            const targetDates = Array.isArray(task.oneTimeDates) && task.oneTimeDates.length > 0
+                ? task.oneTimeDates
+                : (task.oneTimeDate ? [task.oneTimeDate] : (task.createdAt ? [task.createdAt.slice(0, 10)] : []));
+            const targetDate = targetDates[targetDates.length - 1] || null;
             const archiveCutoff = task.archivedAt || null;
             const deletedCutoff = task.deletedAt || null;
 
@@ -481,7 +484,7 @@ function renderTaskBreakdown(allDates) {
                 let isScheduled = false;
 
                 if (statusKey === "onetime") {
-                    if ((targetDate && d === targetDate) || val > 0) {
+                    if (targetDates.includes(d) || val > 0) {
                         isScheduled = true;
                     }
                 } else if (statusKey === "removed") {
@@ -523,18 +526,20 @@ function renderTaskBreakdown(allDates) {
             });
 
             // Special fallback for one-time task if target date wasn't inside allDates range
-            if (statusKey === "onetime" && scheduledDaysCount === 0 && targetDate) {
-                scheduledDaysCount = 1;
-                const log = (appData.logs && appData.logs[targetDate]) ? appData.logs[targetDate] : null;
-                const val = (log && log.entries) ? (log.entries[task.id] || 0) : 0;
-                if (val > 0) {
-                    activeTimes = 1;
-                    let tgt = (task.target && task.target > 0) ? task.target : 1;
-                    if (task.type === "ساعة" || task.type === "ساعات" || task.type === "ساعات ودقايق" || task.type === "وقت") {
-                        tgt = tgt * 60;
+            if (statusKey === "onetime" && scheduledDaysCount === 0 && targetDates.length > 0) {
+                targetDates.forEach(td => {
+                    scheduledDaysCount++;
+                    const log = (appData.logs && appData.logs[td]) ? appData.logs[td] : null;
+                    const val = (log && log.entries) ? (log.entries[task.id] || 0) : 0;
+                    if (val > 0) {
+                        activeTimes++;
+                        let tgt = (task.target && task.target > 0) ? task.target : 1;
+                        if (task.type === "ساعة" || task.type === "ساعات" || task.type === "ساعات ودقايق" || task.type === "وقت") {
+                            tgt = tgt * 60;
+                        }
+                        sumRatio += (val / tgt);
                     }
-                    sumRatio = val / tgt;
-                }
+                });
             }
 
             const effectiveTotalDays = scheduledDaysCount;
@@ -544,8 +549,14 @@ function renderTaskBreakdown(allDates) {
             const statusBadgeHtml = `<span class="breakdown-status-badge ${statusCfg.badgeClass}"><i class="fa-solid ${statusCfg.icon}"></i> ${statusCfg.label}</span>`;
 
             let metaExtra = "";
-            if (statusKey === "onetime" && targetDate) {
-                metaExtra = `<span>•</span><span><i class="fa-regular fa-calendar"></i> ${targetDate}</span>`;
+            if (statusKey === "onetime" && targetDates.length > 0) {
+                if (targetDates.length > 1) {
+                    const sorted = targetDates.slice().sort();
+                    const latest = sorted[sorted.length - 1];
+                    metaExtra = `<span>•</span><span><i class="fa-regular fa-calendar"></i> ${targetDates.length} أيام (آخرها: ${latest})</span>`;
+                } else {
+                    metaExtra = `<span>•</span><span><i class="fa-regular fa-calendar"></i> ${targetDates[0]}</span>`;
+                }
             } else if (statusKey === "archived" && archiveCutoff) {
                 metaExtra = `<span>•</span><span><i class="fa-solid fa-box-archive"></i> ${archiveCutoff}</span>`;
             } else if (statusKey === "removed" && deletedCutoff) {

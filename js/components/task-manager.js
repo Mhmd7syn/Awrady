@@ -679,41 +679,80 @@ function saveTaskFromModal() {
             oldTask.isBonus = isBonus;
             oldTask.isOneTime = (schedType === "OneTime");
             oldTask.oneTimeDate = (schedType === "OneTime") ? selectedDate : null;
+            if (schedType === "OneTime") {
+                if (!Array.isArray(oldTask.oneTimeDates)) {
+                    oldTask.oneTimeDates = oldTask.oneTimeDate ? [oldTask.oneTimeDate] : [];
+                }
+                if (!oldTask.oneTimeDates.includes(selectedDate)) {
+                    oldTask.oneTimeDates.push(selectedDate);
+                }
+            }
         }
     } else {
-        const newTask = {
-            id: id,
-            name: name,
-            category: cat,
-            subcategory: subcat,
-            type: type,
-            target: parsedTarget,
-            dayTargets: dayTargets,
-            multiplier: 1.0, 
-            schedule: scheduleVal,
-            isArchived: false,
-            comment: taskComment,
-            isBonus: isBonus,
-            isOneTime: (schedType === "OneTime"),
-            oneTimeDate: (schedType === "OneTime") ? selectedDate : null,
-            createdAt: selectedDate,
-            history: [{
-                effectiveFrom: selectedDate,
+        // If creating a OneTime task, check if a one-time task with the same name and category already exists to reuse it!
+        let existingOnetimeTask = null;
+        if (schedType === "OneTime" && Array.isArray(appData.tasks)) {
+            existingOnetimeTask = appData.tasks.find(t => 
+                (t.isOneTime || t.schedule === "OneTime") && 
+                !t.isArchived && 
+                t.name.trim().toLowerCase() === name.toLowerCase() &&
+                t.category === cat
+            );
+        }
+
+        if (existingOnetimeTask) {
+            // Reuse existing one-time task instead of creating a duplicate!
+            if (!Array.isArray(existingOnetimeTask.oneTimeDates)) {
+                existingOnetimeTask.oneTimeDates = existingOnetimeTask.oneTimeDate ? [existingOnetimeTask.oneTimeDate] : [];
+            }
+            if (!existingOnetimeTask.oneTimeDates.includes(selectedDate)) {
+                existingOnetimeTask.oneTimeDates.push(selectedDate);
+            }
+            existingOnetimeTask.oneTimeDate = selectedDate;
+            if (parsedTarget !== null) existingOnetimeTask.target = parsedTarget;
+            if (taskComment) existingOnetimeTask.comment = taskComment;
+            if (subcat) existingOnetimeTask.subcategory = subcat;
+            if (type) existingOnetimeTask.type = type;
+            if (typeof ScheduleEngine !== "undefined" && typeof ScheduleEngine.invalidateTaskCache === "function") {
+                ScheduleEngine.invalidateTaskCache(existingOnetimeTask);
+            }
+        } else {
+            const newTask = {
+                id: id,
                 name: name,
                 category: cat,
                 subcategory: subcat,
                 type: type,
                 target: parsedTarget,
                 dayTargets: dayTargets,
-                multiplier: 1.0,
+                multiplier: 1.0, 
                 schedule: scheduleVal,
-                isBonus: isBonus,
+                isArchived: false,
                 comment: taskComment,
+                isBonus: isBonus,
                 isOneTime: (schedType === "OneTime"),
-                oneTimeDate: (schedType === "OneTime") ? selectedDate : null
-            }]
-        };
-        appData.tasks.push(newTask);
+                oneTimeDate: (schedType === "OneTime") ? selectedDate : null,
+                oneTimeDates: (schedType === "OneTime") ? [selectedDate] : null,
+                createdAt: selectedDate,
+                history: [{
+                    effectiveFrom: selectedDate,
+                    name: name,
+                    category: cat,
+                    subcategory: subcat,
+                    type: type,
+                    target: parsedTarget,
+                    dayTargets: dayTargets,
+                    multiplier: 1.0,
+                    schedule: scheduleVal,
+                    isBonus: isBonus,
+                    comment: taskComment,
+                    isOneTime: (schedType === "OneTime"),
+                    oneTimeDate: (schedType === "OneTime") ? selectedDate : null,
+                    oneTimeDates: (schedType === "OneTime") ? [selectedDate] : null
+                }]
+            };
+            appData.tasks.push(newTask);
+        }
     }
 
     closeTaskModal();
@@ -919,7 +958,7 @@ function populateQuickAddExistingList() {
 
     const curDate = typeof currentDateStr !== "undefined" ? currentDateStr : getLocalTodayString();
     const available = (appData.tasks || []).filter(t => {
-        if (t.isArchived || t.isOneTime || t.schedule === "OneTime") return false;
+        if (t.isArchived) return false;
         const isSched = (typeof ScheduleEngine !== "undefined")
             ? ScheduleEngine.isTaskScheduledForDate(t, curDate, appData)
             : false;
@@ -927,15 +966,17 @@ function populateQuickAddExistingList() {
     });
 
     if (available.length === 0) {
-        list.innerHTML = `<p style="font-size:0.85rem; color:#64748b; text-align:center; padding:14px 0;">جميع أوردادك النشطة مجدولة اليوم بالفعل.</p>`;
+        list.innerHTML = `<p style="font-size:0.85rem; color:#64748b; text-align:center; padding:14px 0;">جميع أوردادك ومهامك النشطة مجدولة اليوم بالفعل.</p>`;
         return;
     }
 
     available.forEach(task => {
+        const isOt = task.isOneTime || task.schedule === "OneTime";
+        const tagText = isOt ? " (لمرة واحدة)" : (task.isBonus ? " (بونص)" : "");
         const row = document.createElement("div");
         row.style.cssText = "display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:rgba(255,255,255,0.04); border-radius:10px; border:1px solid rgba(255,255,255,0.07);";
         row.innerHTML = `
-            <span style="font-size:0.92rem;">${task.name} <span style="font-size:0.75rem; color:#64748b;">${task.category || ""}</span></span>
+            <span style="font-size:0.92rem;">${task.name}<span style="font-size:0.75rem; color:#f59e0b;">${tagText}</span> <span style="font-size:0.75rem; color:#64748b;">${task.category || ""}</span></span>
             <button class="btn-primary btn-sm" style="font-size:0.78rem; padding:5px 12px;" data-add-task-id="${task.id}"><i class="fa-solid fa-plus"></i> إضافة</button>
         `;
         list.appendChild(row);
@@ -956,18 +997,53 @@ function populateQuickAddExistingList() {
                 if (typeof saveData === "function") saveData();
                 if (typeof renderDailyView === "function") renderDailyView();
             } else if (_qaSelectedType === "onetime") {
-                // Clone the task as a one-time task for today
-                const original = appData.tasks.find(t => t.id === taskId);
-                if (original) {
-                    const cloned = {
-                        ...JSON.parse(JSON.stringify(original)),
-                        id: `task_ot_${Date.now()}`,
-                        isOneTime: true,
-                        schedule: "OneTime",
-                        oneTimeDate: curDate,
-                        isBonus: false
-                    };
-                    appData.tasks.push(cloned);
+                const targetTask = appData.tasks.find(t => t.id === taskId);
+                if (targetTask) {
+                    if (targetTask.isOneTime || targetTask.schedule === "OneTime") {
+                        // Already a one-time task: reuse it and add today to its dates!
+                        if (!Array.isArray(targetTask.oneTimeDates)) {
+                            targetTask.oneTimeDates = targetTask.oneTimeDate ? [targetTask.oneTimeDate] : [];
+                        }
+                        if (!targetTask.oneTimeDates.includes(curDate)) {
+                            targetTask.oneTimeDates.push(curDate);
+                        }
+                        targetTask.oneTimeDate = curDate;
+                        if (typeof ScheduleEngine !== "undefined" && typeof ScheduleEngine.invalidateTaskCache === "function") {
+                            ScheduleEngine.invalidateTaskCache(targetTask);
+                        }
+                    } else {
+                        // Check if a one-time counterpart already exists for this task name & category
+                        let existingOt = appData.tasks.find(t => 
+                            (t.isOneTime || t.schedule === "OneTime") && 
+                            !t.isArchived && 
+                            t.name.trim().toLowerCase() === targetTask.name.trim().toLowerCase() && 
+                            t.category === targetTask.category
+                        );
+                        if (existingOt) {
+                            if (!Array.isArray(existingOt.oneTimeDates)) {
+                                existingOt.oneTimeDates = existingOt.oneTimeDate ? [existingOt.oneTimeDate] : [];
+                            }
+                            if (!existingOt.oneTimeDates.includes(curDate)) {
+                                existingOt.oneTimeDates.push(curDate);
+                            }
+                            existingOt.oneTimeDate = curDate;
+                            if (typeof ScheduleEngine !== "undefined" && typeof ScheduleEngine.invalidateTaskCache === "function") {
+                                ScheduleEngine.invalidateTaskCache(existingOt);
+                            }
+                        } else {
+                            // Create one-time task record once
+                            const newOt = {
+                                ...JSON.parse(JSON.stringify(targetTask)),
+                                id: `task_ot_${Date.now()}`,
+                                isOneTime: true,
+                                schedule: "OneTime",
+                                oneTimeDate: curDate,
+                                oneTimeDates: [curDate],
+                                isBonus: false
+                            };
+                            appData.tasks.push(newOt);
+                        }
+                    }
                     if (typeof saveData === "function") saveData();
                     if (typeof renderDailyView === "function") renderDailyView();
                 }

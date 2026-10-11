@@ -31,6 +31,7 @@ class ScheduleEngine {
             comment: task.comment,
             isOneTime: !!(task.isOneTime || (task.schedule === "OneTime")),
             oneTimeDate: task.oneTimeDate || null,
+            oneTimeDates: Array.isArray(task.oneTimeDates) ? task.oneTimeDates : (task.oneTimeDate ? [task.oneTimeDate] : []),
             dayTargets: task.dayTargets || null
         };
 
@@ -96,6 +97,7 @@ class ScheduleEngine {
                 comment: match.comment !== undefined ? match.comment : defaultProps.comment,
                 isOneTime: isOneTime,
                 oneTimeDate: match.oneTimeDate !== undefined ? match.oneTimeDate : defaultProps.oneTimeDate,
+                oneTimeDates: (match.oneTimeDates && Array.isArray(match.oneTimeDates)) ? match.oneTimeDates : defaultProps.oneTimeDates,
                 dayTargets: dayTargets
             };
         } else {
@@ -137,9 +139,9 @@ class ScheduleEngine {
 
         const sched = (effProps.schedule || task.schedule || "").trim();
         const isOneTime = (effProps && effProps.isOneTime !== undefined) ? effProps.isOneTime : (task.isOneTime || sched === "OneTime");
-        const targetDate = task.oneTimeDate || effProps.oneTimeDate;
+        const targetDates = Array.isArray(task.oneTimeDates) ? task.oneTimeDates : ((task.oneTimeDate || effProps.oneTimeDate) ? [task.oneTimeDate || effProps.oneTimeDate] : []);
 
-        if (isOneTime && targetDate === dateStr) {
+        if (isOneTime && targetDates.includes(dateStr)) {
             return false;
         }
 
@@ -194,8 +196,13 @@ class ScheduleEngine {
         // OneTime task check: if target date matches dateStr, it's valid regardless of creation date
         const isOneTime = (effProps && effProps.isOneTime !== undefined) ? effProps.isOneTime : (task.isOneTime || sched === "OneTime");
         if (isOneTime || sched === "OneTime") {
-            const isTargetDate = (task.oneTimeDate || (effProps && effProps.oneTimeDate)) === dateStr;
-            if (isTargetDate) return true;
+            const dates = Array.isArray(task.oneTimeDates) ? [...task.oneTimeDates] : [];
+            const singleTarget = task.oneTimeDate || (effProps && effProps.oneTimeDate);
+            if (singleTarget && !dates.includes(singleTarget)) dates.push(singleTarget);
+            if (effProps && Array.isArray(effProps.oneTimeDates)) {
+                effProps.oneTimeDates.forEach(d => { if (d && !dates.includes(d)) dates.push(d); });
+            }
+            if (dates.includes(dateStr)) return true;
             return false;
         }
 
