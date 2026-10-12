@@ -2,6 +2,11 @@
  * Awrady Dashboard - 1-Click SQL Migration Component
  * Reads live loaded in-memory data (appData) and migrates users, tasks, and daily_progress
  * directly to new Supabase SQL tables for user 'mhmd7syn'.
+ * 
+ * Features:
+ * - Deduplicates / merges tasks sharing the same name into a single canonical task
+ * - Remaps all historical daily logs to canonical task IDs
+ * - Computes combined lifetime totals across merged task occurrences
  */
 
 (function() {
@@ -47,21 +52,68 @@
         }
     }
 
+    /**
+     * Group tasks by trimmed name and select the canonical task ID
+     */
+    function buildCanonicalTaskMap(tasks) {
+        const nameGroups = new Map();
+
+        tasks.forEach(t => {
+            const normalizedName = (t.name || "").trim().toLowerCase();
+            if (!nameGroups.has(normalizedName)) {
+                nameGroups.set(normalizedName, []);
+            }
+            nameGroups.get(normalizedName).push(t);
+        });
+
+        const idToCanonicalMap = {};
+        const canonicalTasks = [];
+
+        nameGroups.forEach((groupTasks) => {
+            // Sort to find base task: non-date-suffix first, shortest ID length, earliest created
+            const sorted = [...groupTasks].sort((a, b) => {
+                const aHasDate = /_\d{8}$/.test(a.id);
+                const bHasDate = /_\d{8}$/.test(b.id);
+                if (aHasDate !== bHasDate) return aHasDate ? 1 : -1;
+                if (a.id.length !== b.id.length) return a.id.length - b.id.length;
+                return (a.createdAt || "").localeCompare(b.createdAt || "");
+            });
+
+            const canonical = sorted[0];
+
+            // If ANY task in this group is active (not deleted and not archived), the merged task is active
+            const hasActiveInstance = groupTasks.some(t => !t.isArchived && !t.isDeleted);
+            canonical.is_archived = !hasActiveInstance;
+
+            canonicalTasks.push(canonical);
+
+            // Remap all tasks in this group to the canonical ID
+            groupTasks.forEach(t => {
+                idToCanonicalMap[t.id] = canonical.id;
+            });
+        });
+
+        return { idToCanonicalMap, canonicalTasks };
+    }
+
     function refreshMigrationPreview() {
         const tasksCountEl = document.getElementById("mig-preview-tasks-count");
         const daysCountEl = document.getElementById("mig-preview-days-count");
         const activeCountEl = document.getElementById("mig-preview-active-count");
 
         const data = window.appData || {};
-        const tasks = data.tasks || [];
+        const rawTasks = data.tasks || [];
         const logs = data.logs || {};
         const dates = Object.keys(logs);
 
-        const activeTasks = tasks.filter(t => !t.isArchived && !t.isDeleted);
+        const { canonicalTasks } = buildCanonicalTaskMap(rawTasks);
+        const activeCanonical = canonicalTasks.filter(t => !t.is_archived);
 
-        if (tasksCountEl) tasksCountEl.textContent = tasks.length;
+        if (tasksCountEl) {
+            tasksCountEl.innerHTML = `${canonicalTasks.length} <small style="font-size: 0.75rem; color: #94a3b8;">(دُمجت من ${rawTasks.length})</small>`;
+        }
         if (daysCountEl) daysCountEl.textContent = dates.length;
-        if (activeCountEl) activeCountEl.textContent = activeTasks.length;
+        if (activeCountEl) activeCountEl.textContent = activeCanonical.length;
     }
 
     async function hashPin(pin) {
@@ -110,7 +162,7 @@
 
         try {
             setProgress(5, "جارِ تهيئة الاتصال بـ Supabase...");
-            logStatus("بدء عملية الترحيل إلى الجداول الجديدة...", "info");
+            logStatus("بدء عملية الترحيل ودمج المهام المتشابهة...", "info");
 
             const inputUser = document.getElementById("mig-input-username");
             const inputPin = document.getElementById("mig-input-pin");
@@ -130,17 +182,22 @@
             }
 
             const data = window.appData || {};
-            const tasks = data.tasks || [];
+            const rawTasks = data.tasks || [];
             const logs = data.logs || {};
             const dates = Object.keys(logs).sort();
 
-            if (tasks.length === 0 && dates.length === 0) {
+            if (rawTasks.length === 0 && dates.length === 0) {
                 throw new Error("لم يتم العثور على أي مهام أو سجلات مخزنة في الذاكرة الحالية.");
             }
 
-            // Step 1: Upsert User mhmd7syn
+            // Step 1: Deduplicate Tasks by Name
+            const { idToCanonicalMap, canonicalTasks } = buildCanonicalTaskMap(rawTasks);
+            const duplicatesMerged = rawTasks.length - canonicalTasks.length;
+            logStatus(`تم فحص المهام: دُمجت ${duplicatesMerged} مهمة متكررة الاسم ليصبح الإجمالي ${canonicalTasks.length} مهمة فريدة.`, "warn");
+
+            // Step 2: Upsert User
             setProgress(15, `إنشاء المستخدم ${targetUser}...`);
-            logStatus(`حساب رمز التشفير وإنشاء المستخدم: ${targetUser}...`);
+            logStatus(`حساب رمز التشفير للمستخدم: ${targetUser}...`);
             const pinHash = await hashPin(targetPin);
 
             const { error: userErr } = await client.from("users").upsert({
@@ -150,40 +207,42 @@
 
             if (userErr) {
                 if (userErr.code === "42P01" || userErr.message?.includes("does not exist")) {
-                    throw new Error("جدول users غير موجود في قاعدة البيانات! يرجى تنفيذ ملف database/schema.sql أولاً في Supabase SQL Editor.");
+                    throw new Error("جدول users غير موجود! تأكد من تشغيل database/schema.sql في Supabase SQL Editor.");
                 }
                 throw userErr;
             }
             logStatus(`✓ تم تسجيل المستخدم '${targetUser}' بنجاح في جدول users`, "success");
 
-            // Step 2: Transform and Upsert Tasks
-            setProgress(30, "جارِ تجهيز وترحيل المهام...");
-            logStatus(`بدء معالجة وترحيل ${tasks.length} مهمة...`);
-
-            // Compute lifetime stats per task
+            // Step 3: Compute Combined Lifetime Stats per Canonical Task
+            setProgress(30, "حساب الإحصائيات التراكمية للمهام...");
             const taskStats = {};
-            tasks.forEach(t => {
+            canonicalTasks.forEach(t => {
                 taskStats[t.id] = { achieved: 0, hours: 0, score: 0 };
             });
 
             dates.forEach(d => {
                 const log = logs[d];
                 if (!log || !log.entries) return;
-                tasks.forEach(t => {
-                    const val = log.entries[t.id] || 0;
-                    if (val > 0) {
-                        taskStats[t.id].achieved += val;
-                        const isTime = (t.type === "ساعة" || t.type === "ساعات" || t.type === "وقت" || t.category === "خروج");
+                Object.entries(log.entries).forEach(([rawId, val]) => {
+                    const numVal = Number(val) || 0;
+                    if (numVal <= 0) return;
+                    const canonicalId = idToCanonicalMap[rawId] || rawId;
+                    if (taskStats[canonicalId]) {
+                        taskStats[canonicalId].achieved += numVal;
+                        const originalTask = rawTasks.find(t => t.id === rawId) || canonicalTasks.find(t => t.id === canonicalId);
+                        const isTime = originalTask ? (originalTask.type === "ساعة" || originalTask.type === "ساعات" || originalTask.type === "وقت" || originalTask.category === "خروج") : false;
                         if (isTime) {
-                            taskStats[t.id].hours += (val / 60);
+                            taskStats[canonicalId].hours += (numVal / 60);
                         }
-                        const normTarget = isTime ? ((t.target || 1) * 60) : (t.target || 1);
-                        taskStats[t.id].score += (normTarget > 0 ? (val / normTarget) : 0);
+                        const target = originalTask?.target || 1;
+                        const normTarget = isTime ? (target * 60) : target;
+                        taskStats[canonicalId].score += (normTarget > 0 ? (numVal / normTarget) : 0);
                     }
                 });
             });
 
-            const transformedTasks = tasks.map(t => {
+            // Prepare Canonical Task Rows for SQL
+            const transformedTasks = canonicalTasks.map(t => {
                 const cat = CATEGORY_MAP[t.category] || t.category || "عام";
                 const isStudy = (cat === "مذاكرة");
                 const stats = taskStats[t.id] || { achieved: 0, hours: 0, score: 0 };
@@ -196,7 +255,7 @@
                     subcategory: isStudy ? null : (t.subcategory || null),
                     target: Number(t.target) || 1,
                     schedule: t.schedule || "Everyday",
-                    is_archived: Boolean(t.isArchived || t.isDeleted),
+                    is_archived: Boolean(t.is_archived),
                     total_achieved: Math.round(stats.achieved * 100) / 100,
                     total_hours: Math.round(stats.hours * 100) / 100,
                     total_score: Math.round(stats.score * 100) / 100,
@@ -204,8 +263,8 @@
                 };
             });
 
-            // Batch upsert tasks (chunks of 25)
-            const taskChunkSize = 25;
+            // Batch upsert tasks (chunks of 20)
+            const taskChunkSize = 20;
             for (let i = 0; i < transformedTasks.length; i += taskChunkSize) {
                 const chunk = transformedTasks.slice(i, i + taskChunkSize);
                 const { error: taskErr } = await client.from("tasks").upsert(chunk, { onConflict: "username, task_id" });
@@ -213,32 +272,52 @@
                 const pct = 30 + Math.round(((i + chunk.length) / transformedTasks.length) * 30);
                 setProgress(pct, `ترحيل المهام (${Math.min(i + chunk.length, transformedTasks.length)} / ${transformedTasks.length})...`);
             }
-            logStatus(`✓ تم ترحيل ${transformedTasks.length} مهمة بنجاح مع المجاميع التراكمية إلى جدول tasks`, "success");
+            logStatus(`✓ تم ترحيل ${transformedTasks.length} مهمة فريدة مدمجة إلى جدول tasks`, "success");
 
-            // Step 3: Transform and Upsert Daily Progress
-            setProgress(60, "جارِ ترحيل السجلات اليومية...");
-            logStatus(`بدء معالجة وترحيل ${dates.length} يوم من السجلات إلى daily_progress...`);
+            // Step 4: Transform and Remap Daily Progress Logs
+            setProgress(60, "جارِ ترحيل السجلات اليومية بالمعرّفات الموحدة...");
+            logStatus(`معالجة ${dates.length} يوم وترحيلها إلى daily_progress...`);
 
             const transformedDays = dates.map(d => {
                 const log = logs[d] || { entries: {} };
                 const taskProgress = {};
 
-                tasks.forEach(t => {
-                    const val = (log.entries && log.entries[t.id]) || 0;
-                    const isTime = (t.type === "ساعة" || t.type === "ساعات" || t.type === "وقت" || t.category === "خروج");
-                    const normTarget = isTime ? ((t.target || 1) * 60) : (t.target || 1);
-                    const isDisabled = (log.disabledTaskIds || []).includes(t.id);
-                    const isBonus = (log.bonusTaskIds || []).includes(t.id) || t.isBonus;
-                    const effTarget = (isDisabled || isBonus) ? 0 : normTarget;
+                // Map entries for all canonical tasks
+                canonicalTasks.forEach(canonicalTask => {
+                    const cid = canonicalTask.id;
+                    const cat = CATEGORY_MAP[canonicalTask.category] || canonicalTask.category || "عام";
+                    const isTime = (canonicalTask.type === "ساعة" || canonicalTask.type === "ساعات" || canonicalTask.type === "وقت" || cat === "خروج");
+                    const normTarget = isTime ? ((canonicalTask.target || 1) * 60) : (canonicalTask.target || 1);
 
-                    taskProgress[t.id] = {
+                    // Find all raw task entries for this date that map to this canonical task
+                    let achievedSum = 0;
+                    let wasDisabled = false;
+                    let wasBonus = false;
+
+                    if (log.entries) {
+                        Object.entries(log.entries).forEach(([rawId, val]) => {
+                            if ((idToCanonicalMap[rawId] || rawId) === cid) {
+                                achievedSum += (Number(val) || 0);
+                                if ((log.disabledTaskIds || []).includes(rawId)) wasDisabled = true;
+                                if ((log.bonusTaskIds || []).includes(rawId)) wasBonus = true;
+                            }
+                        });
+                    }
+
+                    if ((log.disabledTaskIds || []).includes(cid)) wasDisabled = true;
+                    if ((log.bonusTaskIds || []).includes(cid) || canonicalTask.isBonus) wasBonus = true;
+
+                    const effTarget = (wasDisabled || wasBonus) ? 0 : normTarget;
+
+                    taskProgress[cid] = {
                         target: effTarget,
-                        achieved: val,
-                        hours: isTime ? Math.round((val / 60) * 100) / 100 : 0,
-                        score: effTarget > 0 ? Math.round((val / effTarget) * 1000) / 1000 : 0
+                        achieved: achievedSum,
+                        hours: isTime ? Math.round((achievedSum / 60) * 100) / 100 : 0,
+                        score: effTarget > 0 ? Math.round((achievedSum / effTarget) * 1000) / 1000 : 0
                     };
                 });
 
+                // Calculate total day score and hours using native ScoringEngine if available
                 let totalScore = 0;
                 let totalHours = 0;
                 if (typeof ScoringEngine !== "undefined" && ScoringEngine.calculateDayScore) {
@@ -268,18 +347,18 @@
                 const pct = 60 + Math.round(((i + chunk.length) / transformedDays.length) * 40);
                 setProgress(pct, `ترحيل الأيام (${Math.min(i + chunk.length, transformedDays.length)} / ${transformedDays.length})...`);
             }
-            logStatus(`✓ تم ترحيل ${transformedDays.length} يوم بنجاح إلى جدول daily_progress`, "success");
+            logStatus(`✓ تم ترحيل ${transformedDays.length} يوم بنجاح مع ربط السجلات بالمهام الموحدة`, "success");
 
             setProgress(100, "اكتمل الترحيل بنجاح 100%!");
-            logStatus(`🎉 تهانينا! اكتملت عملية الترحيل بالكامل للمستخدم '${targetUser}'.`, "success");
+            logStatus(`🎉 تهانينا! اكتمل ترحيل كافة البيانات بنجاح:`, "success");
             logStatus(`- المستخدم: ${targetUser} (رمز المرور: ${targetPin})`);
-            logStatus(`- المهام: ${transformedTasks.length} مهمة مسجلة`);
-            logStatus(`- السجلات: ${transformedDays.length} يوم محفوظ باللقطات الجاهزة`);
+            logStatus(`- المهام: دُمجت المهام المتشابهة لتصبح ${transformedTasks.length} مهمة نظيفة`);
+            logStatus(`- السجلات: ${transformedDays.length} يوم تم حفظها بنجاح مع مطابقة المعرّفات`);
 
         } catch (err) {
             console.error("[Migration] Error:", err);
             logStatus(`❌ خطأ أثناء الترحيل: ${err.message || err}`, "error");
-            setProgress(0, "فشلت العملية - راجع السجل");
+            setProgress(0, "فشلت العملية - راجع السجل أعلاه");
         } finally {
             if (btnStart) {
                 btnStart.disabled = false;
