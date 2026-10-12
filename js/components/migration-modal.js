@@ -200,9 +200,12 @@
             logStatus(`حساب رمز التشفير للمستخدم: ${targetUser}...`);
             const pinHash = await hashPin(targetPin);
 
+            const nowIso = new Date().toISOString();
+
             const { error: userErr } = await client.from("users").upsert({
                 username: targetUser,
-                password_hash: pinHash
+                password_hash: pinHash,
+                updated_at: nowIso
             }, { onConflict: "username" });
 
             if (userErr) {
@@ -259,7 +262,8 @@
                     total_achieved: Math.round(stats.achieved * 100) / 100,
                     total_hours: Math.round(stats.hours * 100) / 100,
                     total_score: Math.round(stats.score * 100) / 100,
-                    created_at: t.createdAt ? new Date(t.createdAt).toISOString() : new Date().toISOString()
+                    created_at: t.createdAt ? new Date(t.createdAt).toISOString() : nowIso,
+                    updated_at: nowIso
                 };
             });
 
@@ -334,7 +338,8 @@
                     task_progress: taskProgress,
                     total_score: Math.round(totalScore * 1000) / 1000,
                     total_hours: Math.round(totalHours * 100) / 100,
-                    prayer_extras: log.prayerExtras || {}
+                    prayer_extras: log.prayerExtras || {},
+                    updated_at: nowIso
                 };
             });
 
