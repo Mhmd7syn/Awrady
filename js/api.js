@@ -11,9 +11,9 @@ class EnjazAPI {
     }
 
     init() {
-        const url = localStorage.getItem("AWRAD_SUPABASE_URL") || window.APP_CONSTANTS?.SUPABASE?.URL;
-        const key = localStorage.getItem("AWRAD_SUPABASE_KEY") || window.APP_CONSTANTS?.SUPABASE?.ANON_KEY;
-        this.currentUser = localStorage.getItem("AWRAD_ACTIVE_USER") || window.APP_CONSTANTS?.SUPABASE?.DEFAULT_USER_ID || "primary_user";
+        const url = window.APP_CONSTANTS?.SUPABASE?.URL;
+        const key = window.APP_CONSTANTS?.SUPABASE?.ANON_KEY;
+        this.currentUser = window.APP_CONSTANTS?.SUPABASE?.DEFAULT_USER_ID || "primary_user";
 
         if (!url || !key || !window.supabase?.createClient) {
             return false;

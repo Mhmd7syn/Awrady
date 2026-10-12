@@ -353,9 +353,6 @@
                 </div>
 
                 <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                    <button class="btn-primary btn-glow" id="btn-open-cloud-config" style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);">
-                        <i class="fa-solid fa-sliders"></i> <span>ضبط إعدادات السحابة (Supabase)</span>
-                    </button>
                     <button class="btn-outline" id="btn-download-cloud-backup" style="border-color: #f59e0b; color: #f59e0b;">
                         <i class="fa-solid fa-cloud-arrow-down"></i> <span>تنزيل نسخة احتياطية من السحابة (JSON)</span>
                     </button>
@@ -752,39 +749,7 @@
     </div>
 
 
-    <!-- CLOUD CONFIG MODAL -->
-    <div id="cloud-config-modal" class="modal-overlay hidden" style="z-index: 9998; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(10px);">
-        <div class="modal-container glass-card" style="max-width: 540px; padding: 25px;">
-            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700; color: #fff;"><i class="fa-solid fa-cloud" style="color: #3b82f6;"></i> إعدادات المزامنة السحابية 24/7 (Supabase)</h3>
-                <button class="btn-close" id="btn-close-cloud-config" style="background: none; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="modal-body" style="padding: 10px 0;">
-                <p style="font-size: 0.88rem; color: #94a3b8; margin-bottom: 16px; line-height: 1.6;">
-                    المزامنة السحابية معدّة مسبقاً وتتصل تلقائياً بقاعدة بياناتك على أي جهاز تفتح منه الموقع. يمكنك مراجعة الإعدادات أو فحص الاتصال من هنا:
-                </p>
-                <div class="form-group" style="margin-bottom: 14px;">
-                    <label style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 6px; color: #cbd5e1;">رابط المشروع (Project URL):</label>
-                    <input type="text" id="input-supabase-url" placeholder="https://your-project.supabase.co" dir="ltr" style="width: 100%; text-align: left; font-family: monospace; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); color: #fff;">
-                </div>
-                <div class="form-group" style="margin-bottom: 14px;">
-                    <label style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 6px; color: #cbd5e1;">المفتاح العام (anon / publishable key):</label>
-                    <input type="password" id="input-supabase-key" placeholder="sb_publishable_... أو eyJhbGci..." dir="ltr" style="width: 100%; text-align: left; font-family: monospace; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); color: #fff;">
-                </div>
-                <div class="form-group" style="margin-bottom: 18px;">
-                    <label style="font-size: 0.85rem; font-weight: 600; display: block; margin-bottom: 6px; color: #cbd5e1;">معرّف الحساب / المستخدم (User ID):</label>
-                    <input type="text" id="input-supabase-userid" value="primary_user" dir="ltr" style="width: 100%; text-align: left; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.15); color: #fff;">
-                    <small style="color: #64748b; font-size: 0.75rem; margin-top: 4px; display: block;">اتركه 'primary_user' إذا كنت المستخدم الوحيد لهذا الحساب.</small>
-                </div>
-                <div id="cloud-test-result" style="display: none; padding: 10px 14px; border-radius: 10px; margin-bottom: 15px; font-size: 0.85rem;"></div>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button class="btn-secondary" id="btn-test-cloud-conn" style="flex: 1; padding: 10px;"><i class="fa-solid fa-plug"></i> فحص الاتصال</button>
-                    <button class="btn-primary btn-glow" id="btn-save-cloud-config" style="flex: 1.5; padding: 10px; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);"><i class="fa-solid fa-floppy-disk"></i> حفظ وتفعيل السحابة</button>
-                    <button class="btn-danger-outline" id="btn-clear-cloud-config" style="width: 100%; margin-top: 5px; padding: 8px; border-color: #ef4444; color: #ef4444;"><i class="fa-solid fa-trash"></i> فصل السحابة وحذف المفاتيح من هذا المتصفح</button>
-                </div>
-            </div>
-        </div>
-    </div>
+
 
     <!-- CHANGE PIN MODAL -->
     <div id="change-pin-modal" class="modal-overlay hidden" style="z-index: 9998; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(10px);">
@@ -858,23 +823,23 @@
     <audio id="pomodoro-alarm" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 
     <!-- Scripts -->
-    <script src="js/config/constants.js?v=20261012_2"></script>
-    <script src="js/config/default-data.js?v=20261012_2"></script>
-    <script src="js/api.js?v=20261012_2"></script>
-    <script src="js/utils/debounce.js?v=20261012_2"></script>
-    <script src="js/utils/date-utils.js?v=20261012_2"></script>
-    <script src="js/core/schedule-engine.js?v=20261012_2"></script>
-    <script src="js/core/scoring-engine.js?v=20261012_2"></script>
-    <script src="js/components/pomodoro.js?v=20261012_2"></script>
-    <script src="js/components/nawafel-toast.js?v=20261012_2"></script>
-    <script src="js/components/weekly-modal.js?v=20261012_2"></script>
-    <script src="js/components/daily-view.js?v=20261012_2"></script>
-    <script src="js/components/task-manager.js?v=20261012_2"></script>
-    <script src="js/components/category-manager.js?v=20261012_2"></script>
-    <script src="js/components/analytics-view.js?v=20261012_2"></script>
-    <script src="js/components/data-manager.js?v=20261012_2"></script>
-    <script src="js/components/security-lock.js?v=20261012_2"></script>
-    <script src="js/app.js?v=20261012_2"></script>
+    <script src="js/config/constants.js?v=20261013_1"></script>
+    <script src="js/config/default-data.js?v=20261013_1"></script>
+    <script src="js/api.js?v=20261013_1"></script>
+    <script src="js/utils/debounce.js?v=20261013_1"></script>
+    <script src="js/utils/date-utils.js?v=20261013_1"></script>
+    <script src="js/core/schedule-engine.js?v=20261013_1"></script>
+    <script src="js/core/scoring-engine.js?v=20261013_1"></script>
+    <script src="js/components/pomodoro.js?v=20261013_1"></script>
+    <script src="js/components/nawafel-toast.js?v=20261013_1"></script>
+    <script src="js/components/weekly-modal.js?v=20261013_1"></script>
+    <script src="js/components/daily-view.js?v=20261013_1"></script>
+    <script src="js/components/task-manager.js?v=20261013_1"></script>
+    <script src="js/components/category-manager.js?v=20261013_1"></script>
+    <script src="js/components/analytics-view.js?v=20261013_1"></script>
+    <script src="js/components/data-manager.js?v=20261013_1"></script>
+    <script src="js/components/security-lock.js?v=20261013_1"></script>
+    <script src="js/app.js?v=20261013_1"></script>
 
     <!-- PWA Service Worker Registration -->
     <script>

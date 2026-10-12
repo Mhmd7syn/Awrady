@@ -165,146 +165,52 @@ function setupDataManagement() {
     }
 
     // ------------------------------------------------------------------------
-    // 24/7 CLOUD SYNC (SUPABASE) CONTROLS & MODAL
+    // 24/7 CLOUD SYNC (SUPABASE) CONTROLS & STATUS
     // ------------------------------------------------------------------------
-    const cloudModal = document.getElementById("cloud-config-modal");
-    const btnOpenCloudModal = document.getElementById("btn-open-cloud-config");
-    const btnCloseCloudModal = document.getElementById("btn-close-cloud-config");
+    // Clean up obsolete manual configuration keys from previous sessions
+    try {
+        localStorage.removeItem("AWRAD_SUPABASE_URL");
+        localStorage.removeItem("AWRAD_SUPABASE_KEY");
+        localStorage.removeItem("AWRAD_ACTIVE_USER");
+    } catch (_) {}
+
     const headerCloudPill = document.getElementById("header-cloud-pill");
-    const inputSupabaseUrl = document.getElementById("input-supabase-url");
-    const inputSupabaseKey = document.getElementById("input-supabase-key");
-    const inputSupabaseUser = document.getElementById("input-supabase-userid");
-    const btnTestCloud = document.getElementById("btn-test-cloud-conn");
-    const btnSaveCloud = document.getElementById("btn-save-cloud-config");
-    const btnClearCloud = document.getElementById("btn-clear-cloud-config");
-    const cloudTestResult = document.getElementById("cloud-test-result");
     const btnDownloadCloudBackup = document.getElementById("btn-download-cloud-backup");
 
-    const openCloudModal = () => {
-        if (!cloudModal) return;
-        const currentUrl = localStorage.getItem("AWRAD_SUPABASE_URL") || window.APP_CONSTANTS?.SUPABASE?.URL || "";
-        const currentKey = localStorage.getItem("AWRAD_SUPABASE_KEY") || window.APP_CONSTANTS?.SUPABASE?.ANON_KEY || "";
-        const currentUser = localStorage.getItem("AWRAD_ACTIVE_USER") || window.APP_CONSTANTS?.SUPABASE?.DEFAULT_USER_ID || "primary_user";
-        if (inputSupabaseUrl) inputSupabaseUrl.value = currentUrl;
-        if (inputSupabaseKey) inputSupabaseKey.value = currentKey;
-        if (inputSupabaseUser) inputSupabaseUser.value = currentUser;
-        if (cloudTestResult) {
-            cloudTestResult.style.display = "none";
-            cloudTestResult.innerHTML = "";
+    const refreshCloudStatus = () => {
+        if (window.enjazAPI && window.enjazAPI.client) {
+            updateCloudSyncUI({
+                state: navigator.onLine ? "synced" : "offline",
+                message: navigator.onLine ? "متزامن سحابياً مع Supabase 24/7" : "وضع عدم الاتصال (محفوظ محلياً)"
+            });
+        } else {
+            updateCloudSyncUI({
+                state: "idle",
+                message: "وضع عدم الاتصال (محفوظ محلياً)"
+            });
         }
-        cloudModal.classList.remove("hidden");
     };
 
-    const closeCloudModal = () => {
-        if (cloudModal) cloudModal.classList.add("hidden");
-    };
+    window.addEventListener("online", refreshCloudStatus);
+    window.addEventListener("offline", refreshCloudStatus);
 
     if (headerCloudPill) {
-        headerCloudPill.addEventListener("click", openCloudModal);
-    }
-    if (btnOpenCloudModal) {
-        btnOpenCloudModal.addEventListener("click", openCloudModal);
-    }
-    if (btnCloseCloudModal) {
-        btnCloseCloudModal.addEventListener("click", closeCloudModal);
-    }
-
-    if (btnTestCloud) {
-        btnTestCloud.addEventListener("click", async () => {
-            const url = inputSupabaseUrl ? inputSupabaseUrl.value.trim() : "";
-            const key = inputSupabaseKey ? inputSupabaseKey.value.trim() : "";
-
-            if (!url || !key) {
-                alert("يرجى إدخال رابط المشروع والمفتاح أولاً.");
+        headerCloudPill.addEventListener("click", async () => {
+            if (!navigator.onLine) {
+                alert("أنت حالياً في وضع عدم الاتصال (Offline). بياناتك محفوظة محلياً في هذا المتصفح وستتم مزامنتها تلقائياً فور عودة الاتصال بالسحابة.");
                 return;
             }
-
-            btnTestCloud.disabled = true;
-            btnTestCloud.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> جارِ الفحص...`;
-            if (cloudTestResult) {
-                cloudTestResult.style.display = "block";
-                cloudTestResult.style.background = "rgba(59, 130, 246, 0.15)";
-                cloudTestResult.style.color = "#60a5fa";
-                cloudTestResult.textContent = "جارِ اختبار الاتصال بـ Supabase...";
-            }
-
+            updateCloudSyncUI({ state: "syncing", message: "جارِ التحقق من المزامنة السحابية..." });
             try {
-                if (!window.supabase?.createClient) {
-                    throw new Error("مكتبة Supabase JS غير محملة");
-                }
-                const testClient = window.supabase.createClient(url, key);
-                const { error } = await testClient.from("tasks").select("task_id").limit(1);
-                if (error) throw error;
-                if (cloudTestResult) {
-                    cloudTestResult.style.background = "rgba(16, 185, 129, 0.15)";
-                    cloudTestResult.style.color = "#10b981";
-                    cloudTestResult.innerHTML = `<i class="fa-solid fa-circle-check"></i> تم الاتصال بنجاح بقاعدة البيانات وجداول المهام والتقدم!`;
+                if (window.enjazAPI && window.enjazAPI.client) {
+                    const { error } = await window.enjazAPI.client.from("tasks").select("task_id").limit(1);
+                    if (error) throw error;
+                    updateCloudSyncUI({ state: "synced", message: "متزامن سحابياً مع Supabase 24/7" });
+                } else if (window.enjazAPI && window.enjazAPI.init()) {
+                    updateCloudSyncUI({ state: "synced", message: "متزامن سحابياً مع Supabase 24/7" });
                 }
             } catch (err) {
-                if (cloudTestResult) {
-                    cloudTestResult.style.background = "rgba(239, 68, 68, 0.15)";
-                    cloudTestResult.style.color = "#ef4444";
-                    cloudTestResult.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> فشل الاتصال: ${err.message}`;
-                }
-            } finally {
-                btnTestCloud.disabled = false;
-                btnTestCloud.innerHTML = `<i class="fa-solid fa-plug"></i> فحص الاتصال`;
-            }
-        });
-    }
-
-    if (btnSaveCloud) {
-        btnSaveCloud.addEventListener("click", async () => {
-            const url = inputSupabaseUrl ? inputSupabaseUrl.value.trim() : "";
-            const key = inputSupabaseKey ? inputSupabaseKey.value.trim() : "";
-            const user = inputSupabaseUser ? inputSupabaseUser.value.trim().toLowerCase() : "primary_user";
-
-            if (!url || !key) {
-                alert("يرجى إدخال رابط المشروع ومفتاح anon صالحين.");
-                return;
-            }
-
-            btnSaveCloud.disabled = true;
-            btnSaveCloud.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> جارِ الحفظ...`;
-
-            localStorage.setItem("AWRAD_SUPABASE_URL", url);
-            localStorage.setItem("AWRAD_SUPABASE_KEY", key);
-            localStorage.setItem("AWRAD_ACTIVE_USER", user);
-
-            if (window.enjazAPI) {
-                window.enjazAPI.currentUser = user;
-                window.enjazAPI.init();
-            }
-
-            updateCloudSyncUI({
-                state: "synced",
-                message: "متزامن سحابياً مع Supabase 24/7"
-            });
-
-            btnSaveCloud.disabled = false;
-            btnSaveCloud.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> حفظ وتفعيل السحابة`;
-            closeCloudModal();
-
-            if (typeof initData === "function") await initData();
-            if (typeof renderDailyView === "function") renderDailyView();
-            alert("🎉 تم ربط وتفعيل المزامنة السحابية 24/7 بنجاح! ⚡");
-        });
-    }
-
-    if (btnClearCloud) {
-        btnClearCloud.addEventListener("click", () => {
-            if (confirm("هل أنت متأكد من فصل المزامنة السحابية وإزالة المفاتيح من هذا المتصفح؟")) {
-                localStorage.removeItem("AWRAD_SUPABASE_URL");
-                localStorage.removeItem("AWRAD_SUPABASE_KEY");
-                localStorage.removeItem("AWRAD_ACTIVE_USER");
-                if (window.enjazAPI) window.enjazAPI.client = null;
-                updateCloudSyncUI({
-                    state: "idle",
-                    message: "تخزين محلي (غير مقترن بالسحابة)"
-                });
-                closeCloudModal();
-                alert("تم فصل السحابة بنجاح وإزالة المفاتيح.");
-                location.reload();
+                updateCloudSyncUI({ state: "offline", message: "تعذر الاتصال بالسحابة: " + err.message });
             }
         });
     }
@@ -324,17 +230,7 @@ function setupDataManagement() {
     }
 
     // Initialize Cloud Status indicator
-    if (window.enjazAPI && window.enjazAPI.client) {
-        updateCloudSyncUI({
-            state: navigator.onLine ? "synced" : "offline",
-            message: navigator.onLine ? "متزامن مع Supabase 24/7" : "وضع عدم الاتصال"
-        });
-    } else {
-        updateCloudSyncUI({
-            state: "idle",
-            message: "تخزين محلي (غير مقترن بالسحابة)"
-        });
-    }
+    refreshCloudStatus();
 
     // ------------------------------------------------------------------------
     // PIN SECURITY & ACCESS CONTROLS

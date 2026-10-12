@@ -4,8 +4,8 @@
 var APP_CONSTANTS = {
     STORAGE_KEY: "AWRAD_APP_DATA_V1",
     SUPABASE: {
-        URL: "",
-        ANON_KEY: "",
+        URL: "https://krmatocnrjzivwpmbxgu.supabase.co",
+        ANON_KEY: "sb_publishable_JGajulg_tl67UJBKLyJZrA_E2tdQoZQ",
         DEFAULT_USER_ID: "primary_user"
     },
     AUDIO: {

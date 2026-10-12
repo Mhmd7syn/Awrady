@@ -145,8 +145,20 @@ async function initData() {
             });
 
             loaded = true;
+            if (typeof updateCloudSyncUI === "function") {
+                updateCloudSyncUI({
+                    state: navigator.onLine ? "synced" : "offline",
+                    message: navigator.onLine ? "متزامن سحابياً مع Supabase 24/7" : "وضع عدم الاتصال"
+                });
+            }
         } catch (err) {
             console.warn("[initData] Supabase initialization fallback:", err.message);
+            if (typeof updateCloudSyncUI === "function") {
+                updateCloudSyncUI({
+                    state: "offline",
+                    message: "وضع عدم الاتصال (محفوظ محلياً)"
+                });
+            }
         }
     }
 
