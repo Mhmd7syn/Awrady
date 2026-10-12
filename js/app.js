@@ -31,7 +31,6 @@ let currentViewSubcategory = null;
 let chartTimeRange = "all";
 let chartInstance = null;
 let editingTaskId = null;
-let editingCategoryId = null;
 let nawafelPromptTimeout = null;
 
 // ============================================================================
@@ -61,81 +60,126 @@ document.addEventListener("DOMContentLoaded", async () => {
     // Chart and analytics are lazily loaded when opening the Analytics tab
 });
 
-async function initData() {
-    let data = null;
+let _dbSaveTimer = null;
 
-    // Load from Storage Engine (Cloud if configured -> IndexedDB -> localStorage)
-    if (window.storageEngine) {
-        data = await window.storageEngine.loadData(STORAGE_KEY);
+async function initData() {
+    let loaded = false;
+
+    // 1. Categories are constant reference definitions from constants.js
+    appData.categories = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) 
+        ? APP_CONSTANTS.CATEGORIES 
+        : ((typeof DEFAULT_CATEGORIES !== "undefined") ? DEFAULT_CATEGORIES : []);
+
+    // 2. Attempt initialization via direct Supabase API for tasks and daily progress
+    if (window.enjazAPI && window.enjazAPI.init()) {
+        try {
+            const [tasks, dayProgress, allProgress] = await Promise.all([
+                window.enjazAPI.getTasks(true),
+                window.enjazAPI.getDayProgress(currentDateStr),
+                window.enjazAPI.getProgressRange("2020-01-01", "2099-12-31")
+            ]);
+
+            if (tasks && tasks.length > 0) {
+                appData.tasks = tasks;
+            }
+
+            if (!appData.logs) appData.logs = {};
+
+            if (allProgress && allProgress.length > 0) {
+                allProgress.forEach(row => {
+                    const entries = {};
+                    if (row.task_progress) {
+                        for (const [tid, info] of Object.entries(row.task_progress)) {
+                            entries[tid] = (typeof info === "object" && info !== null) ? (info.achieved ?? 0) : Number(info) || 0;
+                        }
+                    }
+                    appData.logs[row.date] = {
+                        entries,
+                        prayerExtras: row.prayer_extras || {},
+                        precomputedScore: Number(row.total_score) || 0,
+                        totalHours: Number(row.total_hours) || 0,
+                        _loadedFromDB: true
+                    };
+                });
+            }
+
+            if (dayProgress) {
+                const entries = {};
+                if (dayProgress.task_progress) {
+                    for (const [tid, info] of Object.entries(dayProgress.task_progress)) {
+                        entries[tid] = (typeof info === "object" && info !== null) ? (info.achieved ?? 0) : Number(info) || 0;
+                    }
+                }
+                appData.logs[currentDateStr] = {
+                    entries,
+                    prayerExtras: dayProgress.prayer_extras || {},
+                    precomputedScore: Number(dayProgress.total_score) || 0,
+                    totalHours: Number(dayProgress.total_hours) || 0,
+                    _loadedFromDB: true
+                };
+            }
+
+            // Realtime WebSocket subscription
+            window.enjazAPI.onUpdate((table, payload) => {
+                if (table === "daily_progress" && payload.new?.date === currentDateStr) {
+                    const row = payload.new;
+                    if (!appData.logs) appData.logs = {};
+                    const entries = {};
+                    if (row.task_progress) {
+                        for (const [tid, info] of Object.entries(row.task_progress)) {
+                            entries[tid] = (typeof info === "object" && info !== null) ? (info.achieved ?? 0) : Number(info) || 0;
+                        }
+                    }
+                    appData.logs[currentDateStr] = {
+                        entries,
+                        prayerExtras: row.prayer_extras || {},
+                        _loadedFromDB: true
+                    };
+                    renderDailyView();
+                    updateHeaderTodayScore();
+                } else if (table === "tasks") {
+                    window.enjazAPI.getTasks().then(dbTasks => {
+                        if (dbTasks && dbTasks.length > 0) {
+                            appData.tasks = dbTasks;
+                            renderDailyView();
+                        }
+                    }).catch(() => {});
+                }
+            });
+
+            loaded = true;
+        } catch (err) {
+            console.warn("[initData] Supabase initialization fallback:", err.message);
+        }
     }
 
-    // Direct fallback to localStorage if storageEngine returned null
-    if (!data) {
+    // 2. Fallback to localStorage if Supabase is offline/unconfigured
+    if (!loaded) {
         try {
             const localSaved = localStorage.getItem(STORAGE_KEY);
             if (localSaved) {
-                data = JSON.parse(localSaved);
-            }
-        } catch (e) {
-            console.error("[initData] Error parsing localStorage data:", e);
-        }
-    }
-
-    if (data && data.tasks && data.tasks.length > 0 && data.logs) {
-        appData = data;
-    } else if (data && data.logs) {
-        appData = data;
-        if (!appData.tasks || appData.tasks.length === 0) {
-            appData.tasks = (typeof DEFAULT_TASKS !== "undefined") ? JSON.parse(JSON.stringify(DEFAULT_TASKS)) : [];
-        }
-    } else {
-        loadDefaultAppData();
-        // If Supabase is configured but has no record yet, upload the initial defaults
-        if (window.cloudAdapter && window.cloudAdapter.isConfigured()) {
-            window.cloudAdapter.saveDataImmediate(appData);
-        }
-    }
-
-    // If dataset has 0 logs (e.g. fresh Vercel session or unpopulated cloud table),
-    // automatically restore historical records from Data/awrady_backup.json
-    const hasLogs = appData && appData.logs && Object.keys(appData.logs).length > 0;
-    if (!hasLogs && typeof window !== "undefined" && window.location && window.location.protocol.startsWith("http")) {
-        try {
-            const resp = await fetch("Data/awrady_backup.json?v=" + Date.now());
-            if (resp.ok) {
-                const diskData = await resp.json();
-                if (diskData && diskData.logs && Object.keys(diskData.logs).length > 0) {
-                    console.log("[initData] Auto-restoring historical dataset from Data/awrady_backup.json...");
-                    appData = diskData;
-                    if (window.cloudAdapter && window.cloudAdapter.isConfigured()) {
-                        window.cloudAdapter.saveDataImmediate(appData);
-                    }
+                const parsed = JSON.parse(localSaved);
+                if (parsed) {
+                    if (parsed.categories) appData.categories = parsed.categories;
+                    if (parsed.tasks) appData.tasks = parsed.tasks;
+                    if (parsed.logs) appData.logs = parsed.logs;
                 }
             }
         } catch (e) {
-            console.warn("[initData] Could not fetch Data/awrady_backup.json:", e);
+            console.error("[initData] LocalStorage error:", e);
         }
     }
 
+    // 3. Fallback defaults if still empty
     if (!appData.categories || appData.categories.length === 0) {
-        appData.categories = (typeof DEFAULT_CATEGORIES !== "undefined") ? JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)) : [];
+        appData.categories = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) ? APP_CONSTANTS.CATEGORIES : DEFAULT_CATEGORIES;
     }
     if (!appData.tasks || appData.tasks.length === 0) {
         appData.tasks = (typeof DEFAULT_TASKS !== "undefined") ? JSON.parse(JSON.stringify(DEFAULT_TASKS)) : [];
     }
 
     window.appData = appData;
-    if (window.stateManager) {
-        window.stateManager.data = appData;
-        window.stateManager.ensureDataIntegrity();
-        appData = window.stateManager.data;
-        window.appData = appData;
-    }
-    if (window.storageEngine) {
-        await window.storageEngine.saveDataImmediate(STORAGE_KEY, appData);
-    } else {
-        saveData(true);
-    }
+    saveData(true);
 }
 
 function loadDefaultAppData() {
@@ -153,14 +197,43 @@ function loadDefaultAppData() {
 }
 
 function saveData(immediate = false) {
-    if (window.stateManager) {
-        window.stateManager.data = appData;
-        window.stateManager.save(immediate);
-    } else if (window.storageEngine) {
+    // 1. Offline resilient local backup
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+    } catch (_) {}
+
+    // 2. Direct database persistence via EnjazAPI
+    if (window.enjazAPI?.client) {
+        const curDate = (typeof currentDateStr !== "undefined") ? currentDateStr : getLocalTodayString();
+        const log = (appData.logs && appData.logs[curDate]) || { entries: {} };
+        const prayerExtras = log.prayerExtras || {};
+
+        const totalScore = (typeof calculateDayScore === "function") ? calculateDayScore(curDate, appData, false) : 0;
+        const totalHours = (typeof calculateDayScore === "function") ? calculateDayScore(curDate, appData, true) : 0;
+
+        const taskProgress = {};
+        (appData.tasks || []).forEach(t => {
+            const val = (log.entries && log.entries[t.id]) || 0;
+            const target = (typeof getTaskNormalizedTarget === "function") ? getTaskNormalizedTarget(t, curDate) : (t.target || 1);
+            taskProgress[t.id] = {
+                target,
+                achieved: val,
+                hours: (t.type === "ساعة" || t.category === "خروج") ? (val / 60) : 0,
+                score: target > 0 ? (val / target) : 0
+            };
+        });
+
+        const executeDbSave = () => {
+            window.enjazAPI.saveDayProgress(curDate, taskProgress, prayerExtras, { totalScore, totalHours })
+                .catch(e => console.warn("[EnjazAPI] Save progress error:", e.message));
+        };
+
         if (immediate) {
-            window.storageEngine.saveDataImmediate(STORAGE_KEY, appData);
+            if (_dbSaveTimer) clearTimeout(_dbSaveTimer);
+            executeDbSave();
         } else {
-            window.storageEngine.saveData(STORAGE_KEY, appData);
+            if (_dbSaveTimer) clearTimeout(_dbSaveTimer);
+            _dbSaveTimer = setTimeout(executeDbSave, 350);
         }
     }
 }
@@ -304,6 +377,28 @@ function setupNavigation() {
             document.getElementById(targetViewId).classList.add("active");
 
             if (targetViewId === "view-analytics") {
+                if (window.enjazAPI?.client) {
+                    window.enjazAPI.getProgressRange("2020-01-01", "2099-12-31").then(rows => {
+                        if (rows && rows.length > 0) {
+                            if (!appData.logs) appData.logs = {};
+                            rows.forEach(r => {
+                                if (!appData.logs[r.date]) {
+                                    appData.logs[r.date] = { entries: {} };
+                                }
+                                appData.logs[r.date].precomputedScore = r.total_score;
+                                appData.logs[r.date].totalHours = r.total_hours;
+                                if (r.task_progress && Object.keys(appData.logs[r.date].entries || {}).length === 0) {
+                                    for (const [tid, info] of Object.entries(r.task_progress)) {
+                                        appData.logs[r.date].entries[tid] = (typeof info === "object" && info !== null) ? (info.achieved ?? 0) : Number(info) || 0;
+                                    }
+                                }
+                            });
+                            if (typeof updateChartAndAnalytics === "function") {
+                                updateChartAndAnalytics();
+                            }
+                        }
+                    }).catch(() => {});
+                }
                 if (typeof initChart === "function" && (typeof chartInstance === "undefined" || !chartInstance)) {
                     initChart();
                 }
@@ -317,36 +412,48 @@ function setupNavigation() {
     });
 }
 
+async function switchActiveDate(newDate) {
+    currentDateStr = newDate;
+    const datePicker = document.getElementById("date-picker-input");
+    if (datePicker) datePicker.value = currentDateStr;
+
+    if (window.enjazAPI?.client && (!appData.logs[currentDateStr] || !appData.logs[currentDateStr]._loadedFromDB)) {
+        try {
+            const dayProgress = await window.enjazAPI.getDayProgress(currentDateStr);
+            if (dayProgress) {
+                if (!appData.logs) appData.logs = {};
+                const entries = {};
+                if (dayProgress.task_progress) {
+                    for (const [tid, info] of Object.entries(dayProgress.task_progress)) {
+                        entries[tid] = (typeof info === "object" && info !== null) ? (info.achieved ?? 0) : Number(info) || 0;
+                    }
+                }
+                appData.logs[currentDateStr] = {
+                    entries,
+                    prayerExtras: dayProgress.prayer_extras || {},
+                    _loadedFromDB: true
+                };
+            }
+        } catch (_) {}
+    }
+    renderDailyView();
+}
+
 function setupDailyControls() {
     const datePicker = document.getElementById("date-picker-input");
     if (datePicker) {
         datePicker.value = currentDateStr;
-        datePicker.addEventListener("change", (e) => {
-            currentDateStr = e.target.value;
-            renderDailyView();
-        });
+        datePicker.addEventListener("change", (e) => switchActiveDate(e.target.value));
     }
 
     const btnPrev = document.getElementById("btn-prev-day");
-    if (btnPrev) btnPrev.addEventListener("click", () => {
-        currentDateStr = addDays(currentDateStr, -1);
-        if (datePicker) datePicker.value = currentDateStr;
-        renderDailyView();
-    });
+    if (btnPrev) btnPrev.addEventListener("click", () => switchActiveDate(addDays(currentDateStr, -1)));
 
     const btnNext = document.getElementById("btn-next-day");
-    if (btnNext) btnNext.addEventListener("click", () => {
-        currentDateStr = addDays(currentDateStr, 1);
-        if (datePicker) datePicker.value = currentDateStr;
-        renderDailyView();
-    });
+    if (btnNext) btnNext.addEventListener("click", () => switchActiveDate(addDays(currentDateStr, 1)));
 
     const btnToday = document.getElementById("btn-jump-today");
-    if (btnToday) btnToday.addEventListener("click", () => {
-        currentDateStr = getLocalTodayString();
-        if (datePicker) datePicker.value = currentDateStr;
-        renderDailyView();
-    });
+    if (btnToday) btnToday.addEventListener("click", () => switchActiveDate(getLocalTodayString()));
 
     // Wire unified quick-add button
     const btnQuickAdd = document.getElementById("btn-open-quick-add");

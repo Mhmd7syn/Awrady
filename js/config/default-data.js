@@ -2,32 +2,7 @@
  * Awrady Dashboard - Unified Default Dataset & Configuration
  */
 
-var DEFAULT_CATEGORIES = [
-    { 
-        id: "cat_1", 
-        name: "صلاة", 
-        icon: "fa-person-praying", 
-        label: "🕌 الصلاة", 
-        defaultEstimatedMinutes: 15,
-        subcategories: [
-            { id: "sub_1_1", name: "فرض", defaultUnit: "صلاة", defaultEstimatedMinutes: 15 },
-            { id: "sub_1_2", name: "نوافل", defaultUnit: "ركعة", defaultEstimatedMinutes: 5 },
-            { id: "sub_1_3", name: "قيام ليل", defaultUnit: "ركعة", defaultEstimatedMinutes: 10 }
-        ], 
-        defaultUnit: "ركعة" 
-    },
-    { id: "cat_2", name: "أذكار وتسبيح", icon: "fa-hands-praying", label: "📿 أذكار وتسبيح", defaultEstimatedMinutes: 0.5, subcategories: [], defaultUnit: "تكرار" },
-    { id: "cat_3", name: "قرآن", icon: "fa-book-quran", label: "📖 القرآن", defaultEstimatedMinutes: 5, subcategories: [], defaultUnit: "صفحة" },
-    { id: "cat_4", name: "صوم", icon: "fa-sun", label: "☀️ صوم", defaultEstimatedMinutes: 5, subcategories: [], defaultUnit: "يوم" },
-    { id: "cat_5", name: "قراءة", icon: "fa-book-open", label: "📚 قراءة", defaultEstimatedMinutes: 3, subcategories: [], defaultUnit: "صفحة" },
-    { id: "cat_6", name: "استماع", icon: "fa-headphones", label: "🎧 استماع", defaultEstimatedMinutes: 60, subcategories: [], defaultUnit: "ساعة" },
-    { id: "cat_7", name: "شغل", icon: "fa-briefcase", label: "💼 شغل", defaultEstimatedMinutes: 60, subcategories: [], defaultUnit: "ساعة" },
-    { id: "cat_8", name: "مذاكرة", icon: "fa-graduation-cap", label: "💻 مذاكرة", defaultEstimatedMinutes: 60, subcategories: [
-        { id: "sub_8_1", name: "تعلم", defaultUnit: "ساعة", defaultEstimatedMinutes: 60 },
-        { id: "sub_8_2", name: "حل وتمارين", defaultUnit: "تكرار", defaultEstimatedMinutes: 20 },
-        { id: "sub_8_3", name: "بروجكتات", defaultUnit: "ساعة", defaultEstimatedMinutes: 60 }
-    ], defaultUnit: "ساعة" }
-];
+var DEFAULT_CATEGORIES = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) ? APP_CONSTANTS.CATEGORIES : [];
 
 var DEFAULT_TASKS = [
     // صلاة - فرض
@@ -61,9 +36,9 @@ var DEFAULT_TASKS = [
     // شغل
     { id: "task_work", name: "ساعات العمل", type: "ساعة", schedule: "Everyday", target: 8, multiplier: 1.0, isArchived: false, icon: "briefcase", category: "شغل", subcategory: "", createdAt: "2000-01-01" },
     // مذاكرة
-    { id: "task_study_learn", name: "تعلم مهارة/كورس", type: "ساعة", schedule: "Everyday", target: 1, multiplier: 1.0, isArchived: false, icon: "laptop-code", category: "مذاكرة", subcategory: "تعلم", createdAt: "2000-01-01" },
-    { id: "task_study_practice", name: "حل مسائل وتمارين", type: "تكرار", schedule: "Everyday", target: 5, multiplier: 1.0, isArchived: false, icon: "pen-to-square", category: "مذاكرة", subcategory: "حل وتمارين", createdAt: "2000-01-01" },
-    { id: "task_study_project", name: "العمل على مشروع", type: "ساعة", schedule: "Everyday", target: 2, multiplier: 1.0, isArchived: false, icon: "diagram-project", category: "مذاكرة", subcategory: "بروجكتات", createdAt: "2000-01-01" }
+    { id: "task_study_learn", name: "تعلم مهارة/كورس", type: "ساعة", schedule: "Everyday", target: 1, multiplier: 1.0, isArchived: false, icon: "laptop-code", category: "مذاكرة", subcategory: "", createdAt: "2000-01-01" },
+    { id: "task_study_practice", name: "حل مسائل وتمارين", type: "تكرار", schedule: "Everyday", target: 5, multiplier: 1.0, isArchived: false, icon: "pen-to-square", category: "مذاكرة", subcategory: "", createdAt: "2000-01-01" },
+    { id: "task_study_project", name: "العمل على مشروع", type: "ساعة", schedule: "Everyday", target: 2, multiplier: 1.0, isArchived: false, icon: "diagram-project", category: "مذاكرة", subcategory: "", createdAt: "2000-01-01" }
 ];
 
 var DEFAULT_AWRAD_DATA = {

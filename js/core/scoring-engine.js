@@ -95,6 +95,17 @@ class ScoringEngine {
             return 0;
         }
 
+        if (!returnHours && log.precomputedScore !== undefined && log.precomputedScore !== null && (!log.entries || Object.keys(log.entries).length === 0)) {
+            const score = Number(log.precomputedScore) || 0;
+            if (isDefaultAppData) ScoringEngine._scoreCache.set(cacheKey, score);
+            return score;
+        }
+        if (returnHours && log.totalHours !== undefined && log.totalHours !== null && (!log.entries || Object.keys(log.entries).length === 0)) {
+            const hours = Number(log.totalHours) || 0;
+            if (isDefaultAppData) ScoringEngine._scoreCache.set(cacheKey, hours);
+            return hours;
+        }
+
         let reqWeightedScore = 0.0;
         let reqTotalWeight = 0.0;
         let bonusWeightedScore = 0.0;

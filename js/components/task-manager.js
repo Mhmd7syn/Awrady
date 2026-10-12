@@ -8,7 +8,6 @@
 function setupTaskManager() {
     const subTabs = document.querySelectorAll(".sub-tab");
     const btnAddTask = document.getElementById("btn-open-add-task-modal");
-    const btnAddCat = document.getElementById("btn-open-add-cat-modal");
 
     subTabs.forEach(btn => {
         btn.addEventListener("click", () => {
@@ -19,20 +18,16 @@ function setupTaskManager() {
             
             if (sec === "active-tasks") {
                 document.getElementById("manager-active-section")?.classList.add("active");
-                btnAddTask.style.display = "flex";
-                btnAddCat.style.display = "none";
+                if (btnAddTask) btnAddTask.style.display = "flex";
             } else if (sec === "onetime-tasks") {
                 document.getElementById("manager-onetime-section")?.classList.add("active");
-                btnAddTask.style.display = "flex";
-                btnAddCat.style.display = "none";
+                if (btnAddTask) btnAddTask.style.display = "flex";
             } else if (sec === "archived-tasks") {
                 document.getElementById("manager-archived-section")?.classList.add("active");
-                btnAddTask.style.display = "flex";
-                btnAddCat.style.display = "none";
+                if (btnAddTask) btnAddTask.style.display = "flex";
             } else if (sec === "categories") {
                 document.getElementById("manager-categories-section")?.classList.add("active");
-                btnAddTask.style.display = "none";
-                btnAddCat.style.display = "flex";
+                if (btnAddTask) btnAddTask.style.display = "none";
                 renderCategoriesManager();
             }
         });
@@ -420,6 +415,9 @@ function archiveTask(id, isArchive) {
             ScheduleEngine.invalidateTaskCache(t);
         }
         saveData(true);
+        if (window.enjazAPI?.client) {
+            window.enjazAPI.saveTask(t).catch(e => console.warn("[EnjazAPI] archiveTask:", e.message));
+        }
         renderDailyView();
         renderTaskManager();
     }
@@ -466,6 +464,9 @@ function deleteForever(id) {
         }
 
         saveData();
+        if (window.enjazAPI?.client) {
+            window.enjazAPI.purgeTask(id).catch(e => console.warn("[EnjazAPI] purgeTask:", e.message));
+        }
         renderDailyView();
         renderTaskManager();
         if (typeof renderAllTimeStats === "function") renderAllTimeStats();
@@ -801,6 +802,10 @@ function saveTaskFromModal() {
 
     closeTaskModal();
     saveData(true);
+    if (window.enjazAPI?.client) {
+        const savedTask = editingTaskId ? appData.tasks.find(t => t.id === editingTaskId) : appData.tasks[appData.tasks.length - 1];
+        if (savedTask) window.enjazAPI.saveTask(savedTask).catch(e => console.warn("[EnjazAPI] saveTask:", e.message));
+    }
     if (typeof renderDailyView === "function") renderDailyView();
     if (typeof renderTaskManager === "function") renderTaskManager();
     if (typeof updateHeaderTodayScore === "function") updateHeaderTodayScore();

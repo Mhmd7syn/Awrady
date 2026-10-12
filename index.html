@@ -17,7 +17,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
     <!-- Supabase JS Client for 24/7 Cloud Sync -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="style.css?v=20261011_4">
+    <link rel="stylesheet" href="css/style.css?v=20261011_4">
     <link rel="icon" type="image/x-icon" href="app-icon.ico">
 
     <!-- PWA & Mobile Web App Meta Tags -->
@@ -301,9 +301,6 @@
                     <button class="btn-primary btn-glow" id="btn-open-add-task-modal">
                         <i class="fa-solid fa-plus"></i> مهمة جديدة
                     </button>
-                    <button class="btn-outline" id="btn-open-add-cat-modal" style="display:none;">
-                        <i class="fa-solid fa-tag"></i> تصنيف جديد
-                    </button>
                 </div>
             </div>
 
@@ -361,30 +358,6 @@
                     </button>
                     <button class="btn-outline" id="btn-download-cloud-backup" style="border-color: #f59e0b; color: #f59e0b;">
                         <i class="fa-solid fa-cloud-arrow-down"></i> <span>تنزيل نسخة احتياطية من السحابة (JSON)</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Featured Card: One-Click Migration to New SQL Tables -->
-            <div class="glass-card gold-border-hover" style="margin-bottom: 25px; padding: 25px; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 20px;">
-                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
-                    <div style="display: flex; align-items: center; gap: 15px;">
-                        <div style="width: 50px; height: 50px; border-radius: 14px; background: rgba(16, 185, 129, 0.2); color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
-                            <i class="fa-solid fa-database"></i>
-                        </div>
-                        <div>
-                            <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: #fff;">ترحيل البيانات إلى الجداول الجديدة (SQL Tables Migration)</h3>
-                            <p style="margin: 4px 0 0 0; color: #9ca3af; font-size: 0.9rem;">نقل كافة السجلات والمهام المخزنة حالياً في المتصفح إلى جداول Supabase الجديدة (users, tasks, daily_progress).</p>
-                        </div>
-                    </div>
-                    <div style="padding: 8px 16px; border-radius: 30px; background: rgba(16, 185, 129, 0.15); color: #10b981; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
-                        <i class="fa-solid fa-bolt"></i> <span>ترحيل بنقرة واحدة</span>
-                    </div>
-                </div>
-
-                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                    <button class="btn-primary btn-glow" id="btn-open-sql-migration-modal" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                        <i class="fa-solid fa-arrow-up-from-bracket"></i> <span>بدء ترحيل البيانات إلى الجداول الجديدة ⚡</span>
                     </button>
                 </div>
             </div>
@@ -732,83 +705,7 @@
         </div>
     </div>
 
-    <!-- CATEGORY EDIT/CREATE MODAL -->
-    <div id="category-modal" class="modal-overlay hidden">
-        <div class="modal-container glass-card" style="max-width: 520px;">
-            <div class="modal-header">
-                <h3 id="modal-cat-title"><i class="fa-solid fa-tag"></i> إضافة تصنيف جديد</h3>
-                <button class="btn-close" id="btn-close-cat-modal"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            
-            <form id="form-cat-editor" class="modal-form">
-                <input type="hidden" id="cat-id-input">
-                <input type="hidden" id="cat-old-name">
-                
-                <div class="form-group">
-                    <label for="cat-name-input">اسم التصنيف الداخلي *</label>
-                    <input type="text" id="cat-name-input" placeholder="مثال: صلاة، قرآن، لياقة، أهداف عامة" required>
-                    <small class="hint-text">إذا قمت بتعديل اسم تصنيف حالي، سيقوم النظام تلقائياً بتحديث المهام التابعة له.</small>
-                </div>
 
-                <div class="form-row">
-                    <div class="form-group half-width">
-                        <label for="cat-unit-input">وحدة القياس الافتراضية (Default Unit)</label>
-                        <input type="text" id="cat-unit-input" list="units-list" placeholder="مثال: ساعة، صفحة، تكرار">
-                        <datalist id="units-list">
-                            <option value="ساعة"></option>
-                            <option value="صفحة"></option>
-                            <option value="تكرار"></option>
-                            <option value="ركعة"></option>
-                            <option value="يوم"></option>
-                        </datalist>
-                    </div>
-                    <div class="form-group half-width">
-                        <label for="cat-estimated-minutes-input">⏱ الوقت لكل وحدة (دقيقة/وحدة)</label>
-                        <input type="number" step="0.5" min="0.5" id="cat-estimated-minutes-input" placeholder="مثال: 5 دقيقة/صفحة، 0.5 للذكر">
-                        <small class="hint-text">كم دقيقة تستغرق الوحدة الواحدة؟ (صفحة / ركعة / صلاة...). يُضرب في الهدف تلقائياً.</small>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>اختر أيقونة التصنيف الأنسب</label>
-                    <div class="icons-radio-grid" id="icons-radio-box">
-                        <label class="icon-radio-card"><input type="radio" name="cat_icon" value="fa-person-praying" checked><i class="fa-solid fa-person-praying"></i></label>
-                        <label class="icon-radio-card"><input type="radio" name="cat_icon" value="fa-book-quran"><i class="fa-solid fa-book-quran"></i></label>
-                        <label class="icon-radio-card"><input type="radio" name="cat_icon" value="fa-hands-praying"><i class="fa-solid fa-hands-praying"></i></label>
-                        <label class="icon-radio-card"><input type="radio" name="cat_icon" value="fa-moon"><i class="fa-solid fa-moon"></i></label>
-                        <label class="icon-radio-card"><input type="radio" name="cat_icon" value="fa-sun"><i class="fa-solid fa-sun"></i></label>
-                        <label class="icon-radio-card"><input type="radio" name="cat_icon" value="fa-book-open"><i class="fa-solid fa-book-open"></i></label>
-                        <label class="icon-radio-card"><input type="radio" name="cat_icon" value="fa-headphones"><i class="fa-solid fa-headphones"></i></label>
-                        <label class="icon-radio-card"><input type="radio" name="cat_icon" value="fa-briefcase"><i class="fa-solid fa-briefcase"></i></label>
-                        <label class="icon-radio-card"><input type="radio" name="cat_icon" value="fa-graduation-cap"><i class="fa-solid fa-graduation-cap"></i></label>
-                        <label class="icon-radio-card"><input type="radio" name="cat_icon" value="fa-laptop-code"><i class="fa-solid fa-laptop-code"></i></label>
-                        <label class="icon-radio-card"><input type="radio" name="cat_icon" value="fa-dumbbell"><i class="fa-solid fa-dumbbell"></i></label>
-                        <label class="icon-radio-card"><input type="radio" name="cat_icon" value="fa-heart"><i class="fa-solid fa-heart"></i></label>
-                        <label class="icon-radio-card"><input type="radio" name="cat_icon" value="fa-star"><i class="fa-solid fa-star"></i></label>
-                        <label class="icon-radio-card"><input type="radio" name="cat_icon" value="fa-list-check"><i class="fa-solid fa-list-check"></i></label>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>التصنيفات الفرعية (Subcategories)</label>
-                    <div id="cat-subcategories-list" class="subcategories-list" style="display: flex; flex-wrap: wrap; gap: 8px;">
-                        <!-- Populated dynamically -->
-                    </div>
-                    <div class="subcat-add-row" style="display: flex; gap: 8px; margin-top: 10px;">
-                        <input type="text" id="new-subcat-input" placeholder="اسم التصنيف الفرعي الجديد" style="flex: 2;">
-                        <input type="text" id="new-subcat-unit-input" list="units-list" placeholder="وحدة القياس (اختياري)" style="flex: 1.5;">
-                        <input type="number" id="new-subcat-est-mins-input" step="0.5" min="0.5" placeholder="⏱ د/وحدة" style="flex: 1;" title="الوقت بالدقيقة لكل وحدة (اختياري)">
-                        <button type="button" class="btn-secondary" id="btn-add-subcat"><i class="fa-solid fa-plus"></i> إضافة</button>
-                    </div>
-                </div>
-
-                <div class="modal-footer">
-                    <button type="submit" class="btn-primary btn-glow"><i class="fa-solid fa-floppy-disk"></i> حفظ التصنيف</button>
-                    <button type="button" class="btn-secondary" id="btn-cancel-cat-modal">إلغاء</button>
-                </div>
-            </form>
-        </div>
-    </div>
 
     <!-- POMODORO TIMER MODAL -->
     <div id="pomodoro-modal" class="modal-overlay hidden">
@@ -957,88 +854,13 @@
         </div>
     </div>
 
-    <!-- SQL MIGRATION MODAL -->
-    <div id="modal-sql-migration" class="modal-overlay hidden" style="z-index: 9999; background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(12px);">
-        <div class="modal-container glass-card" style="max-width: 560px; padding: 25px; border: 1px solid rgba(16, 185, 129, 0.3);">
-            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: #fff;">
-                    <i class="fa-solid fa-database" style="color: #10b981;"></i> ترحيل البيانات إلى الجداول الجديدة (Supabase)
-                </h3>
-                <button class="btn-close" id="btn-close-sql-migration" style="background: none; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer;">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            <div class="modal-body" style="padding: 10px 0;">
-                <p style="font-size: 0.88rem; color: #94a3b8; margin-bottom: 16px; line-height: 1.6;">
-                    سيتم قراءة البيانات الحالية المحملة في المتصفح وترحيلها مباشرة إلى الجداول الجديدة (<code style="color: #10b981;">users</code>, <code style="color: #10b981;">tasks</code>, <code style="color: #10b981;">daily_progress</code>).
-                </p>
-
-                <!-- Data Preview Pill Grid -->
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 18px;">
-                    <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px; text-align: center;">
-                        <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px;">إجمالي المهام</div>
-                        <div id="mig-preview-tasks-count" style="font-size: 1.3rem; font-weight: 700; color: #10b981;">--</div>
-                    </div>
-                    <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px; text-align: center;">
-                        <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px;">المهام النشطة</div>
-                        <div id="mig-preview-active-count" style="font-size: 1.3rem; font-weight: 700; color: #3b82f6;">--</div>
-                    </div>
-                    <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px; text-align: center;">
-                        <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px;">أيام السجلات</div>
-                        <div id="mig-preview-days-count" style="font-size: 1.3rem; font-weight: 700; color: #f59e0b;">--</div>
-                    </div>
-                </div>
-
-                <!-- Target Credentials -->
-                <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px; padding: 14px; margin-bottom: 18px;">
-                    <div style="font-size: 0.85rem; font-weight: 700; color: #10b981; margin-bottom: 10px;">
-                        <i class="fa-solid fa-user-check"></i> حساب وبيانات المستهدف:
-                    </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                        <div>
-                            <label style="font-size: 0.78rem; color: #cbd5e1; display: block; margin-bottom: 4px;">اسم المستخدم (Username):</label>
-                            <input type="text" id="mig-input-username" value="primary_user" placeholder="primary_user" dir="ltr" style="width: 100%; padding: 8px 10px; border-radius: 8px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); color: #fff; font-weight: 600;">
-                        </div>
-                        <div>
-                            <label style="font-size: 0.78rem; color: #cbd5e1; display: block; margin-bottom: 4px;">رمز المرور (PIN):</label>
-                            <input type="password" id="mig-input-pin" value="" placeholder="رمز المرور (اختياري)" maxlength="6" style="width: 100%; padding: 8px 10px; border-radius: 8px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); color: #fff; letter-spacing: 2px;">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Progress Bar Container -->
-                <div style="margin-bottom: 14px;">
-                    <div style="display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 6px;">
-                        <span style="color: #cbd5e1;">حالة التقدم:</span>
-                        <span id="mig-progress-text" style="color: #10b981; font-weight: 600;">جاهز للبدء</span>
-                    </div>
-                    <div style="width: 100%; height: 10px; background: rgba(0,0,0,0.4); border-radius: 5px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1);">
-                        <div id="mig-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #10b981, #059669); transition: width 0.3s ease;"></div>
-                    </div>
-                </div>
-
-                <!-- Live Status Log -->
-                <div id="mig-status-log" style="height: 140px; overflow-y: auto; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px; font-family: monospace; font-size: 0.8rem; line-height: 1.5; color: #94a3b8; margin-bottom: 18px;">
-                    <div style="color: #64748b;">اضغط على 'بدء الترحيل الآن' لبدء رفع البيانات...</div>
-                </div>
-
-                <!-- Actions -->
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn-primary btn-glow" id="btn-start-sql-migration" style="flex: 2; padding: 12px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); font-weight: 700;">
-                        <i class="fa-solid fa-play"></i> <span>بدء الترحيل الآن ⚡</span>
-                    </button>
-                    <button class="btn-secondary" id="btn-cancel-sql-migration" style="flex: 1; padding: 12px;">إغلاق</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Audio Element for Pomodoro Alarm -->
     <audio id="pomodoro-alarm" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 
     <!-- Scripts -->
     <script src="js/config/constants.js?v=20261012_2"></script>
     <script src="js/config/default-data.js?v=20261012_2"></script>
+    <script src="js/api.js?v=20261012_2"></script>
     <script src="js/utils/debounce.js?v=20261012_2"></script>
     <script src="js/utils/date-utils.js?v=20261012_2"></script>
     <script src="js/core/cloud-adapter.js?v=20261012_2"></script>
@@ -1055,7 +877,6 @@
     <script src="js/components/analytics-view.js?v=20261012_2"></script>
     <script src="js/components/data-manager.js?v=20261012_2"></script>
     <script src="js/components/security-lock.js?v=20261012_2"></script>
-    <script src="js/components/migration-modal.js?v=20261013_1"></script>
     <script src="js/app.js?v=20261012_2"></script>
 
     <!-- PWA Service Worker Registration -->

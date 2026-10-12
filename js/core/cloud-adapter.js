@@ -57,8 +57,8 @@ class CloudAdapter {
      */
     loadStoredConfig() {
         const defaults = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.SUPABASE) ? APP_CONSTANTS.SUPABASE : {
-            DEFAULT_URL: "",
-            DEFAULT_ANON_KEY: "",
+            URL: "",
+            ANON_KEY: "",
             DEFAULT_USER_ID: "primary_user"
         };
 
