@@ -3,9 +3,6 @@
  */
 var APP_CONSTANTS = {
     STORAGE_KEY: "AWRAD_APP_DATA_V1",
-    SERVERS: {
-        LOCAL_NODE_URL: "http://localhost:3000/api/storage"
-    },
     SUPABASE: {
         URL: "",
         ANON_KEY: "",

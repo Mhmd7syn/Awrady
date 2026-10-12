@@ -41,9 +41,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         window.securityLock.init();
     }
     if (typeof setupDataManagement === "function") setupDataManagement();
-    if (window.storageEngine) {
-        await window.storageEngine.init(updateStorageUIStatus);
-    }
     await initData();
     setupNavigation();
     setupDailyControls();
