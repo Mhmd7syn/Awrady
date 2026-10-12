@@ -293,6 +293,94 @@ class StateManager {
             }
         });
 
+        // Self-healing migration: decompose any merged one-time tasks back into discrete date tasks
+        if (Array.isArray(this.data.tasks) && this.data.logs) {
+            const extraTasks = [];
+            this.data.tasks.forEach(t => {
+                if (t.isOneTime || t.schedule === "OneTime") {
+                    const loggedDates = [];
+                    Object.keys(this.data.logs).forEach(dateKey => {
+                        const log = this.data.logs[dateKey];
+                        if (log && log.entries && log.entries[t.id] !== undefined && log.entries[t.id] > 0) {
+                            loggedDates.push(dateKey);
+                        }
+                    });
+
+                    const allDatesSet = new Set(loggedDates);
+                    if (Array.isArray(t.oneTimeDates)) {
+                        t.oneTimeDates.forEach(d => { if (d) allDatesSet.add(d); });
+                    }
+                    if (t.oneTimeDate) allDatesSet.add(t.oneTimeDate);
+
+                    const distinctDates = Array.from(allDatesSet).sort();
+                    if (distinctDates.length > 1) {
+                        const latestDate = distinctDates[distinctDates.length - 1];
+                        t.oneTimeDate = latestDate;
+                        delete t.oneTimeDates;
+
+                        for (let i = 0; i < distinctDates.length - 1; i++) {
+                            const d = distinctDates[i];
+                            const splitId = `${t.id}_${d.replace(/[^0-9]/g, '')}`;
+                            const splitTask = {
+                                ...JSON.parse(JSON.stringify(t)),
+                                id: splitId,
+                                isOneTime: true,
+                                schedule: "OneTime",
+                                oneTimeDate: d,
+                                createdAt: d,
+                                isBonus: !!t.isBonus,
+                                history: [{
+                                    effectiveFrom: d,
+                                    name: t.name,
+                                    category: t.category,
+                                    subcategory: t.subcategory,
+                                    type: t.type,
+                                    target: t.target,
+                                    multiplier: t.multiplier !== undefined ? t.multiplier : 1.0,
+                                    schedule: "OneTime",
+                                    isBonus: !!t.isBonus,
+                                    comment: t.comment,
+                                    isOneTime: true,
+                                    oneTimeDate: d
+                                }]
+                            };
+                            delete splitTask.oneTimeDates;
+                            extraTasks.push(splitTask);
+
+                            if (this.data.logs[d] && this.data.logs[d].entries && this.data.logs[d].entries[t.id] !== undefined) {
+                                this.data.logs[d].entries[splitId] = this.data.logs[d].entries[t.id];
+                                delete this.data.logs[d].entries[t.id];
+                            }
+                            if (this.data.logs[d] && Array.isArray(this.data.logs[d].bonusTaskIds)) {
+                                const idx = this.data.logs[d].bonusTaskIds.indexOf(t.id);
+                                if (idx !== -1) {
+                                    this.data.logs[d].bonusTaskIds.splice(idx, 1);
+                                    if (!this.data.logs[d].bonusTaskIds.includes(splitId)) {
+                                        this.data.logs[d].bonusTaskIds.push(splitId);
+                                    }
+                                }
+                            }
+                            if (this.data.logs[d] && Array.isArray(this.data.logs[d].disabledTaskIds)) {
+                                const idx = this.data.logs[d].disabledTaskIds.indexOf(t.id);
+                                if (idx !== -1) {
+                                    this.data.logs[d].disabledTaskIds.splice(idx, 1);
+                                    if (!this.data.logs[d].disabledTaskIds.includes(splitId)) {
+                                        this.data.logs[d].disabledTaskIds.push(splitId);
+                                    }
+                                }
+                            }
+                        }
+                    } else if (Array.isArray(t.oneTimeDates)) {
+                        delete t.oneTimeDates;
+                    }
+                }
+            });
+
+            if (extraTasks.length > 0) {
+                this.data.tasks.push(...extraTasks);
+            }
+        }
+
         // Purge permanently deleted tasks if tombstoned
         if (Array.isArray(this.data.deletedTaskIds) && this.data.deletedTaskIds.length > 0) {
             const delSet = new Set(this.data.deletedTaskIds);

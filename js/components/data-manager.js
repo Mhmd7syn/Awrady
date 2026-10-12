@@ -90,47 +90,6 @@ function updateStorageUIStatus(status) {
 }
 
 function setupDataManagement() {
-    const btnRestorePreset = document.getElementById("btn-restore-historical-preset");
-    if (btnRestorePreset) {
-        btnRestorePreset.addEventListener("click", async () => {
-            if (!confirm("هل ترغب في استعادة سجلك التاريخي السابق (48 يوماً من العبادات والمهام) ومزامنته فوراً مع السحابة؟")) {
-                return;
-            }
-            btnRestorePreset.disabled = true;
-            btnRestorePreset.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> جارِ استعادة ورفع السجلات...`;
-
-            try {
-                const res = await fetch("Data/awrady_backup.json?v=" + Date.now());
-                if (!res.ok) throw new Error("تعذر جلب ملف النسخة الاحتياطية.");
-                const imported = await res.json();
-                if (imported && imported.tasks && imported.logs) {
-                    appData = imported;
-                    if (!appData.categories || appData.categories.length === 0) {
-                        appData.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
-                    }
-                    window.appData = appData;
-                    if (window.stateManager) window.stateManager.data = appData;
-
-                    if (window.storageEngine) {
-                        await window.storageEngine.saveDataImmediate(STORAGE_KEY, appData);
-                    } else {
-                        saveData(true);
-                    }
-
-                    renderDailyView();
-                    if (typeof renderAllTimeStats === "function") renderAllTimeStats();
-                    if (typeof updateChartAndAnalytics === "function") updateChartAndAnalytics();
-                    if (typeof updateHeaderTodayScore === "function") updateHeaderTodayScore();
-                    alert("🎉 تم استعادة كامل سجلك التاريخي بنجاح (48 يوماً) وتمت مزامنته مع قاعدة بياناتك السحابية!");
-                }
-            } catch (err) {
-                alert("❌ حدث خطأ أثناء الاستعادة: " + err.message);
-            } finally {
-                btnRestorePreset.disabled = false;
-                btnRestorePreset.innerHTML = `<i class="fa-solid fa-cloud-arrow-up"></i> استعادة ورفع سجلي التاريخي (48 يوم) للسحابة 🚀`;
-            }
-        });
-    }
 
     const btnExport = document.getElementById("btn-export-json");
     if (btnExport) {

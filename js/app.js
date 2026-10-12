@@ -198,6 +198,8 @@ function isBonusTaskForDate(task, dateStr, loggedVal = null) {
         return true;
     }
 
+    if ((effProps && effProps.isBonus) || task.isBonus) return true;
+
     const sched = (effProps.schedule || task.schedule || "").trim();
     const isOneTime = task.isOneTime || sched === "OneTime";
     const targetDate = task.oneTimeDate || effProps.oneTimeDate;
@@ -208,8 +210,6 @@ function isBonusTaskForDate(task, dateStr, loggedVal = null) {
         }
         return val > 0;
     }
-
-    if ((effProps && effProps.isBonus) || task.isBonus) return true;
 
     const isEveryday = (sched === "Everyday" || sched === "" || sched.toLowerCase() === "everyday");
     const dayAbbrev = typeof getDayOfWeekAbbrev === "function" ? getDayOfWeekAbbrev(dateStr) : "";

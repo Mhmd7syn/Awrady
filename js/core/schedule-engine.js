@@ -133,6 +133,8 @@ class ScheduleEngine {
             }
         }
 
+        if ((effProps && effProps.isBonus) || task.isBonus) return true;
+
         const sched = (effProps.schedule || task.schedule || "").trim();
         const isOneTime = (effProps && effProps.isOneTime !== undefined) ? effProps.isOneTime : (task.isOneTime || sched === "OneTime");
         const targetDate = task.oneTimeDate || (effProps && effProps.oneTimeDate);
@@ -144,8 +146,6 @@ class ScheduleEngine {
             const val = (loggedVal !== null) ? loggedVal : ((log && log.entries) ? (log.entries[task.id] || 0) : 0);
             return val > 0;
         }
-
-        if ((effProps && effProps.isBonus) || task.isBonus) return true;
 
         const val = (loggedVal !== null) ? loggedVal : ((log && log.entries) ? (log.entries[task.id] || 0) : 0);
         const isEveryday = (sched === "Everyday" || sched === "" || sched.toLowerCase() === "everyday");
