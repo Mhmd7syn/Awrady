@@ -309,16 +309,8 @@ function createTaskRowElement(task, isArchived) {
     const isOt = !!(task.isOneTime || task.schedule === "OneTime");
     let schedText;
     if (isOt) {
-        const dates = Array.isArray(task.oneTimeDates) && task.oneTimeDates.length > 0
-            ? task.oneTimeDates
-            : (task.oneTimeDate ? [task.oneTimeDate] : []);
-        if (dates.length === 1) {
-            schedText = `📅 التاريخ: ${dates[0]}`;
-        } else if (dates.length > 1) {
-            schedText = `📅 التواريخ: ${dates.join("، ")}`;
-        } else {
-            schedText = `📅 لمرة واحدة فقط`;
-        }
+        const dStr = task.oneTimeDate || (Array.isArray(task.oneTimeDates) ? task.oneTimeDates[0] : null);
+        schedText = dStr ? `📅 التاريخ: ${dStr}` : `📅 لمرة واحدة فقط`;
     } else {
         const schedDisplay = formatScheduleDisplay(task.schedule);
         schedText = `📅 التكرار: ${schedDisplay}`;
@@ -581,7 +573,7 @@ function openTaskModal(id, options = {}) {
             if (isOt) {
                 if (otBox) otBox.classList.remove("hidden");
                 if (otDateInput) {
-                    const existingDate = task.oneTimeDate || (Array.isArray(task.oneTimeDates) && task.oneTimeDates[0]) || "";
+                    const existingDate = task.oneTimeDate || "";
                     otDateInput.value = existingDate || ((typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : (typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().split("T")[0]));
                 }
             } else {
@@ -768,79 +760,43 @@ function saveTaskFromModal() {
             oldTask.isOneTime = (schedType === "OneTime");
             oldTask.oneTimeDate = (schedType === "OneTime") ? chosenOneTimeDate : null;
             if (schedType === "OneTime") {
-                if (!Array.isArray(oldTask.oneTimeDates)) {
-                    oldTask.oneTimeDates = oldTask.oneTimeDate ? [oldTask.oneTimeDate] : [];
-                }
-                if (!oldTask.oneTimeDates.includes(chosenOneTimeDate)) {
-                    oldTask.oneTimeDates.push(chosenOneTimeDate);
-                }
+                if (oldTask.oneTimeDates) delete oldTask.oneTimeDates;
             }
         }
     } else {
-        // If creating a OneTime task, check if a one-time task with the same name and category already exists to reuse it!
-        let existingOnetimeTask = null;
-        if (schedType === "OneTime" && Array.isArray(appData.tasks)) {
-            existingOnetimeTask = appData.tasks.find(t => 
-                (t.isOneTime || t.schedule === "OneTime") && 
-                !t.isArchived && 
-                t.name.trim().toLowerCase() === name.toLowerCase() &&
-                t.category === cat
-            );
-        }
-
-        if (existingOnetimeTask) {
-            // Reuse existing one-time task instead of creating a duplicate!
-            if (!Array.isArray(existingOnetimeTask.oneTimeDates)) {
-                existingOnetimeTask.oneTimeDates = existingOnetimeTask.oneTimeDate ? [existingOnetimeTask.oneTimeDate] : [];
-            }
-            if (!existingOnetimeTask.oneTimeDates.includes(chosenOneTimeDate)) {
-                existingOnetimeTask.oneTimeDates.push(chosenOneTimeDate);
-            }
-            existingOnetimeTask.oneTimeDate = chosenOneTimeDate;
-            if (parsedTarget !== null) existingOnetimeTask.target = parsedTarget;
-            if (taskComment) existingOnetimeTask.comment = taskComment;
-            if (subcat) existingOnetimeTask.subcategory = subcat;
-            if (type) existingOnetimeTask.type = type;
-            if (typeof ScheduleEngine !== "undefined" && typeof ScheduleEngine.invalidateTaskCache === "function") {
-                ScheduleEngine.invalidateTaskCache(existingOnetimeTask);
-            }
-        } else {
-            const newTask = {
-                id: id,
+        const newTask = {
+            id: id,
+            name: name,
+            category: cat,
+            subcategory: subcat,
+            type: type,
+            target: parsedTarget,
+            dayTargets: dayTargets,
+            multiplier: 1.0, 
+            schedule: scheduleVal,
+            isArchived: false,
+            comment: taskComment,
+            isBonus: isBonus,
+            isOneTime: (schedType === "OneTime"),
+            oneTimeDate: (schedType === "OneTime") ? chosenOneTimeDate : null,
+            createdAt: (schedType === "OneTime") ? chosenOneTimeDate : selectedDate,
+            history: [{
+                effectiveFrom: (schedType === "OneTime") ? chosenOneTimeDate : selectedDate,
                 name: name,
                 category: cat,
                 subcategory: subcat,
                 type: type,
                 target: parsedTarget,
                 dayTargets: dayTargets,
-                multiplier: 1.0, 
+                multiplier: 1.0,
                 schedule: scheduleVal,
-                isArchived: false,
-                comment: taskComment,
                 isBonus: isBonus,
+                comment: taskComment,
                 isOneTime: (schedType === "OneTime"),
-                oneTimeDate: (schedType === "OneTime") ? chosenOneTimeDate : null,
-                oneTimeDates: (schedType === "OneTime") ? [chosenOneTimeDate] : null,
-                createdAt: (schedType === "OneTime") ? chosenOneTimeDate : selectedDate,
-                history: [{
-                    effectiveFrom: (schedType === "OneTime") ? chosenOneTimeDate : selectedDate,
-                    name: name,
-                    category: cat,
-                    subcategory: subcat,
-                    type: type,
-                    target: parsedTarget,
-                    dayTargets: dayTargets,
-                    multiplier: 1.0,
-                    schedule: scheduleVal,
-                    isBonus: isBonus,
-                    comment: taskComment,
-                    isOneTime: (schedType === "OneTime"),
-                    oneTimeDate: (schedType === "OneTime") ? chosenOneTimeDate : null,
-                    oneTimeDates: (schedType === "OneTime") ? [chosenOneTimeDate] : null
-                }]
-            };
-            appData.tasks.push(newTask);
-        }
+                oneTimeDate: (schedType === "OneTime") ? chosenOneTimeDate : null
+            }]
+        };
+        appData.tasks.push(newTask);
     }
 
     closeTaskModal();

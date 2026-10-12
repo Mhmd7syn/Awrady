@@ -83,34 +83,12 @@ function removeBonusTaskFromDate(taskId, dateStr) {
     const task = window.appData && window.appData.tasks ? window.appData.tasks.find(t => t.id === taskId) : null;
 
     if (task && (task.isOneTime || task.schedule === "OneTime")) {
-        if (!confirm("هل أنت متأكد من إلغاء وحذف هذه المهمة لمرة واحدة لهذا اليوم؟")) {
+        if (!confirm("هل أنت متأكد من إلغاء وحذف هذه المهمة لمرة واحدة؟")) {
             return;
         }
-        if (Array.isArray(task.oneTimeDates)) {
-            task.oneTimeDates = task.oneTimeDates.filter(d => d !== dateStr);
-            if (task.oneTimeDate === dateStr) {
-                task.oneTimeDate = task.oneTimeDates[task.oneTimeDates.length - 1] || null;
-            }
-        } else if (task.oneTimeDate === dateStr) {
-            task.oneTimeDate = null;
-        }
-
-        const hasOtherDates = Array.isArray(task.oneTimeDates) && task.oneTimeDates.length > 0;
-        let hasOtherLogs = false;
-        if (window.appData.logs) {
-            for (const dKey in window.appData.logs) {
-                if (dKey !== dateStr && window.appData.logs[dKey]?.entries?.[taskId] > 0) {
-                    hasOtherLogs = true;
-                    break;
-                }
-            }
-        }
-
-        if (!hasOtherDates && !hasOtherLogs) {
-            window.appData.tasks = window.appData.tasks.filter(t => t.id !== taskId);
-            if (!window.appData.deletedTaskIds) window.appData.deletedTaskIds = [];
-            if (!window.appData.deletedTaskIds.includes(taskId)) window.appData.deletedTaskIds.push(taskId);
-        }
+        window.appData.tasks = window.appData.tasks.filter(t => t.id !== taskId);
+        if (!window.appData.deletedTaskIds) window.appData.deletedTaskIds = [];
+        if (!window.appData.deletedTaskIds.includes(taskId)) window.appData.deletedTaskIds.push(taskId);
     } else if (task && task.isBonus) {
         if (!confirm("هل أنت متأكد من إلغاء وحذف هذا الورد الإضافي؟")) {
             return;
@@ -131,35 +109,10 @@ function removeBonusTaskFromDate(taskId, dateStr) {
 }
 
 function removeOneTimeTask(taskId, dateStr) {
-    if (confirm("هل أنت متأكد من إلغاء وحذف هذه المهمة لمرة واحدة لهذا اليوم؟")) {
-        const task = window.appData && window.appData.tasks ? window.appData.tasks.find(t => t.id === taskId) : null;
-        if (task) {
-            if (Array.isArray(task.oneTimeDates)) {
-                task.oneTimeDates = task.oneTimeDates.filter(d => d !== dateStr);
-                if (task.oneTimeDate === dateStr) {
-                    task.oneTimeDate = task.oneTimeDates[task.oneTimeDates.length - 1] || null;
-                }
-            } else if (task.oneTimeDate === dateStr) {
-                task.oneTimeDate = null;
-            }
-
-            const hasOtherDates = Array.isArray(task.oneTimeDates) && task.oneTimeDates.length > 0;
-            let hasOtherLogs = false;
-            if (window.appData.logs) {
-                for (const dKey in window.appData.logs) {
-                    if (dKey !== dateStr && window.appData.logs[dKey]?.entries?.[taskId] > 0) {
-                        hasOtherLogs = true;
-                        break;
-                    }
-                }
-            }
-
-            if (!hasOtherDates && !hasOtherLogs) {
-                window.appData.tasks = window.appData.tasks.filter(t => t.id !== taskId);
-                if (!window.appData.deletedTaskIds) window.appData.deletedTaskIds = [];
-                if (!window.appData.deletedTaskIds.includes(taskId)) window.appData.deletedTaskIds.push(taskId);
-            }
-        }
+    if (confirm("هل أنت متأكد من إلغاء وحذف هذه المهمة لمرة واحدة؟")) {
+        window.appData.tasks = window.appData.tasks.filter(t => t.id !== taskId);
+        if (!window.appData.deletedTaskIds) window.appData.deletedTaskIds = [];
+        if (!window.appData.deletedTaskIds.includes(taskId)) window.appData.deletedTaskIds.push(taskId);
 
         if (window.appData.logs[dateStr] && window.appData.logs[dateStr].entries) {
             delete window.appData.logs[dateStr].entries[taskId];
