@@ -79,6 +79,16 @@
                         <span class="stat-value" id="header-cloud-text" style="font-size: 0.8rem; font-weight: 600;">سحابي ⚡</span>
                     </div>
                 </div>
+                <div class="stat-pill glass-card user-account-pill" id="header-user-pill" title="الحساب النشط" style="display: flex; align-items: center; gap: 8px;">
+                    <div class="stat-icon emerald-icon"><i class="fa-solid fa-circle-user"></i></div>
+                    <div class="stat-info">
+                        <span class="stat-label">المستخدم</span>
+                        <span class="stat-value" id="header-username-display" style="font-size: 0.82rem; font-weight: 700;">-</span>
+                    </div>
+                    <button id="btn-header-logout" title="تسجيل الخروج" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.75rem;">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    </button>
+                </div>
                 <button class="stat-pill glass-card" id="btn-header-quick-lock" title="قفل لوحة التحكم فوراً 🔒" style="cursor: pointer; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;">
                     <i class="fa-solid fa-lock" style="color: #94a3b8; font-size: 0.95rem;"></i>
                 </button>
@@ -819,6 +829,47 @@
         </div>
     </div>
 
+    <!-- FULLSCREEN AUTHENTICATION GATEWAY (LOGIN / REGISTER) -->
+    <div id="auth-overlay" class="auth-overlay">
+        <div class="auth-card glass-card">
+            <div style="width: 58px; height: 58px; border-radius: 18px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 30px; height: 30px; color: #10b981;">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </div>
+            <h2 style="margin: 0 0 4px; font-size: 1.5rem; font-weight: 800; color: #fff;">أورادي <span class="tag-badge">Pro</span></h2>
+            <p style="margin: 0 0 16px; font-size: 0.85rem; color: #94a3b8;">لوحة ذكية لمتابعة الأوراد والعبادات اليومية</p>
+
+            <div class="auth-tabs">
+                <button type="button" class="auth-tab-btn active" id="btn-auth-tab-login">تسجيل الدخول</button>
+                <button type="button" class="auth-tab-btn" id="btn-auth-tab-register">إنشاء حساب جديد</button>
+            </div>
+
+            <div id="auth-msg" class="auth-msg"></div>
+
+            <form id="auth-form" onsubmit="return false;" style="text-align: right;">
+                <label style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 5px;">اسم المستخدم</label>
+                <input type="text" id="auth-username" class="auth-input-field" placeholder="أدخل اسم المستخدم" required dir="ltr">
+
+                <label style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 5px;">كلمة المرور</label>
+                <input type="password" id="auth-password" class="auth-input-field" placeholder="أدخل كلمة المرور" required>
+
+                <div id="auth-confirm-container" style="display: none;">
+                    <label style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 5px;">تأكيد كلمة المرور</label>
+                    <input type="password" id="auth-confirm-password" class="auth-input-field" placeholder="أعد إدخال كلمة المرور">
+                </div>
+
+                <button type="button" id="btn-auth-submit" class="btn-primary btn-block btn-glow" style="margin-top: 8px; width: 100%; padding: 12px; font-size: 1rem;">
+                    <span>تسجيل الدخول</span>
+                </button>
+
+                <button type="button" id="btn-auth-guest" class="btn-outline btn-block" style="margin-top: 10px; width: 100%; padding: 10px; font-size: 0.85rem; border-color: rgba(255,255,255,0.15); color: #cbd5e1;">
+                    <i class="fa-solid fa-user-clock"></i> <span>المتابعة كزائر / تجربة سريعة</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
     <!-- Audio Element for Pomodoro Alarm -->
     <audio id="pomodoro-alarm" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 
@@ -838,8 +889,9 @@
     <script src="js/components/category-manager.js?v=20261013_1"></script>
     <script src="js/components/analytics-view.js?v=20261013_1"></script>
     <script src="js/components/data-manager.js?v=20261013_1"></script>
+    <script src="js/components/auth-manager.js?v=20261013_3"></script>
     <script src="js/components/security-lock.js?v=20261013_1"></script>
-    <script src="js/app.js?v=20261013_1"></script>
+    <script src="js/app.js?v=20261013_3"></script>
 
     <!-- PWA Service Worker Registration -->
     <script>

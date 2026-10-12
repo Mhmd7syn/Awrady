@@ -13,7 +13,7 @@ class EnjazAPI {
     init() {
         const url = window.APP_CONSTANTS?.SUPABASE?.URL;
         const key = window.APP_CONSTANTS?.SUPABASE?.ANON_KEY;
-        this.currentUser = window.APP_CONSTANTS?.SUPABASE?.DEFAULT_USER_ID || "primary_user";
+        this.currentUser = (window.authManager && window.authManager.getCurrentUser()) || window.APP_CONSTANTS?.SUPABASE?.DEFAULT_USER_ID || "primary_user";
 
         if (!url || !key || !window.supabase?.createClient) {
             return false;

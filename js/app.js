@@ -33,10 +33,21 @@ let chartInstance = null;
 let editingTaskId = null;
 let nawafelPromptTimeout = null;
 
+function getUserStorageKey() {
+    const u = (window.enjazAPI?.currentUser || (window.authManager && window.authManager.getCurrentUser()) || "primary_user").toLowerCase();
+    return `${STORAGE_KEY}_${u}`;
+}
+
 // ============================================================================
 // INITIALIZATION & STATE MANAGEMENT
 // ============================================================================
 document.addEventListener("DOMContentLoaded", async () => {
+    if (window.authManager) {
+        window.authManager.init();
+        if (!window.authManager.isLoggedIn()) {
+            return; // Halt startup until login/register
+        }
+    }
     if (window.securityLock) {
         window.securityLock.init();
     }
@@ -54,8 +65,43 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderDailyView();
     if (typeof renderAllTimeStats === "function") renderAllTimeStats();
     updateHeaderTodayScore();
-    // Chart and analytics are lazily loaded when opening the Analytics tab
 });
+
+window.startApp = async function(username) {
+    if (window.enjazAPI) {
+        window.enjazAPI.currentUser = username;
+    }
+    if (window.securityLock) {
+        window.securityLock.init();
+    }
+    await initData();
+    if (!window._appControlsBound) {
+        setupNavigation();
+        setupDailyControls();
+        if (typeof setupTaskManager === "function") setupTaskManager();
+        if (typeof setupCategoryManager === "function") setupCategoryManager();
+        if (typeof setupNawafelToast === "function") setupNawafelToast();
+        if (typeof setupQiyamToast === "function") setupQiyamToast();
+        if (typeof setupPomodoroControls === "function") setupPomodoroControls();
+        window._appControlsBound = true;
+    }
+    renderDailyView();
+    if (typeof renderAllTimeStats === "function") renderAllTimeStats();
+    updateHeaderTodayScore();
+};
+
+window.logoutApp = function() {
+    appData = {
+        categories: (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) ? APP_CONSTANTS.CATEGORIES : [],
+        tasks: [],
+        logs: {}
+    };
+    window.appData = appData;
+    const todayEl = document.getElementById("header-today-score");
+    if (todayEl) todayEl.textContent = "0%";
+    const container = document.getElementById("daily-tasks-container");
+    if (container) container.innerHTML = "";
+};
 
 let _dbSaveTimer = null;
 
@@ -165,7 +211,7 @@ async function initData() {
     // 2. Fallback to localStorage if Supabase is offline/unconfigured
     if (!loaded) {
         try {
-            const localSaved = localStorage.getItem(STORAGE_KEY);
+            const localSaved = localStorage.getItem(getUserStorageKey()) || localStorage.getItem(STORAGE_KEY);
             if (localSaved) {
                 const parsed = JSON.parse(localSaved);
                 if (parsed) {
@@ -208,7 +254,10 @@ function loadDefaultAppData() {
 function saveData(immediate = false) {
     // 1. Offline resilient local backup
     try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+        localStorage.setItem(getUserStorageKey(), JSON.stringify(appData));
+        if ((window.enjazAPI?.currentUser || "").toLowerCase() === "primary_user") {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+        }
     } catch (_) {}
 
     // 2. Direct database persistence via EnjazAPI
