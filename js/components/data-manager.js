@@ -122,11 +122,10 @@ function setupDataManagement() {
                             appData.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
                         }
                         window.appData = appData;
-                        if (window.stateManager) window.stateManager.data = appData;
-                        
-                        // Immediately sync imported data with Supabase Cloud
-                        if (window.storageEngine) {
-                            await window.storageEngine.saveDataImmediate(STORAGE_KEY, appData);
+                        if (window.stateManager) {
+                            window.stateManager.setData(appData, true);
+                            appData = window.stateManager.data;
+                            window.appData = appData;
                         } else {
                             saveData(true);
                         }
