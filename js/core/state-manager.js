@@ -381,6 +381,61 @@ class StateManager {
             }
         }
 
+        // Deduplicate one-time tasks sharing identical name, category, and date
+        if (Array.isArray(this.data.tasks)) {
+            const seenOnetime = new Set();
+            this.data.tasks = this.data.tasks.filter(t => {
+                if (t.isOneTime || t.schedule === "OneTime") {
+                    delete t.oneTimeDates;
+                    const key = `${(t.name || "").trim().toLowerCase()}:::${(t.category || "").trim().toLowerCase()}:::${t.oneTimeDate || ""}`;
+                    if (seenOnetime.has(key)) {
+                        return false;
+                    }
+                    seenOnetime.add(key);
+                }
+                return true;
+            });
+        }
+
+        // Auto-heal: rectify historical entries for "edit the dashboard" that were tripled by previous sync merge cycles
+        if (this.data.logs) {
+            const inflatedDashboardMap = {
+                "2026-08-21": 29,
+                "2026-09-16": 120,
+                "2026-09-17": 260,
+                "2026-09-18": 60,
+                "2026-09-19": 171,
+                "2026-09-20": 60,
+                "2026-09-24": 45,
+                "2026-09-25": 61,
+                "2026-10-07": 240,
+                "2026-10-08": 64,
+                "2026-10-09": 119,
+                "2026-10-10": 357
+            };
+
+            let healed = false;
+            Object.keys(inflatedDashboardMap).forEach(dKey => {
+                const log = this.data.logs[dKey];
+                if (log && log.entries) {
+                    const expectedVal = inflatedDashboardMap[dKey];
+                    Object.keys(log.entries).forEach(taskId => {
+                        if (taskId.startsWith("task_1786485211360")) {
+                            const val = log.entries[taskId];
+                            if (val === expectedVal * 3 || (dKey === "2026-10-10" && val === 1071)) {
+                                log.entries[taskId] = expectedVal;
+                                healed = true;
+                            }
+                        }
+                    });
+                }
+            });
+
+            if (healed) {
+                this.save(true);
+            }
+        }
+
         // Purge permanently deleted tasks if tombstoned
         if (Array.isArray(this.data.deletedTaskIds) && this.data.deletedTaskIds.length > 0) {
             const delSet = new Set(this.data.deletedTaskIds);
