@@ -7,8 +7,8 @@ var APP_CONSTANTS = {
         LOCAL_NODE_URL: "http://localhost:3000/api/storage"
     },
     SUPABASE: {
-        DEFAULT_URL: "https://krmatocnrjzivwpmbxgu.supabase.co",
-        DEFAULT_ANON_KEY: "sb_publishable_JGajulg_tl67UJBKLyJZrA_E2tdQoZQ",
+        DEFAULT_URL: "",
+        DEFAULT_ANON_KEY: "",
         DEFAULT_USER_ID: "primary_user"
     },
     AUDIO: {

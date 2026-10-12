@@ -1,7 +1,7 @@
 /**
  * Awrady Dashboard - 1-Click SQL Migration Component
  * Reads live loaded in-memory data (appData) and migrates users, tasks, and daily_progress
- * directly to new Supabase SQL tables for user 'mhmd7syn'.
+ * directly to new Supabase SQL tables.
  * 
  * Features:
  * - Deduplicates / merges tasks sharing the same name into a single canonical task
@@ -10,8 +10,8 @@
  */
 
 (function() {
-    const DEFAULT_TARGET_USER = "mhmd7syn";
-    const DEFAULT_TARGET_PIN = "1426";
+    const DEFAULT_TARGET_USER = "primary_user";
+    const DEFAULT_TARGET_PIN = "";
     const PIN_SALT = "awrady_secure_salt_v1";
 
     const CATEGORY_MAP = {
@@ -124,7 +124,7 @@
             const buffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(PIN_SALT + pin));
             return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, "0")).join("");
         } catch (_) {
-            return "2171c102bacd64a5f27e5d06d5e6469039af99f6c51eba1a6e2b8259e9d47ca6";
+            return "";
         }
     }
 
@@ -169,8 +169,8 @@
             const targetUser = (inputUser?.value || DEFAULT_TARGET_USER).trim();
             const targetPin = (inputPin?.value || DEFAULT_TARGET_PIN).trim();
 
-            const url = (window.cloudAdapter?.config?.url || "https://krmatocnrjzivwpmbxgu.supabase.co").trim();
-            const anonKey = (window.cloudAdapter?.config?.anonKey || "sb_publishable_JGajulg_tl67UJBKLyJZrA_E2tdQoZQ").trim();
+            const url = (window.cloudAdapter?.config?.url || localStorage.getItem("AWRAD_SUPABASE_URL") || window.APP_CONSTANTS?.SUPABASE?.URL || "").trim();
+            const anonKey = (window.cloudAdapter?.config?.anonKey || localStorage.getItem("AWRAD_SUPABASE_KEY") || window.APP_CONSTANTS?.SUPABASE?.ANON_KEY || "").trim();
 
             let client = window.cloudAdapter?.client;
             if (!client && window.supabase?.createClient) {
