@@ -531,7 +531,10 @@ function setupDailyControls() {
 }
 function isTimeTask(task) {
     if (!task) return false;
-    const type = task.type || "";
+    const catObj = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) 
+        ? APP_CONSTANTS.CATEGORIES.find(c => c.name === task.category) 
+        : null;
+    const type = task.type || (catObj && catObj.defaultUnit) || "";
     return type === "ساعة" || type === "ساعات" || type === "ساعات ودقايق" || type === "وقت" || type === "دقيقة";
 }
 
@@ -540,8 +543,7 @@ function getTaskNormalizedTarget(task, dateStr = null) {
     const curDate = dateStr || (typeof currentDateStr !== "undefined" ? currentDateStr : getLocalTodayString());
     const effProps = (typeof ScheduleEngine !== "undefined") ? ScheduleEngine.getTaskEffectiveProps(task, curDate) : task;
     const target = (effProps && effProps.target !== undefined && effProps.target !== null) ? effProps.target : (task.target || 0);
-    const taskType = (effProps && effProps.type) || task.type || "";
-    if (taskType === "ساعة" || taskType === "ساعات" || taskType === "ساعات ودقايق" || taskType === "وقت") {
+    if (isTimeTask(task) || isTimeTask(effProps)) {
         return target * 60;
     }
     return target;
@@ -783,7 +785,9 @@ function renderDailyView() {
                 const commentHtml = task.comment ? `<p style="font-size:0.8rem; color:var(--text-secondary); margin:6px 0 0 0;">${task.comment}</p>` : "";
 
                 const rawTarget = task.target || 0;
-                const targetDisplay = rawTarget > 0 ? `(${rawTarget} ${task.type || ''})` : '';
+                const catObj = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) ? APP_CONSTANTS.CATEGORIES.find(c => c.name === task.category) : null;
+                const unit = task.type || (catObj && catObj.defaultUnit) || '';
+                const targetDisplay = rawTarget > 0 ? `(${rawTarget} ${unit})` : '';
                 
                 const isPrayer = isPrayerSelector(task);
                 const isTime = isTimeTask(task);
@@ -883,7 +887,8 @@ function renderDailyView() {
                 const iconHtml = getCategoryIconHtml(task);
                 const overTarget = target > 0 && val > target;
                 const rawTarget = task.target || 0;
-                const unitLabel = task.type === "ساعة" || task.type === "وقت" ? "دقيقة" : (task.type || "");
+                const catObj = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) ? APP_CONSTANTS.CATEGORIES.find(c => c.name === task.category) : null;
+                const unitLabel = isTime ? "دقيقة" : (task.type || (catObj && catObj.defaultUnit) || "");
                 const targetStr = rawTarget > 0 ? `${val}/${target} ${unitLabel}` : `${val}`;
                 const progressPct = target > 0 ? Math.min(100, Math.round((val / target) * 100)) : (val > 0 ? 100 : 0);
                 const barColor = overTarget ? "#f59e0b" : "#10b981";
@@ -1284,7 +1289,9 @@ function updateTaskCardInPlace(taskId, val, task = null) {
     const targetStrEl = card.querySelector(".task-target-str");
     if (targetStrEl) {
         const rawTarget = task.target || 0;
-        const unitLabel = (task.type === "ساعة" || task.type === "وقت") ? "دقيقة" : (task.type || "");
+        const isTime = typeof isTimeTask === "function" ? isTimeTask(task) : false;
+        const catObj = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) ? APP_CONSTANTS.CATEGORIES.find(c => c.name === task.category) : null;
+        const unitLabel = isTime ? "دقيقة" : (task.type || (catObj && catObj.defaultUnit) || "");
         const targetStr = rawTarget > 0 ? `${val}/${target} ${unitLabel}` : `${val}`;
         targetStrEl.textContent = `— ${targetStr}`;
     }
