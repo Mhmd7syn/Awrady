@@ -68,7 +68,7 @@ function setupTaskManager() {
                     otBox.classList.remove("hidden");
                     const otDateInput = document.getElementById("task-onetime-date-input");
                     if (otDateInput && !otDateInput.value) {
-                        otDateInput.value = (typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : getLocalTodayString();
+                        otDateInput.value = currentDateStr;
                     }
                 } else {
                     otBox.classList.add("hidden");
@@ -174,7 +174,7 @@ function formatScheduleDisplay(sched) {
     if (sched === "Optional") return "اختياري / عند التنفيذ";
     if (sched === "OneTime") return "لمرة واحدة فقط";
 
-    const dayNameMap = Object.fromEntries(((typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.WEEKDAYS) ? APP_CONSTANTS.WEEKDAYS : []).map(w => [w.key, w.ar]));
+    const dayNameMap = Object.fromEntries(APP_CONSTANTS.WEEKDAYS.map(w => [w.key, w.ar]));
 
     const parts = sched.split(",").map(s => s.trim()).filter(Boolean);
     if (parts.length > 0) {
@@ -286,7 +286,7 @@ function archiveTask(id, isArchive) {
     const t = appData.tasks.find(x => x.id === id);
     if (t) {
         t.isArchived = isArchive;
-        const curDate = (typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : getLocalTodayString();
+        const curDate = currentDateStr;
         t.archivedAt = isArchive ? curDate : null;
         if (!isArchive) {
             if (t.schedule === "OneTime") {
@@ -342,9 +342,9 @@ function deleteForever(id) {
         }
         renderDailyView();
         renderTaskManager();
-        if (typeof renderAllTimeStats === "function") renderAllTimeStats();
-        if (typeof updateChartAndAnalytics === "function") updateChartAndAnalytics();
-        if (typeof updateHeaderTodayScore === "function") updateHeaderTodayScore();
+        renderAllTimeStats();
+        updateChartAndAnalytics();
+        updateHeaderTodayScore();
     }
 }
 
@@ -438,7 +438,7 @@ function openTaskModal(id, options = {}) {
             if (isOt) {
                 if (otBox) otBox.classList.remove("hidden");
                 if (otDateInput) {
-                    otDateInput.value = (task.createdAt || "").slice(0, 10) || ((typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : getLocalTodayString());
+                    otDateInput.value = (task.createdAt || "").slice(0, 10) || (currentDateStr);
                 }
             } else {
                 if (otBox) otBox.classList.add("hidden");
@@ -447,7 +447,7 @@ function openTaskModal(id, options = {}) {
     } else {
         const otBox = document.getElementById("onetime-date-selector-box");
         const otDateInput = document.getElementById("task-onetime-date-input");
-        const defaultDate = (typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : getLocalTodayString();
+        const defaultDate = currentDateStr;
 
         if (options.isOneTime) {
             if (title) title.innerHTML = `<i class="fa-solid fa-bolt gold-text"></i> إضافة مهمة لمرة واحدة فقط`;
@@ -537,11 +537,11 @@ function saveTaskFromModal() {
     if (window.enjazAPI?.client && savedTask) {
         window.enjazAPI.saveTask(savedTask).catch(e => console.warn("[EnjazAPI] saveTask:", e.message));
     }
-    if (typeof renderDailyView === "function") renderDailyView();
-    if (typeof renderTaskManager === "function") renderTaskManager();
-    if (typeof updateHeaderTodayScore === "function") updateHeaderTodayScore();
-    if (typeof renderAllTimeStats === "function") renderAllTimeStats();
-    if (typeof updateChartAndAnalytics === "function") updateChartAndAnalytics();
+    renderDailyView();
+    renderTaskManager();
+    updateHeaderTodayScore();
+    renderAllTimeStats();
+    updateChartAndAnalytics();
 }
 
 function addBonusTaskToDate(taskId, dateStr) {
@@ -555,8 +555,8 @@ function addBonusTaskToDate(taskId, dateStr) {
     }
     saveData();
     renderDailyView();
-    if (typeof updateDailyScoreSummary === "function") updateDailyScoreSummary();
-    if (typeof updateHeaderTodayScore === "function") updateHeaderTodayScore();
+    updateDailyScoreSummary();
+    updateHeaderTodayScore();
 }
 
 // ============================================================================
@@ -654,7 +654,7 @@ function populateQuickAddExistingList() {
     }
 
     function renderList() {
-        const curDate = typeof currentDateStr !== "undefined" ? currentDateStr : getLocalTodayString();
+        const curDate = currentDateStr;
         const log = (appData.logs && appData.logs[curDate]) || { entries: {}, bonusTaskIds: [] };
         const todayBonusIds = Array.isArray(log.bonusTaskIds) ? log.bonusTaskIds : [];
         const term = (document.getElementById("quick-add-search-input")?.value || "").trim().toLowerCase();

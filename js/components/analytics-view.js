@@ -296,7 +296,7 @@ function updateChartAndAnalytics() {
     });
 
     // Automatic undersampling: target 30 points (or 15 points on mobile screens < 500px)
-    const maxPoints = (typeof window !== "undefined" && window.innerWidth < 500) ? 15 : 30;
+    const maxPoints = window.innerWidth < APP_CONSTANTS.UI.MOBILE_BREAKPOINT ? APP_CONSTANTS.UI.CHART_MAX_POINTS_MOBILE : APP_CONSTANTS.UI.CHART_MAX_POINTS;
     let chartData = fullDataList;
 
     if (fullDataList.length > maxPoints) {
@@ -544,7 +544,7 @@ function renderTaskBreakdown(allDates) {
                     <div class="task-progress-bar-bg" style="height:6px; flex:1;">
                         <div class="task-progress-bar-fill" style="width: ${Math.min(100, consistencyPct)}%;"></div>
                     </div>
-                    <span class="breakdown-pct ${consistencyPct >= 100 ? 'gold-text' : (consistencyPct >= 65 ? 'emerald-text' : (consistencyPct >= 35 ? 'gold-text' : ''))}">${consistencyPct}%</span>
+                    <span class="breakdown-pct ${consistencyPct >= APP_CONSTANTS.UI.SCORE_THRESHOLDS.GOLD ? 'gold-text' : (consistencyPct >= 65 ? 'emerald-text' : (consistencyPct >= 35 ? 'gold-text' : ''))}">${consistencyPct}%</span>
                 </div>
             `;
             return card;

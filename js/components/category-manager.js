@@ -8,9 +8,7 @@ function renderCategoriesManager() {
     if (!list) return;
     list.innerHTML = "";
 
-    const categories = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES)
-        ? APP_CONSTANTS.CATEGORIES
-        : ((typeof DEFAULT_CATEGORIES !== "undefined") ? DEFAULT_CATEGORIES : (window.appData?.categories || []));
+    const categories = APP_CONSTANTS.CATEGORIES;
 
     categories.forEach(cat => {
         const taskCount = (window.appData && window.appData.tasks || []).filter(t => t.category === cat.name).length;

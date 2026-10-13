@@ -11,14 +11,16 @@
 
 class SecurityLock {
     constructor() {
-        this.PIN_HASH_KEY = "AWRAD_PIN_HASH";
-        this.AUTH_TOKEN_KEY = "AWRAD_AUTH_SESSION";
-        this.SALT = "awrady_secure_salt_v1";
+        this.PIN_HASH_KEY = APP_CONSTANTS.STORAGE_KEYS.PIN_HASH;
+        this.AUTH_TOKEN_KEY = APP_CONSTANTS.STORAGE_KEYS.PIN_SESSION;
+        this.SALT = APP_CONSTANTS.HASH_SALTS.PIN;
         this.LEGACY_SALT = "enjaz_secure_salt_v1";
 
         this.currentEnteredPin = "";
         this.isUnlocked = false;
-        this.targetPinLength = 4; // default 4-6 digits
+        this.minPinLength = APP_CONSTANTS.LIMITS.PIN_MIN;
+        this.maxPinLength = APP_CONSTANTS.LIMITS.PIN_MAX;
+        this.targetPinLength = this.minPinLength;
         this.onUnlockCallback = null;
     }
 
@@ -153,17 +155,17 @@ class SecurityLock {
      * Append digit to PIN
      */
     appendPinDigit(num) {
-        if (this.currentEnteredPin.length >= 6) return;
+        if (this.currentEnteredPin.length >= this.maxPinLength) return;
         this.currentEnteredPin += num;
         this.updatePinDots();
 
-        // Check automatically if at least 4 digits
-        if (this.currentEnteredPin.length >= 4) {
+        // Check automatically if at least minPinLength digits
+        if (this.currentEnteredPin.length >= this.minPinLength) {
             // If PIN is already set, check match
             if (this.isPinSet()) {
                 this.verifyEnteredPin();
-            } else if (this.currentEnteredPin.length === 4) {
-                // If creating new PIN, prompt or set on 4 digits
+            } else if (this.currentEnteredPin.length === this.minPinLength) {
+                // If creating new PIN, prompt or set on minPinLength digits
                 this.setNewPin(this.currentEnteredPin);
             }
         }
@@ -243,7 +245,7 @@ class SecurityLock {
             }, 300);
         } else {
             // Incorrect PIN
-            if (this.currentEnteredPin.length >= 4) {
+            if (this.currentEnteredPin.length >= this.minPinLength) {
                 this.triggerErrorShake();
             }
         }
@@ -253,8 +255,8 @@ class SecurityLock {
      * Set a new PIN for the first time
      */
     async setNewPin(pin) {
-        if (!pin || pin.length < 4) {
-            alert("يجب أن يتكون رمز المرور من 4 أرقام على الأقل.");
+        if (!pin || pin.length < this.minPinLength) {
+            alert(`يجب أن يتكون رمز المرور من ${this.minPinLength} أرقام على الأقل.`);
             return;
         }
 
@@ -287,8 +289,8 @@ class SecurityLock {
             }
         }
 
-        if (!newPin || newPin.length < 4) {
-            return { success: false, message: "رمز المرور الجديد يجب أن يكون 4 أرقام على الأقل." };
+        if (!newPin || newPin.length < this.minPinLength) {
+            return { success: false, message: `رمز المرور الجديد يجب أن يكون ${this.minPinLength} أرقام على الأقل.` };
         }
 
         const newHash = await this.hashPin(newPin);

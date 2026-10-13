@@ -11,7 +11,7 @@
  * ============================================================================
  */
 
-const STORAGE_KEY = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.STORAGE_KEY) ? APP_CONSTANTS.STORAGE_KEY : "AWRAD_APP_DATA_V1";
+const STORAGE_KEY = APP_CONSTANTS.STORAGE_KEY;
 
 // Global Application State
 var appData = {
@@ -31,7 +31,7 @@ let chartInstance = null;
 let editingTaskId = null;
 
 function getUserStorageKey() {
-    const u = (window.enjazAPI?.currentUser || (window.authManager && window.authManager.getCurrentUser()) || "primary_user").toLowerCase();
+    const u = (window.enjazAPI?.currentUser || (window.authManager && window.authManager.getCurrentUser()) || APP_CONSTANTS.GUEST_USER).toLowerCase();
     return `${STORAGE_KEY}_${u}`;
 }
 
@@ -39,14 +39,14 @@ function getUserStorageKey() {
 // INITIALIZATION & STATE MANAGEMENT
 // ============================================================================
 document.addEventListener("DOMContentLoaded", () => {
-    if (typeof setupDataManagement === "function") setupDataManagement();
+    setupDataManagement();
     if (window.authManager) {
         window.authManager.init();
         if (window.authManager.isLoggedIn()) {
             window.startApp(window.authManager.getCurrentUser());
         }
     } else {
-        window.startApp("primary_user");
+        window.startApp(APP_CONSTANTS.GUEST_USER);
     }
 });
 
@@ -61,14 +61,14 @@ window.startApp = async function(username) {
     if (!window._appControlsBound) {
         setupNavigation();
         setupDailyControls();
-        if (typeof setupTaskManager === "function") setupTaskManager();
-        if (typeof setupNawafelToast === "function") setupNawafelToast();
-        if (typeof setupQiyamToast === "function") setupQiyamToast();
-        if (typeof setupPomodoroControls === "function") setupPomodoroControls();
+        setupTaskManager();
+        setupNawafelToast();
+        setupQiyamToast();
+        setupPomodoroControls();
         window._appControlsBound = true;
     }
     renderDailyView();
-    if (typeof renderAllTimeStats === "function") renderAllTimeStats();
+    renderAllTimeStats();
     updateHeaderTodayScore();
 };
 
@@ -118,7 +118,7 @@ async function initData() {
             }
 
             // Seed default tasks to Supabase if database has 0 tasks (B12 fix)
-            if ((!appData.tasks || appData.tasks.length === 0) && typeof DEFAULT_TASKS !== "undefined" && DEFAULT_TASKS.length > 0) {
+            if ((!appData.tasks || appData.tasks.length === 0) && DEFAULT_TASKS.length > 0) {
                 appData.tasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
                 for (const t of appData.tasks) {
                     await window.enjazAPI.createTask(t).catch(e => console.warn("[initData] Seed task error:", e.message));
@@ -127,7 +127,7 @@ async function initData() {
 
             // Realtime WebSocket subscription
             window.enjazAPI.onUpdate((table, payload) => {
-                if (table === "daily_progress" && payload.new?.date === currentDateStr) {
+                if (table === APP_CONSTANTS.DB.TABLES.PROGRESS && payload.new?.date === currentDateStr) {
                     const row = payload.new;
                     if (!appData.logs) appData.logs = {};
                     appData.logs[currentDateStr] = {
@@ -136,7 +136,7 @@ async function initData() {
                     };
                     renderDailyView();
                     updateHeaderTodayScore();
-                } else if (table === "tasks") {
+                } else if (table === APP_CONSTANTS.DB.TABLES.TASKS) {
                     if (payload.eventType === "DELETE") {
                         appData.tasks = appData.tasks.filter(t => t.id !== payload.old?.task_id);
                     } else if (payload.new?.task_id) {
@@ -197,7 +197,7 @@ async function initData() {
 
     // 3. Fallback defaults if still empty
     if (!appData.tasks || appData.tasks.length === 0) {
-        appData.tasks = (typeof DEFAULT_TASKS !== "undefined") ? JSON.parse(JSON.stringify(DEFAULT_TASKS)) : [];
+        appData.tasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
     }
 
     window.appData = appData;
@@ -205,7 +205,7 @@ async function initData() {
 
 function loadDefaultAppData() {
     appData = {
-        tasks: (typeof DEFAULT_TASKS !== "undefined") ? JSON.parse(JSON.stringify(DEFAULT_TASKS)) : [],
+        tasks: JSON.parse(JSON.stringify(DEFAULT_TASKS)),
         logs: {}
     };
     Object.defineProperty(appData, "categories", {
@@ -219,24 +219,24 @@ function saveData(immediate = false) {
     // 1. Offline resilient local backup
     try {
         localStorage.setItem(getUserStorageKey(), JSON.stringify(appData));
-        if ((window.enjazAPI?.currentUser || "").toLowerCase() === "primary_user") {
+        if ((window.enjazAPI?.currentUser || "").toLowerCase() === APP_CONSTANTS.GUEST_USER) {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
         }
     } catch (_) {}
 
     // 2. Direct database persistence via EnjazAPI
     if (window.enjazAPI?.client) {
-        const curDate = (typeof currentDateStr !== "undefined") ? currentDateStr : getLocalTodayString();
+        const curDate = currentDateStr;
         const log = (appData.logs && appData.logs[curDate]) || { entries: {} };
         const prayerExtras = log.prayerExtras || {};
 
-        const totalScore = (typeof calculateDayScore === "function") ? calculateDayScore(curDate, appData, false) : 0;
-        const totalHours = (typeof calculateDayScore === "function") ? calculateDayScore(curDate, appData, true) : 0;
+        const totalScore = calculateDayScore(curDate, appData, false);
+        const totalHours = calculateDayScore(curDate, appData, true);
 
         const taskProgress = {};
         (appData.tasks || []).forEach(t => {
             const val = (log.entries && log.entries[t.id]) || 0;
-            const target = (typeof getTaskNormalizedTarget === "function") ? getTaskNormalizedTarget(t, curDate) : (t.target || 1);
+            const target = getTaskNormalizedTarget(t, curDate);
             taskProgress[t.id] = {
                 target,
                 achieved: val,
@@ -255,7 +255,7 @@ function saveData(immediate = false) {
             executeDbSave();
         } else {
             if (_dbSaveTimer) clearTimeout(_dbSaveTimer);
-            _dbSaveTimer = setTimeout(executeDbSave, 350);
+            _dbSaveTimer = setTimeout(executeDbSave, APP_CONSTANTS.UI.SAVE_DEBOUNCE_MS);
         }
     }
 }
@@ -293,6 +293,20 @@ function setupNavigation() {
             }
         });
     });
+
+    const btnHeaderPomo = document.getElementById("btn-open-header-pomo");
+    if (btnHeaderPomo) {
+        btnHeaderPomo.addEventListener("click", () => {
+            openPomodoroModal();
+        });
+    }
+
+    const btnHeaderWeekly = document.getElementById("btn-open-weekly-calc");
+    if (btnHeaderWeekly) {
+        btnHeaderWeekly.addEventListener("click", () => {
+            showWeeklyHoursModal(true);
+        });
+    }
 }
 
 async function switchActiveDate(newDate) {
@@ -331,7 +345,7 @@ function setupDailyControls() {
     // Wire unified quick-add button
     const btnQuickAdd = document.getElementById("btn-open-quick-add");
     if (btnQuickAdd) btnQuickAdd.addEventListener("click", () => {
-        if (typeof openQuickAddModal === "function") openQuickAddModal();
+        openQuickAddModal();
     });
 }
 
@@ -756,7 +770,7 @@ function attachTaskControlListeners(grid) {
         btn.addEventListener("click", (e) => {
             e.stopPropagation();
             const taskId = btn.getAttribute("data-id");
-            if (typeof toggleDeactivateTaskForDate === "function") toggleDeactivateTaskForDate(taskId, currentDateStr);
+            toggleDeactivateTaskForDate(taskId, currentDateStr);
         });
     });
 
@@ -765,7 +779,7 @@ function attachTaskControlListeners(grid) {
         btn.addEventListener("click", (e) => {
             e.stopPropagation();
             const taskId = btn.getAttribute("data-reenable-id");
-            if (typeof toggleDeactivateTaskForDate === "function") toggleDeactivateTaskForDate(taskId, currentDateStr);
+            toggleDeactivateTaskForDate(taskId, currentDateStr);
         });
     });
 
@@ -798,7 +812,7 @@ function attachTaskControlListeners(grid) {
         el.addEventListener("click", (e) => {
             if (e.target.closest(".btn-task-off") || e.target.closest(".btn-step") || e.target.closest(".btn-prayer") || e.target.closest("input")) return;
             const taskId = el.getAttribute("data-edit-id");
-            if (typeof openTaskModal === "function") openTaskModal(taskId);
+            openTaskModal(taskId);
         });
     });
 }
@@ -812,7 +826,7 @@ function toggleDeactivateTaskForDate(taskId, dateStr) {
     else log.disabledTaskIds.push(taskId);
     saveData();
     renderDailyView();
-    if (typeof updateDailyScoreSummary === "function") updateDailyScoreSummary();
+    updateDailyScoreSummary();
 }
 
 function getTaskVal(taskId) {
@@ -847,8 +861,8 @@ function updateTaskCardInPlace(taskId, val, task = null) {
     }
     if (!card) return false;
 
-    const curDate = (typeof currentDateStr !== "undefined") ? currentDateStr : getLocalTodayString();
-    const target = (typeof getTaskNormalizedTarget === "function") ? getTaskNormalizedTarget(task, curDate) : (task.target || 0);
+    const curDate = currentDateStr;
+    const target = getTaskNormalizedTarget(task, curDate);
     const progressPct = target > 0 ? Math.min(100, Math.round((val / target) * 100)) : (val > 0 ? 100 : 0);
     const overTarget = target > 0 && val > target;
     const barColor = overTarget ? "#f59e0b" : "#10b981";
@@ -891,7 +905,7 @@ function updateTaskCardInPlace(taskId, val, task = null) {
     if (targetStrEl) {
         const rawTarget = task.target || 0;
         const isTime = typeof isTimeTask === "function" ? isTimeTask(task) : false;
-        const catObj = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) ? APP_CONSTANTS.CATEGORIES.find(c => c.name === task.category) : null;
+        const catObj = APP_CONSTANTS.CATEGORIES.find(c => c.name === task.category);
         const unitLabel = isTime ? "دقيقة" : (task.type || (catObj && catObj.defaultUnit) || "");
         const targetStr = rawTarget > 0 ? `${val}/${target} ${unitLabel}` : `${val}`;
         targetStrEl.textContent = `— ${targetStr}`;
@@ -903,8 +917,8 @@ function updateTaskCardInPlace(taskId, val, task = null) {
     }
 
     // 6. Update summary scores in real time
-    if (typeof updateDailyScoreSummary === "function") updateDailyScoreSummary();
-    if (typeof updateHeaderTodayScore === "function") updateHeaderTodayScore();
+    updateDailyScoreSummary();
+    updateHeaderTodayScore();
 
     return true;
 }
@@ -938,7 +952,7 @@ function setTaskVal(taskId, val) {
     } else if (val > prevVal && isQiyamTask(taskId)) {
         checkAndShowQiyamPrompt();
     } else if (val === 0 && isObligatoryPrayerTask(taskId)) {
-        if (typeof removePrayerExtras === "function") removePrayerExtras(taskId);
+        removePrayerExtras(taskId);
     }
 }
 
@@ -965,10 +979,11 @@ function updateDailyScoreSummary() {
     // Update SVG ring
     const ringCircle = document.getElementById("daily-ring-circle");
     if (ringCircle) {
-        const circumference = 314;
+        const circumference = APP_CONSTANTS.UI.SCORE_RING_CIRCUMFERENCE;
         const offset = circumference - (clampedPct / 100) * circumference;
         ringCircle.style.strokeDashoffset = offset;
-        ringCircle.style.stroke = scorePct >= 100 ? "#f59e0b" : (scorePct >= 70 ? "#10b981" : (scorePct >= 40 ? "#3b82f6" : "#64748b"));
+        const { GOLD, GREEN, BLUE } = APP_CONSTANTS.UI.SCORE_THRESHOLDS;
+        ringCircle.style.stroke = scorePct >= GOLD ? "#f59e0b" : (scorePct >= GREEN ? "#10b981" : (scorePct >= BLUE ? "#3b82f6" : "#64748b"));
     }
 
     // Count completed tasks for the badge

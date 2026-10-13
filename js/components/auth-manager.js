@@ -4,9 +4,10 @@
 
 class AuthManager {
     constructor() {
-        this.SESSION_KEY = "AWRAD_AUTH_USER";
-        this.LOCAL_KEY = "AWRAD_USERS_DB";
-        this.SALT = "awrady_salt_v1";
+        this.SESSION_KEY = APP_CONSTANTS.STORAGE_KEYS.SESSION_USER;
+        this.LOCAL_KEY = APP_CONSTANTS.STORAGE_KEYS.USERS_DB;
+        this.SALT = APP_CONSTANTS.HASH_SALTS.PASSWORD;
+        this.GUEST_USER = APP_CONSTANTS.GUEST_USER;
         this.currentUser = null;
         this.mode = "login"; // "login" | "register"
     }
@@ -134,11 +135,15 @@ class AuthManager {
         const username = (userInput?.value || "").toLowerCase().trim();
         const password = pwdInput?.value || "";
 
-        if (!username || username.length < 3) {
-            return this.showMsg("اسم المستخدم يجب أن يكون 3 أحرف على الأقل.");
+        const minUserLen = APP_CONSTANTS.LIMITS.USERNAME_MIN;
+        const minPwdLen = APP_CONSTANTS.LIMITS.PASSWORD_MIN;
+        const tblUsers = APP_CONSTANTS.DB.TABLES.USERS;
+
+        if (!username || username.length < minUserLen) {
+            return this.showMsg(`اسم المستخدم يجب أن يكون ${minUserLen} أحرف على الأقل.`);
         }
-        if (!password || password.length < 4) {
-            return this.showMsg("كلمة المرور يجب أن تكون 4 أحرف على الأقل.");
+        if (!password || password.length < minPwdLen) {
+            return this.showMsg(`كلمة المرور يجب أن تكون ${minPwdLen} أحرف على الأقل.`);
         }
 
         const hash = await this.hashPassword(password);
@@ -162,12 +167,12 @@ class AuthManager {
             // Check if username already exists in Cloud (Supabase)
             if (client) {
                 try {
-                    const { data: existing, error } = await client.from("users").select("username").eq("username", username).maybeSingle();
+                    const { data: existing, error } = await client.from(tblUsers).select("username").eq("username", username).maybeSingle();
                     if (!error && existing) {
                         return this.showMsg("اسم المستخدم مسجل مسبقاً، يرجى اختيار اسم آخر.");
                     }
                     if (!error) {
-                        await client.from("users").insert([{ username, password_hash: hash }]);
+                        await client.from(tblUsers).insert([{ username, password_hash: hash }]);
                     }
                 } catch (e) {
                     console.warn("[Auth] Cloud register fallback:", e.message);
@@ -183,7 +188,7 @@ class AuthManager {
 
             if (client) {
                 try {
-                    const { data: user, error } = await client.from("users").select("*").eq("username", username).maybeSingle();
+                    const { data: user, error } = await client.from(tblUsers).select("*").eq("username", username).maybeSingle();
                     if (!error) {
                         cloudChecked = true;
                         if (user) {
@@ -194,7 +199,7 @@ class AuthManager {
                             }
                         } else {
                             const localUsers = this.getLocalUsers();
-                            if (!localUsers[username] && username !== "primary_user") {
+                            if (!localUsers[username] && username !== this.GUEST_USER) {
                                 return this.showMsg("اسم المستخدم غير مسجل، يرجى إنشاء حساب جديد.");
                             }
                         }
@@ -212,7 +217,7 @@ class AuthManager {
                     } else {
                         return this.showMsg("كلمة المرور غير صحيحة.");
                     }
-                } else if (username === "primary_user") {
+                } else if (username === this.GUEST_USER) {
                     valid = true;
                 } else if (!cloudChecked) {
                     return this.showMsg("اسم المستخدم غير مسجل، يرجى إنشاء حساب جديد.");
@@ -228,7 +233,7 @@ class AuthManager {
     }
 
     loginAsGuest() {
-        this.loginSuccess("primary_user");
+        this.loginSuccess(this.GUEST_USER);
     }
 
     loginSuccess(username) {

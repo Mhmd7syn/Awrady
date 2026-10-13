@@ -7,7 +7,8 @@ var APP_CONSTANTS = {
         SESSION_USER: "AWRAD_AUTH_USER",
         PIN_HASH: "AWRAD_PIN_HASH",
         PIN_SESSION: "AWRAD_AUTH_SESSION",
-        POMODORO: "AWRAD_POMO_STATE"
+        POMODORO: "AWRAD_POMO_STATE",
+        USERS_DB: "AWRAD_USERS_DB"
     },
     HASH_SALTS: {
         PASSWORD: "awrady_salt_v1",

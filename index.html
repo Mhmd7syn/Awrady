@@ -16,7 +16,7 @@
     <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
     <!-- Supabase JS Client for 24/7 Cloud Sync -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.48.1/dist/umd/supabase.min.js"></script>
     <link rel="stylesheet" href="css/style.css?v=20261013_7">
     <link rel="icon" type="image/x-icon" href="app-icon.ico">
 
@@ -109,10 +109,10 @@
             <button class="nav-tab" data-tab="view-data">
                 <i class="fa-solid fa-database"></i> <span>البيانات</span>
             </button>
-            <button id="btn-open-header-pomo" onclick="window.openPomodoroModal()" style="display:flex; align-items:center; gap:6px; padding:8px 14px; border-radius:12px; background:rgba(16,185,129,0.12); color:#10b981; border:1px dashed rgba(16,185,129,0.5); font-family:inherit; font-weight:600; cursor:pointer; transition:all 0.2s ease;">
+            <button id="btn-open-header-pomo" style="display:flex; align-items:center; gap:6px; padding:8px 14px; border-radius:12px; background:rgba(16,185,129,0.12); color:#10b981; border:1px dashed rgba(16,185,129,0.5); font-family:inherit; font-weight:600; cursor:pointer; transition:all 0.2s ease;">
                 <i class="fa-solid fa-stopwatch"></i> <span>مؤقت التركيز</span>
             </button>
-            <button id="btn-open-weekly-calc" onclick="window.showWeeklyHoursModal(true)" style="display:flex; align-items:center; gap:6px; padding:8px 14px; border-radius:12px; background:rgba(245,158,11,0.12); color:#f59e0b; border:1px dashed rgba(245,158,11,0.5); font-family:inherit; font-weight:600; cursor:pointer; transition:all 0.2s ease;">
+            <button id="btn-open-weekly-calc" style="display:flex; align-items:center; gap:6px; padding:8px 14px; border-radius:12px; background:rgba(245,158,11,0.12); color:#f59e0b; border:1px dashed rgba(245,158,11,0.5); font-family:inherit; font-weight:600; cursor:pointer; transition:all 0.2s ease;">
                 <i class="fa-solid fa-calendar-week"></i> <span>عرض الجدول الأسبوعي</span>
             </button>
         </nav>

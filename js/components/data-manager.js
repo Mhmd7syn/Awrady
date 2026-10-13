@@ -113,7 +113,7 @@ function setupDataManagement() {
                     if (imported && imported.tasks && imported.logs) {
                         appData = imported;
                         if (!appData.categories || appData.categories.length === 0) {
-                            appData.categories = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) ? APP_CONSTANTS.CATEGORIES : [];
+                            appData.categories = APP_CONSTANTS.CATEGORIES;
                         }
                         window.appData = appData;
                         saveData(true);
@@ -128,9 +128,9 @@ function setupDataManagement() {
                         }
                         
                         renderDailyView();
-                        if (typeof renderAllTimeStats === "function") renderAllTimeStats();
-                        if (typeof updateChartAndAnalytics === "function") updateChartAndAnalytics();
-                        if (typeof updateHeaderTodayScore === "function") updateHeaderTodayScore();
+                        renderAllTimeStats();
+                        updateChartAndAnalytics();
+                        updateHeaderTodayScore();
                         alert("✅ تم استعادة النسخة الاحتياطية بنجاح ومزامنتها مع قاعدة البيانات!");
                     } else {
                         alert("❌ ملف JSON غير صحيح أو مفقود للبنية.");
@@ -151,7 +151,7 @@ function setupDataManagement() {
                 saveData(true);
                 if (window.enjazAPI?.client) {
                     try {
-                        await window.enjazAPI.client.from("daily_progress").delete().eq("username", window.enjazAPI.currentUser);
+                        await window.enjazAPI.client.from(APP_CONSTANTS.DB.TABLES.PROGRESS).delete().eq("username", window.enjazAPI.currentUser);
                     } catch (e) {
                         console.warn("[EnjazAPI] Reset progress sync error:", e);
                     }
@@ -214,7 +214,7 @@ function setupDataManagement() {
             updateCloudSyncUI({ state: "syncing", message: "جارِ التحقق من المزامنة السحابية..." });
             try {
                 if (window.enjazAPI && window.enjazAPI.client) {
-                    const { error } = await window.enjazAPI.client.from("tasks").select("task_id").limit(1);
+                    const { error } = await window.enjazAPI.client.from(APP_CONSTANTS.DB.TABLES.TASKS).select("task_id").limit(1);
                     if (error) throw error;
                     updateCloudSyncUI({ state: "synced", message: "متزامن سحابياً مع Supabase 24/7" });
                 } else if (window.enjazAPI && window.enjazAPI.init()) {
@@ -312,8 +312,8 @@ function setupDataManagement() {
                 alert("يرجى إدخال رمز المرور الحالي.");
                 return;
             }
-            if (!newPin || newPin.length < 4) {
-                alert("يجب أن يتكون رمز المرور الجديد من 4 أرقام على الأقل.");
+            if (!newPin || newPin.length < APP_CONSTANTS.LIMITS.PIN_MIN) {
+                alert(`يجب أن يتكون رمز المرور الجديد من ${APP_CONSTANTS.LIMITS.PIN_MIN} أرقام على الأقل.`);
                 return;
             }
             if (newPin !== confirmPin) {

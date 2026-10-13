@@ -11,8 +11,7 @@
 function getTaskUnit(task) {
     if (!task) return "";
     if (task.type) return task.type;
-    const categories = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) ? APP_CONSTANTS.CATEGORIES : [];
-    const cat = categories.find(c => c.name === task.category);
+    const cat = APP_CONSTANTS.CATEGORIES.find(c => c.name === task.category);
     if (cat) {
         if (task.subcategory && Array.isArray(cat.subcategories)) {
             const sub = cat.subcategories.find(s => s.name === task.subcategory);
@@ -31,10 +30,7 @@ function getTaskUnit(task) {
 function isTimeTask(task) {
     if (!task) return false;
     const unit = getTaskUnit(task);
-    const timeUnits = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.TIME_UNITS) 
-        ? APP_CONSTANTS.TIME_UNITS 
-        : ["ساعة", "ساعات", "ساعات ودقايق", "وقت", "دقيقة"];
-    return timeUnits.includes(unit) || unit.includes("ساع") || unit.includes("دقيق") || unit.includes("وقت");
+    return APP_CONSTANTS.TIME_UNITS.includes(unit) || unit.includes("ساع") || unit.includes("دقيق") || unit.includes("وقت");
 }
 
 /**
@@ -101,8 +97,7 @@ function isObligatoryPrayerTask(taskId, appDataRef = null) {
  */
 function groupTasksByCategory(tasks) {
     const map = new Map();
-    const categories = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) ? APP_CONSTANTS.CATEGORIES : [];
-    categories.forEach(c => {
+    APP_CONSTANTS.CATEGORIES.forEach(c => {
         const subMap = new Map();
         if (Array.isArray(c.subcategories)) {
             c.subcategories.forEach(s => subMap.set(s.name, []));
@@ -176,9 +171,7 @@ function rowToLog(row) {
  */
 function renderTaskControls(task, val, { compact = false } = {}) {
     if (isPrayerSelector(task)) {
-        const pVals = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.PRAYER_VALUES)
-            ? APP_CONSTANTS.PRAYER_VALUES
-            : { CONGREGATION: 1, ALONE: 0.5, MISSED: 0 };
+        const pVals = APP_CONSTANTS.PRAYER_VALUES;
         const actionBtn = compact
             ? `<button class="btn-action-sm" data-edit-id="${task.id}" title="تعديل الورد" style="padding:2px 6px; color:var(--gold-primary); font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>`
             : `<button class="btn-action-sm btn-task-off" data-id="${task.id}" title="إيقاف لهذا اليوم" style="font-size:0.75rem; padding:4px 8px; opacity:0.6;">⏸</button>`;

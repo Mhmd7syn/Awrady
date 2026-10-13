@@ -6,14 +6,14 @@
 const PomodoroTimer = {
     mode: "work", // 'work' | 'rest'
     isRunning: false,
-    totalSeconds: 25 * 60,
-    remainingSeconds: 25 * 60,
+    totalSeconds: APP_CONSTANTS.POMODORO_DEFAULTS.WORK_MINUTES * 60,
+    remainingSeconds: APP_CONSTANTS.POMODORO_DEFAULTS.WORK_MINUTES * 60,
     targetEndTime: null,
     intervalId: null,
     taskId: null,
     taskName: "",
-    workMinutes: 25,
-    restMinutes: 5,
+    workMinutes: APP_CONSTANTS.POMODORO_DEFAULTS.WORK_MINUTES,
+    restMinutes: APP_CONSTANTS.POMODORO_DEFAULTS.REST_MINUTES,
     originalTitle: "",
     audioContext: null,
     keepAliveNode: null,
@@ -194,7 +194,7 @@ function populatePomoTaskSelect() {
     if (appData && Array.isArray(appData.tasks)) {
         const timeTypes = ["ساعة", "ساعات", "ساعات ودقايق", "وقت", "دقيقة"];
         
-        const curDate = (typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : getLocalTodayString();
+        const curDate = currentDateStr;
         // Filter active tasks (prioritize time-based, then other non-archived tasks; for one-time tasks, only include if scheduled today or logged today)
         const activeTasks = appData.tasks.filter(t => {
             if (t.isArchived) return false;
@@ -669,13 +669,13 @@ function commitWorkMinutesToDisk(minutes, showAlert = false) {
         appData.logs[realTodayStr].entries[PomodoroTimer.taskId] = currentVal + minutes;
 
         // Persist data immediately
-        if (typeof saveData === "function") saveData(true);
+        saveData(true);
 
         // Update daily view & scores immediately
-        if (typeof renderDailyView === "function") renderDailyView();
-        if (typeof updateDailyScoreSummary === "function") updateDailyScoreSummary();
-        if (typeof updateHeaderTodayScore === "function") updateHeaderTodayScore();
-        if (typeof updateChartAndAnalytics === "function") updateChartAndAnalytics();
+        renderDailyView();
+        updateDailyScoreSummary();
+        updateHeaderTodayScore();
+        updateChartAndAnalytics();
 
         if (showAlert) {
             const timeStr = typeof formatTimeHM === "function" ? formatTimeHM(minutes) : `${minutes} دقيقة`;
@@ -717,10 +717,10 @@ function readDurationInputs() {
     const restInput = document.getElementById("input-pomo-rest-time");
 
     if (workInput) {
-        PomodoroTimer.workMinutes = Math.max(1, Math.min(180, parseInt(workInput.value, 10) || 25));
+        PomodoroTimer.workMinutes = Math.max(1, Math.min(APP_CONSTANTS.LIMITS.POMO_WORK_MAX, parseInt(workInput.value, 10) || APP_CONSTANTS.POMODORO_DEFAULTS.WORK_MINUTES));
     }
     if (restInput) {
-        PomodoroTimer.restMinutes = Math.max(1, Math.min(60, parseInt(restInput.value, 10) || 5));
+        PomodoroTimer.restMinutes = Math.max(1, Math.min(APP_CONSTANTS.LIMITS.POMO_REST_MAX, parseInt(restInput.value, 10) || APP_CONSTANTS.POMODORO_DEFAULTS.REST_MINUTES));
     }
 }
 
@@ -904,7 +904,7 @@ function savePomoState() {
     };
 
     try {
-        localStorage.setItem("AWRAD_POMO_STATE", JSON.stringify(state));
+        localStorage.setItem(APP_CONSTANTS.STORAGE_KEYS.POMODORO, JSON.stringify(state));
     } catch (e) {}
 }
 
@@ -913,7 +913,7 @@ function savePomoState() {
  */
 function loadPomoState() {
     try {
-        const raw = localStorage.getItem("AWRAD_POMO_STATE");
+        const raw = localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS.POMODORO);
         if (!raw) return;
         const s = JSON.parse(raw);
 

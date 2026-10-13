@@ -2,7 +2,7 @@
  * Awrady Dashboard - Unified Default Dataset & Configuration
  */
 
-var DEFAULT_CATEGORIES = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) ? APP_CONSTANTS.CATEGORIES : [];
+var DEFAULT_CATEGORIES = APP_CONSTANTS.CATEGORIES;
 
 var DEFAULT_TASKS = [
     // صلاة - فرض

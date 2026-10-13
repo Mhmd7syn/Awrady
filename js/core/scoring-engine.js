@@ -12,7 +12,7 @@ class ScoringEngine {
     static getTaskUnit(task) {
         if (typeof getTaskUnit === "function") return getTaskUnit(task);
         if (!task) return "تكرار";
-        const cat = (typeof APP_CONSTANTS !== "undefined" ? APP_CONSTANTS.CATEGORIES : []).find(c => c.name === task.category);
+        const cat = APP_CONSTANTS.CATEGORIES.find(c => c.name === task.category);
         const sub = (cat && task.subcategory) ? cat.subcategories?.find(s => s.name === task.subcategory) : null;
         return sub?.defaultUnit || cat?.defaultUnit || task.type || "تكرار";
     }
@@ -41,7 +41,7 @@ class ScoringEngine {
             return 60 * targetVal;
         }
 
-        const cat = (typeof APP_CONSTANTS !== "undefined" ? APP_CONSTANTS.CATEGORIES : []).find(c => c.name === task.category);
+        const cat = APP_CONSTANTS.CATEGORIES.find(c => c.name === task.category);
         const sub = (cat && task.subcategory) ? cat.subcategories?.find(s => s.name === task.subcategory) : null;
         const estMins = sub?.defaultEstimatedMinutes || cat?.defaultEstimatedMinutes || 1;
 

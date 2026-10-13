@@ -15,7 +15,7 @@ function toggleWeeklyOption(optKey) {
 }
 
 function navigateWeeklyModal(daysShift) {
-    const curDateStr = typeof currentDateStr !== "undefined" ? currentDateStr : getLocalTodayString();
+    const curDateStr = currentDateStr;
     const currentRef = weeklyModalRefDateStr || curDateStr || getLocalTodayString();
     weeklyModalRefDateStr = addDays(currentRef, daysShift);
     showWeeklyHoursModal();
@@ -28,7 +28,7 @@ function resetWeeklyModalToToday() {
 
 function getTasksSummaryByDay(options = null) {
     const opts = options || weeklyModalOptions;
-    const curDateStr = typeof currentDateStr !== "undefined" ? currentDateStr : getLocalTodayString();
+    const curDateStr = currentDateStr;
     const refDateStr = weeklyModalRefDateStr || curDateStr || getLocalTodayString();
     const days = getDatesForCurrentWeek(refDateStr);
 
@@ -159,7 +159,7 @@ function showWeeklyHoursModal(forceCurrentDate = false) {
     });
 
     const returnBtnHtml = isDifferentWeekFromRealToday ? `
-        <button onclick="window.resetWeeklyModalToToday()" style="background:none; border:none; color:#10b981; font-size:0.75rem; cursor:pointer; text-decoration:underline; padding:0; margin-top:2px;">العودة للأسبوع الحالي</button>
+        <button id="btn-weekly-reset" style="background:none; border:none; color:#10b981; font-size:0.75rem; cursor:pointer; text-decoration:underline; padding:0; margin-top:2px;">العودة للأسبوع الحالي</button>
     ` : "";
 
     modal.innerHTML = `
@@ -167,27 +167,27 @@ function showWeeklyHoursModal(forceCurrentDate = false) {
             <div class="modal-header" style="position:sticky; top:0; background:rgba(15,23,42,0.98); z-index:10; padding-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.1);">
                 <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
                     <h3 style="margin:0;"><i class="fa-solid fa-calendar-week gold-text"></i> عرض الجدول الأسبوعي</h3>
-                    <button class="btn-close" onclick="document.getElementById('weekly-hours-modal').classList.add('hidden')"><i class="fa-solid fa-xmark"></i></button>
+                    <button class="btn-close"><i class="fa-solid fa-xmark"></i></button>
                 </div>
             </div>
             <div class="modal-body" style="padding:15px 0;">
                 <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.05); padding:8px 12px; border-radius:8px; margin-bottom:12px; border:1px solid rgba(255,255,255,0.08);">
-                    <button onclick="window.navigateWeeklyModal(-7)" class="btn-secondary" style="font-size:0.8rem; padding:4px 10px; cursor:pointer;" title="الأسبوع السابق">
+                    <button id="btn-weekly-prev" class="btn-secondary" style="font-size:0.8rem; padding:4px 10px; cursor:pointer;" title="الأسبوع السابق">
                         <i class="fa-solid fa-chevron-right"></i> الأسبوع السابق
                     </button>
                     <div style="text-align:center;">
                         <span style="font-weight:700; color:#f59e0b; font-size:0.9rem; display:block;">📅 الأسبوع من ${startDateFormatted} إلى ${endDateFormatted}</span>
                         ${returnBtnHtml}
                     </div>
-                    <button onclick="window.navigateWeeklyModal(7)" class="btn-secondary" style="font-size:0.8rem; padding:4px 10px; cursor:pointer;" title="الأسبوع التالي">
+                    <button id="btn-weekly-next" class="btn-secondary" style="font-size:0.8rem; padding:4px 10px; cursor:pointer;" title="الأسبوع التالي">
                         الأسبوع التالي <i class="fa-solid fa-chevron-left"></i>
                     </button>
                 </div>
                 <div style="display:flex; gap:8px; margin-bottom:14px; align-items:center;">
-                    <button onclick="window.toggleWeeklyOption('includeEveryday')" class="btn-secondary" style="font-size:0.8rem; padding:6px 12px; cursor:pointer; ${weeklyModalOptions.includeEveryday ? 'background:#10b981; color:#fff; border-color:#10b981;' : 'opacity:0.6;'}">
+                    <button id="btn-weekly-opt-everyday" class="btn-secondary" style="font-size:0.8rem; padding:6px 12px; cursor:pointer; ${weeklyModalOptions.includeEveryday ? 'background:#10b981; color:#fff; border-color:#10b981;' : 'opacity:0.6;'}">
                         <i class="fa-solid ${weeklyModalOptions.includeEveryday ? 'fa-square-check' : 'fa-square'}"></i> 🔄 Everyday Tasks
                     </button>
-                    <button onclick="window.toggleWeeklyOption('includeBonusAndOneTime')" class="btn-secondary" style="font-size:0.8rem; padding:6px 12px; cursor:pointer; ${weeklyModalOptions.includeBonusAndOneTime ? 'background:#f59e0b; color:#fff; border-color:#f59e0b;' : 'opacity:0.6;'}">
+                    <button id="btn-weekly-opt-bonus" class="btn-secondary" style="font-size:0.8rem; padding:6px 12px; cursor:pointer; ${weeklyModalOptions.includeBonusAndOneTime ? 'background:#f59e0b; color:#fff; border-color:#f59e0b;' : 'opacity:0.6;'}">
                         <i class="fa-solid ${weeklyModalOptions.includeBonusAndOneTime ? 'fa-square-check' : 'fa-square'}"></i> 🎁⚡ Bonus & OneTime
                     </button>
                 </div>
@@ -195,6 +195,13 @@ function showWeeklyHoursModal(forceCurrentDate = false) {
             </div>
         </div>
     `;
+
+    modal.querySelector(".btn-close")?.addEventListener("click", () => modal.classList.add("hidden"));
+    modal.querySelector("#btn-weekly-prev")?.addEventListener("click", () => navigateWeeklyModal(-7));
+    modal.querySelector("#btn-weekly-next")?.addEventListener("click", () => navigateWeeklyModal(7));
+    modal.querySelector("#btn-weekly-reset")?.addEventListener("click", () => resetWeeklyModalToToday());
+    modal.querySelector("#btn-weekly-opt-everyday")?.addEventListener("click", () => toggleWeeklyOption("includeEveryday"));
+    modal.querySelector("#btn-weekly-opt-bonus")?.addEventListener("click", () => toggleWeeklyOption("includeBonusAndOneTime"));
 
     modal.classList.remove("hidden");
 }
