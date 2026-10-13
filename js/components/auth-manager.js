@@ -48,6 +48,9 @@ class AuthManager {
     }
 
     init() {
+        if (window.enjazAPI && !window.enjazAPI.client) {
+            window.enjazAPI.init();
+        }
         this.currentUser = this.getCurrentUser();
         this._bindEvents();
 
@@ -150,6 +153,9 @@ class AuthManager {
         }
 
         const hash = await this.hashPassword(password);
+        if (window.enjazAPI && !window.enjazAPI.client) {
+            window.enjazAPI.init();
+        }
         const client = window.enjazAPI?.client;
 
         if (this.mode === "register") {
@@ -158,13 +164,22 @@ class AuthManager {
                 return this.showMsg("كلمة المرور وتأكيد كلمة المرور غير متطابقتين.");
             }
 
+            // Check if username already exists locally
+            const localUsers = this.getLocalUsers();
+            if (localUsers[username]) {
+                return this.showMsg("اسم المستخدم مسجل مسبقاً، يرجى اختيار اسم آخر.");
+            }
+
+            // Check if username already exists in Cloud (Supabase)
             if (client) {
                 try {
-                    const { data: existing } = await client.from("users").select("username").eq("username", username).maybeSingle();
-                    if (existing) {
+                    const { data: existing, error } = await client.from("users").select("username").eq("username", username).maybeSingle();
+                    if (!error && existing) {
                         return this.showMsg("اسم المستخدم مسجل مسبقاً، يرجى اختيار اسم آخر.");
                     }
-                    await client.from("users").insert([{ username, password_hash: hash }]);
+                    if (!error) {
+                        await client.from("users").insert([{ username, password_hash: hash }]);
+                    }
                 } catch (e) {
                     console.warn("[Auth] Cloud register fallback:", e.message);
                 }
@@ -175,15 +190,25 @@ class AuthManager {
 
         } else {
             let valid = false;
+            let cloudChecked = false;
+
             if (client) {
                 try {
-                    const { data: user } = await client.from("users").select("*").eq("username", username).maybeSingle();
-                    if (user && (!user.password_hash || user.password_hash === hash)) {
-                        valid = true;
-                    } else if (!user) {
-                        return this.showMsg("اسم المستخدم غير مسجل، يرجى إنشاء حساب جديد.");
-                    } else {
-                        return this.showMsg("كلمة المرور غير صحيحة.");
+                    const { data: user, error } = await client.from("users").select("*").eq("username", username).maybeSingle();
+                    if (!error) {
+                        cloudChecked = true;
+                        if (user) {
+                            if (!user.password_hash || user.password_hash === hash) {
+                                valid = true;
+                            } else {
+                                return this.showMsg("كلمة المرور غير صحيحة.");
+                            }
+                        } else {
+                            const localUsers = this.getLocalUsers();
+                            if (!localUsers[username] && username !== "primary_user") {
+                                return this.showMsg("اسم المستخدم غير مسجل، يرجى إنشاء حساب جديد.");
+                            }
+                        }
                     }
                 } catch (e) {
                     console.warn("[Auth] Cloud login check fallback:", e.message);
@@ -192,14 +217,20 @@ class AuthManager {
 
             if (!valid) {
                 const localUsers = this.getLocalUsers();
-                if (localUsers[username] && localUsers[username] === hash) {
-                    valid = true;
+                if (localUsers[username]) {
+                    if (localUsers[username] === hash) {
+                        valid = true;
+                    } else {
+                        return this.showMsg("كلمة المرور غير صحيحة.");
+                    }
                 } else if (username === "primary_user") {
                     valid = true;
+                } else if (!cloudChecked) {
+                    return this.showMsg("اسم المستخدم غير مسجل، يرجى إنشاء حساب جديد.");
                 }
             }
 
-            if (!valid && (!client || !navigator.onLine)) {
+            if (!valid) {
                 return this.showMsg("اسم المستخدم أو كلمة المرور غير صحيحة.");
             }
 
