@@ -92,17 +92,26 @@ var APP_CONSTANTS = {
             icon: "fa-person-praying", 
             label: "🕌 الصلاة", 
             defaultUnit: "ركعة",
-            defaultEstimatedMinutes: 15,
+            defaultEstimatedMinutes: 5,
             subcategories: [
-                { name: "فرض", defaultUnit: "صلاة" },
-                { name: "نوافل", defaultEstimatedMinutes: 5 },
-                { name: "قيام ليل", defaultEstimatedMinutes: 10 }
+                { name: "فرض", defaultUnit: "صلاة", defaultEstimatedMinutes: 15 },
+                { name: "نوافل"},
+                { name: "قيام ليل"}
             ]
         },
-        { name: "أذكار وتسبيح", icon: "fa-hands-praying", label: "📿 أذكار وتسبيح", defaultUnit: "تكرار", defaultEstimatedMinutes: 0.5 },
-        { name: "قرآن", icon: "fa-book-quran", label: "📖 القرآن", defaultUnit: "صفحة", defaultEstimatedMinutes: 5 },
-        { name: "صوم", icon: "fa-sun", label: "☀️ صوم", defaultUnit: "يوم", defaultEstimatedMinutes: 5 },
-        { name: "قراءة", icon: "fa-book-open", label: "📚 قراءة", defaultUnit: "صفحة", defaultEstimatedMinutes: 3 },
+        { name: "أذكار وتسبيح", icon: "fa-hands-praying", label: "📿 أذكار وتسبيح", defaultUnit: "تكرار", defaultEstimatedMinutes: 5 },
+        { name: "قرآن", 
+          icon: "fa-book-quran", 
+          label: "📖 القرآن", 
+          defaultUnit: "صفحة", 
+          defaultEstimatedMinutes: 5,
+          subcategories: [
+                { name: "حفظ", defaultEstimatedMinutes: 30 },
+                { name: "تلاوة"}
+            ]
+        },
+        { name: "صوم", icon: "fa-sun", label: "☀️ صوم", defaultUnit: "يوم", defaultEstimatedMinutes: 60 },
+        { name: "قراءة", icon: "fa-book-open", label: "📚 قراءة", defaultUnit: "صفحة", defaultEstimatedMinutes: 5 },
         { name: "استماع", icon: "fa-headphones", label: "🎧 استماع", defaultUnit: "ساعة", defaultEstimatedMinutes: 60 },
         { name: "شغل", icon: "fa-briefcase", label: "💼 شغل", defaultUnit: "ساعة", defaultEstimatedMinutes: 60 },
         { name: "مذاكرة", icon: "fa-graduation-cap", label: "💻 مذاكرة", defaultUnit: "ساعة", defaultEstimatedMinutes: 60 },

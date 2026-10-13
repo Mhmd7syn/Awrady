@@ -199,7 +199,7 @@ function createTaskRowElement(task, isArchived) {
         schedText = `📅 التكرار: ${schedDisplay}`;
     }
 
-    let displayType = isPrayerSelector(task) ? 'صلاة فريضة' : task.type;
+    const displayType = isPrayerSelector(task) ? 'صلاة فريضة' : getTaskUnit(task);
     const targetText = task.target ? `🎯 الهدف: ${task.target} ${displayType}` : `🏷️ وحدة: ${displayType}`;
     const multText = task.multiplier !== undefined && task.multiplier !== 1 ? `⚡ معامل النقاط: ${task.multiplier * 100}%` : '';
 
