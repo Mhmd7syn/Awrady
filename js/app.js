@@ -116,11 +116,15 @@ async function initData() {
     // 2. Attempt initialization via direct Supabase API for tasks and daily progress
     if (window.enjazAPI && window.enjazAPI.init()) {
         try {
-            const [tasks, dayProgress, allProgress] = await Promise.all([
+            const results = await Promise.allSettled([
                 window.enjazAPI.getTasks(true),
                 window.enjazAPI.getDayProgress(currentDateStr),
                 window.enjazAPI.getProgressRange("2020-01-01", "2099-12-31")
             ]);
+
+            const tasks = results[0].status === "fulfilled" ? results[0].value : null;
+            const dayProgress = results[1].status === "fulfilled" ? results[1].value : null;
+            const allProgress = results[2].status === "fulfilled" ? results[2].value : null;
 
             if (tasks && tasks.length > 0) {
                 appData.tasks = tasks;
@@ -453,6 +457,12 @@ function setupNavigation() {
                             });
                             if (typeof updateChartAndAnalytics === "function") {
                                 updateChartAndAnalytics();
+                            }
+                            if (typeof renderAllTimeStats === "function") {
+                                renderAllTimeStats();
+                            }
+                            if (typeof updateHeaderTodayScore === "function") {
+                                updateHeaderTodayScore();
                             }
                         }
                     }).catch(() => {});

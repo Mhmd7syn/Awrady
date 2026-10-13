@@ -567,8 +567,9 @@ function renderTaskBreakdown(allDates) {
                         activeTimes++;
                         const effProps = getTaskEffectiveProps(task, d);
                         let tgt = (effProps.target && effProps.target > 0) ? effProps.target : (task.target && task.target > 0 ? task.target : 1);
-                        const typeVal = effProps.type || task.type;
-                        if (typeVal === "ساعة" || typeVal === "ساعات" || typeVal === "ساعات ودقايق" || typeVal === "وقت") {
+                        const catObj = (appData && appData.categories) ? appData.categories.find(c => c.name === (effProps.category || task.category)) : null;
+                        const typeVal = effProps.type || task.type || (catObj && catObj.defaultUnit) || "";
+                        if (typeVal === "ساعة" || typeVal === "ساعات" || typeVal === "ساعات ودقايق" || typeVal === "وقت" || task.category === "مذاكرة" || task.category === "شغل" || task.category === "استماع") {
                             tgt = tgt * 60;
                         }
                         const ratio = val / tgt;
@@ -585,7 +586,9 @@ function renderTaskBreakdown(allDates) {
                 if (val > 0) {
                     activeTimes = 1;
                     let tgt = (task.target && task.target > 0) ? task.target : 1;
-                    if (task.type === "ساعة" || task.type === "ساعات" || task.type === "ساعات ودقايق" || task.type === "وقت") {
+                    const catObj = (appData && appData.categories) ? appData.categories.find(c => c.name === task.category) : null;
+                    const typeVal = task.type || (catObj && catObj.defaultUnit) || "";
+                    if (typeVal === "ساعة" || typeVal === "ساعات" || typeVal === "ساعات ودقايق" || typeVal === "وقت" || task.category === "مذاكرة" || task.category === "شغل" || task.category === "استماع") {
                         tgt = tgt * 60;
                     }
                     sumRatio = (val / tgt);

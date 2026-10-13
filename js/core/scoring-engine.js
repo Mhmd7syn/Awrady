@@ -43,19 +43,19 @@ class ScoringEngine {
         const subcatName = effProps.subcategory || task.subcategory;
         const typeVal = effProps.type || task.type;
 
-        if (typeVal === "ساعة" || typeVal === "ساعات" || typeVal === "ساعات ودقايق" || typeVal === "وقت" || catName === "خروج") {
+        const cat = appData && appData.categories ? appData.categories.find(c => c.name === catName) : ((typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) ? APP_CONSTANTS.CATEGORIES.find(c => c.name === catName) : null);
+        const sub = (cat && subcatName && cat.subcategories) ? cat.subcategories.find(s => s.name === subcatName) : null;
+        const unit = typeVal || (sub && sub.defaultUnit) || (cat && cat.defaultUnit) || "";
+
+        if (unit === "ساعة" || unit === "ساعات" || unit === "ساعات ودقايق" || unit === "وقت" || catName === "خروج" || catName === "شغل" || catName === "مذاكرة" || catName === "استماع") {
             return 60 * targetVal;
         }
-
-        const cat = appData && appData.categories ? appData.categories.find(c => c.name === catName) : null;
-        const sub = (cat && subcatName && cat.subcategories) ? cat.subcategories.find(s => s.name === subcatName) : null;
 
         // Resolve estimated minutes per unit (Subcategory -> Category -> Hour/Unit Fallback -> 1)
         let estMins = (sub && sub.defaultEstimatedMinutes > 0) ? sub.defaultEstimatedMinutes
             : ((cat && cat.defaultEstimatedMinutes > 0) ? cat.defaultEstimatedMinutes : null);
 
         if (!estMins) {
-            const unit = (sub && sub.defaultUnit) || (cat && cat.defaultUnit) || typeVal;
             if (unit === "ساعة" || unit === "ساعات" || unit === "ساعات ودقايق" || unit === "وقت") {
                 estMins = 60;
             } else {
@@ -146,12 +146,11 @@ class ScoringEngine {
                 const multiplier = effProps.multiplier !== undefined ? effProps.multiplier : 1.0;
                 const type = effProps.type || task.type;
                 const cat = effProps.category || task.category;
+                const catObj = (appData && appData.categories) ? appData.categories.find(c => c.name === cat) : ((typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) ? APP_CONSTANTS.CATEGORIES.find(c => c.name === cat) : null);
+                const unit = type || (catObj && catObj.defaultUnit) || "";
                 let normVal = Number(val) || 0;
                 let normTarget = target;
-                let isHourBased = (type === "ساعة" || type === "ساعات ودقايق" || type === "وقت" || type === "ساعات" || cat === "خروج");
-                if (!isHourBased && normVal > 24 && (cat === "مذاكرة" || cat === "شغل" || cat === "استماع")) {
-                    isHourBased = true;
-                }
+                let isHourBased = (unit === "ساعة" || unit === "ساعات ودقايق" || unit === "وقت" || unit === "ساعات" || cat === "خروج" || cat === "مذاكرة" || cat === "شغل" || cat === "استماع");
                 if (isHourBased) {
                     normTarget = target * 60;
                 }
