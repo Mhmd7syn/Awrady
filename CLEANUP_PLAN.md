@@ -20,8 +20,9 @@ on the graph's word alone — each item was confirmed with grep.
   "مكتملة"). 6. Disable/re-enable a task for today. 7. Quick-add an unscheduled task as bonus.
   8. Edit a task's target, check the card updates. 9. Archive, restore, delete a task.
   10. Open analytics, switch 7/30/all. 11. Run and finish a pomodoro on a time task.
-  12. Reload — everything from 2–11 is still there. 13. Go offline in DevTools and reload —
-  the sync pill shows offline and no stale data appears (after the offline copy is removed).
+  12. Reload — everything from 2–11 is still there. 13. Go offline, log progress, reload — the
+  progress is still there and the sync pill shows pending changes. Go back online — the
+  changes reach Supabase and the pill shows synced.
 - Bump `CACHE_NAME` in `sw.js` and the `?v=` query strings in `index.html` in any commit
   that adds, removes, or renames a file.
 
@@ -48,7 +49,7 @@ get blamed for them; the rest are fixed by the step named in the "Fix" column.
 
 | # | Question | Status |
 |---|----------|--------|
-| D1 | Keep the localStorage mirror of `appData` (offline copy)? | **Decided: remove.** See "No offline copy" below. |
+| D1 | What happens when Supabase is unreachable? | **Decided: work from a local cache and merge when connected.** See "Offline cache and sync" below. |
 | D2 | Persist the non-schema fields, or drop them? | **Decided: keep only fields that exist in `database/schema.sql`.** See "Data model" below. |
 | D3 | Keep the local user DB (`AWRAD_USERS_DB`) alongside the cloud `users` table? | Open. Recommendation: **drop it**, keep the guest login — one auth path instead of two. |
 | D4 | Keep the legacy PIN-salt migration (`enjaz_secure_salt_v1`)? | Open. Recommendation: drop once no device still has an old PIN. |
@@ -57,7 +58,7 @@ get blamed for them; the rest are fixed by the step named in the "Fix" column.
 
 ## Data model (decided: schema fields only)
 
-Supabase is the only copy of the data, and the app keeps only what the schema stores.
+The app keeps only what the schema stores — in Supabase and in the local cache alike.
 
 **Task** — one row of `tasks`:
 
@@ -100,14 +101,37 @@ Supabase is the only copy of the data, and the app keeps only what the schema st
 
 With `history` and `dayTargets` gone, `ScheduleEngine.getTaskEffectiveProps` (and its cache) has nothing left to resolve. Delete it and read the task's fields directly — `schedule-engine.js` drops from 279 to roughly 80 lines.
 
-## No offline copy (decided)
+## Offline cache and sync (decided)
 
-- Delete the localStorage mirror: `getUserStorageKey`, `STORAGE_KEY` (and `APP_CONSTANTS.STORAGE_KEY`), the writes in `saveData` (`app.js:259-265`), and the fallback branch in `initData` (`app.js:215-230`).
-- localStorage keeps only per-device settings: the session user, the PIN hash/session, and the pomodoro state.
-- If Supabase can't be reached, show the offline state in the sync pill. There is no local data to fall back to and edits are not queued. Change the copy that says "محفوظ محلياً" (saved locally), because that will no longer be true.
-- First login with zero tasks: upsert `DEFAULT_TASKS` to Supabase once. Today the defaults only live in memory and are never saved, so progress rows point at task IDs that aren't in `tasks`.
-- "Reset to defaults" and "Reset progress" delete the user's rows in Supabase (and re-seed the defaults), instead of editing a local copy (fixes B6).
-- The service worker keeps caching the app shell (HTML/CSS/JS). That is static files, not user data.
+Supabase is the source of truth. The browser keeps a cache so the app keeps working when
+Supabase is unreachable, and pushes the changes once it's back.
+
+- **One cache, schema-shaped.** One localStorage entry per user:
+  `{ tasks: { [task_id]: row }, days: { [date]: row }, pending: { tasks: { [task_id]: editedAt }, days: { [date]: editedAt }, deletedTasks: [task_id] } }`.
+  Rows use the column names from `schema.sql`, so the cache, the API and the views share one
+  data shape. This replaces today's `AWRAD_APP_DATA_V1*` blob, which re-serializes all of
+  `appData` on every tap and is only ever read when Supabase fails.
+- **Load:** render from the cache right away, then fetch from Supabase. If the fetch fails,
+  keep running on the cache and show "offline" in the sync pill.
+- **Write:** every change updates the cache, marks the row pending with the local edit time,
+  and tries to push. A successful push clears the mark; a failed push leaves it.
+- **Merge when connected** (on startup, on the browser `online` event, and after the next
+  successful request): for each pending row, last write wins per row. If the server row's
+  `updated_at` is newer than the local edit time, another device changed it later, so keep
+  the server's row; otherwise push the local row. Pending task deletes are sent as deletes.
+  Rows that aren't pending are replaced by the server's version.
+- **Realtime** events update the cache the same way, filtered to the logged-in user (B4).
+- **Sync pill:** synced / syncing / offline, plus the number of pending changes.
+- **First login** with no tasks in either the cache or Supabase: upsert `DEFAULT_TASKS` once.
+  Today the defaults only live in memory and are never saved, so progress rows point at
+  task IDs that aren't in `tasks`.
+- **"Reset to defaults", "Reset progress" and "Import JSON"** go through the same write path,
+  so they reach Supabase (fixes B6).
+- **Code:** one module, `js/core/store.js` (cache + pending queue + sync), between `api.js`
+  and the views. It replaces `initData`'s three loaders and four row-mapping copies,
+  `saveData`'s dual write, `getUserStorageKey`, and the `STORAGE_KEY` legacy copy.
+- localStorage also keeps the session user, the PIN, and the pomodoro state. The service
+  worker keeps caching the app shell (HTML/CSS/JS).
 
 ---
 
@@ -200,7 +224,7 @@ There are **260** `typeof X === "function" / !== "undefined"` guards (85 in `app
     filter.
 14. Delete the score cache and the effective-props cache (fixes B2/B3). Re-add a cache only
     if a measured slowdown shows up.
-15. Apply **Data model** and **No offline copy** (above): trim `DEFAULT_TASKS`, `api.js`
+15. Apply **Data model** and **Offline cache and sync** (above): trim `DEFAULT_TASKS`, `api.js`
     mapping, `saveTaskFromModal`, the task modal, `ScheduleEngine`, and `ScoringEngine` to
     the schema fields; delete the removed features' UI. Apply D3 / D4 once decided.
 
@@ -263,7 +287,7 @@ Sizes after Steps 1–4 are estimates.
 
 | Today | Split into |
 |-------|-----------|
-| `js/app.js` (1491) | `js/app.js` — bootstrap/start/logout (~80) · `js/core/state.js` — `appData`, current date, `get/set/adjustTaskVal`, `saveData`, `rowToLog` (~150) · `js/core/task-rules.js` — unit, target, completed, prayer/qiyam checks (~80) · `js/components/daily-view.js` — grid render, listeners, in-place updates (~400) · `js/components/day-summary.js` — score ring, badges, remaining time (~100) · `js/components/fasting-banner.js` — tomorrow-fasting reminder (~60) |
+| `js/app.js` (1491) | `js/app.js` — bootstrap/start/logout (~80) · `js/core/state.js` — current date, `get/set/adjustTaskVal` (~80) · `js/core/store.js` — cache, pending queue, sync with Supabase (~150) · `js/core/task-rules.js` — unit, target, completed, prayer/qiyam checks (~80) · `js/components/daily-view.js` — grid render, listeners, in-place updates (~400) · `js/components/day-summary.js` — score ring, badges, remaining time (~100) · `js/components/fasting-banner.js` — tomorrow-fasting reminder (~60) |
 | `js/components/task-manager.js` (1095) | `task-manager.js` — lists, archive, delete (~300) · `task-modal.js` — edit/create form (~280) · `quick-add-modal.js` (~160) |
 | `js/components/pomodoro.js` (1027) | `pomodoro.js` — timer state, controls, persistence (~400) · `pomodoro-alerts.js` — keep-alive audio, chime, notification, title blink (~220) |
 | `js/components/analytics-view.js` (697) | `analytics-chart.js` — chart + LTTB downsampling (~220) · `analytics-breakdown.js` — per-task consistency (~200) |
