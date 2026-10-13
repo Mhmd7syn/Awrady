@@ -90,7 +90,6 @@ var APP_CONSTANTS = {
         { 
             name: "صلاة", 
             icon: "fa-person-praying", 
-            label: "🕌 الصلاة", 
             defaultUnit: "ركعة",
             defaultEstimatedMinutes: 5,
             subcategories: [
@@ -99,10 +98,9 @@ var APP_CONSTANTS = {
                 { name: "قيام ليل"}
             ]
         },
-        { name: "أذكار وتسبيح", icon: "fa-hands-praying", label: "📿 أذكار وتسبيح", defaultUnit: "تكرار", defaultEstimatedMinutes: 5 },
+        { name: "أذكار وتسبيح", icon: "fa-hands-praying", defaultUnit: "تكرار", defaultEstimatedMinutes: 5 },
         { name: "قرآن", 
           icon: "fa-book-quran", 
-          label: "📖 القرآن", 
           defaultUnit: "صفحة", 
           defaultEstimatedMinutes: 5,
           subcategories: [
@@ -110,12 +108,12 @@ var APP_CONSTANTS = {
                 { name: "تلاوة"}
             ]
         },
-        { name: "صوم", icon: "fa-sun", label: "☀️ صوم", defaultUnit: "يوم", defaultEstimatedMinutes: 60 },
-        { name: "قراءة", icon: "fa-book-open", label: "📚 قراءة", defaultUnit: "صفحة", defaultEstimatedMinutes: 5 },
-        { name: "استماع", icon: "fa-headphones", label: "🎧 استماع", defaultUnit: "ساعة", defaultEstimatedMinutes: 60 },
-        { name: "شغل", icon: "fa-briefcase", label: "💼 شغل", defaultUnit: "ساعة", defaultEstimatedMinutes: 60 },
-        { name: "مذاكرة", icon: "fa-graduation-cap", label: "💻 مذاكرة", defaultUnit: "ساعة", defaultEstimatedMinutes: 60 },
-        { name: "خروج", icon: "fa-person-walking", label: "🚶 خروج", defaultUnit: "ساعة", defaultEstimatedMinutes: 60 }
+        { name: "صوم", icon: "fa-sun", defaultUnit: "يوم", defaultEstimatedMinutes: 60 },
+        { name: "قراءة", icon: "fa-book-open", defaultUnit: "صفحة", defaultEstimatedMinutes: 5 },
+        { name: "استماع", icon: "fa-headphones", defaultUnit: "ساعة", defaultEstimatedMinutes: 60 },
+        { name: "شغل", icon: "fa-briefcase", defaultUnit: "ساعة", defaultEstimatedMinutes: 60 },
+        { name: "مذاكرة", icon: "fa-graduation-cap", defaultUnit: "ساعة", defaultEstimatedMinutes: 60 },
+        { name: "خروج", icon: "fa-person-walking", defaultUnit: "ساعة", defaultEstimatedMinutes: 60 }
     ]
 };
 

@@ -263,7 +263,7 @@ function renderTaskBreakdown(allDates) {
         catHeader.innerHTML = `
             <div class="manager-cat-header-title">
                 <i class="fa-solid ${iconClass}"></i>
-                <span>${catGroupData.label}</span>
+                <span>${catGroupData.label || catGroupData.name}</span>
             </div>
             <div style="display:flex; gap:10px; align-items:center;">
                 <span class="manager-cat-count-badge" style="background:rgba(59,130,246,0.15); color:#60a5fa; border-color:rgba(59,130,246,0.3);">الالتزام: ${catAvgPct}%</span>
