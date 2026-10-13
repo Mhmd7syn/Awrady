@@ -800,11 +800,11 @@ function saveTaskFromModal() {
         appData.tasks.push(newTask);
     }
 
+    const savedTask = editingTaskId ? appData.tasks.find(t => t.id === editingTaskId) : appData.tasks[appData.tasks.length - 1];
     closeTaskModal();
     saveData(true);
-    if (window.enjazAPI?.client) {
-        const savedTask = editingTaskId ? appData.tasks.find(t => t.id === editingTaskId) : appData.tasks[appData.tasks.length - 1];
-        if (savedTask) window.enjazAPI.saveTask(savedTask).catch(e => console.warn("[EnjazAPI] saveTask:", e.message));
+    if (window.enjazAPI?.client && savedTask) {
+        window.enjazAPI.saveTask(savedTask).catch(e => console.warn("[EnjazAPI] saveTask:", e.message));
     }
     if (typeof renderDailyView === "function") renderDailyView();
     if (typeof renderTaskManager === "function") renderTaskManager();

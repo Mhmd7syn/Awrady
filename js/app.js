@@ -178,6 +178,7 @@ async function initData() {
                         }
                     }
                     appData.logs[currentDateStr] = {
+                        ...appData.logs[currentDateStr],
                         entries,
                         prayerExtras: row.prayer_extras || {},
                         _loadedFromDB: true
@@ -185,12 +186,27 @@ async function initData() {
                     renderDailyView();
                     updateHeaderTodayScore();
                 } else if (table === "tasks") {
-                    window.enjazAPI.getTasks().then(dbTasks => {
-                        if (dbTasks && dbTasks.length > 0) {
-                            appData.tasks = dbTasks;
-                            renderDailyView();
+                    if (payload.eventType === "DELETE") {
+                        appData.tasks = appData.tasks.filter(t => t.id !== payload.old?.task_id);
+                    } else if (payload.new?.task_id) {
+                        const row = payload.new;
+                        const fields = {
+                            name: row.name,
+                            category: row.category,
+                            subcategory: row.subcategory || null,
+                            target: Number(row.target) || 1,
+                            schedule: row.schedule || "Everyday",
+                            isArchived: Boolean(row.is_archived)
+                        };
+                        const task = appData.tasks.find(t => t.id === row.task_id);
+                        if (task) {
+                            Object.assign(task, fields);
+                            ScheduleEngine.invalidateTaskCache(task);
+                        } else {
+                            appData.tasks.push({ id: row.task_id, ...fields, createdAt: row.created_at });
                         }
-                    }).catch(() => {});
+                    }
+                    renderDailyView();
                 }
             });
 
@@ -894,6 +910,9 @@ function renderDailyView() {
                 pill.setAttribute("data-task-id", task.id);
                 pill.style.cssText = "display:flex; flex-direction:column; padding:10px 14px; margin-bottom:8px; border-radius:10px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); gap:6px;";
                 
+                const isPrayer = isPrayerSelector(task);
+                const isTime = isTimeTask(task);
+
                 const iconHtml = getCategoryIconHtml(task);
                 const overTarget = target > 0 && val > target;
                 const rawTarget = task.target || 0;
@@ -902,9 +921,6 @@ function renderDailyView() {
                 const targetStr = rawTarget > 0 ? `${val}/${target} ${unitLabel}` : `${val}`;
                 const progressPct = target > 0 ? Math.min(100, Math.round((val / target) * 100)) : (val > 0 ? 100 : 0);
                 const barColor = overTarget ? "#f59e0b" : "#10b981";
-
-                const isPrayer = isPrayerSelector(task);
-                const isTime = isTimeTask(task);
 
                 let minControlsHtml = "";
                 if (isPrayer) {
@@ -1050,13 +1066,7 @@ function attachTaskControlListeners(grid) {
             const taskId = btn.getAttribute("data-id");
             const valStr = btn.getAttribute("data-prayer-val");
             if (taskId && valStr !== null) {
-                const newVal = parseFloat(valStr);
-                setTaskVal(taskId, newVal);
-                if (newVal > 0 && typeof isObligatoryPrayerTask === "function" && isObligatoryPrayerTask(taskId)) {
-                    if (typeof checkAndShowNawafelPrompt === "function") checkAndShowNawafelPrompt(taskId);
-                } else if (newVal === 0 && typeof isObligatoryPrayerTask === "function" && isObligatoryPrayerTask(taskId)) {
-                    if (typeof removePrayerExtras === "function") removePrayerExtras(taskId);
-                }
+                setTaskVal(taskId, parseFloat(valStr));
             }
         });
     });
@@ -1222,19 +1232,7 @@ function getTaskVal(taskId) {
 
 function adjustTaskVal(taskId, delta) {
     const current = getTaskVal(taskId);
-    const newVal = Math.max(0, current + delta);
-    setTaskVal(taskId, newVal);
-
-    if (delta > 0 && typeof isObligatoryPrayerTask === "function" && isObligatoryPrayerTask(taskId)) {
-        if (typeof checkAndShowNawafelPrompt === "function") checkAndShowNawafelPrompt(taskId);
-        else if (typeof triggerNawafelPrompt === "function") triggerNawafelPrompt(taskId);
-    } else if (newVal === 0 && typeof isObligatoryPrayerTask === "function" && isObligatoryPrayerTask(taskId)) {
-        if (typeof removePrayerExtras === "function") removePrayerExtras(taskId);
-    }
-
-    if (delta > 0 && typeof isQiyamTask === "function" && isQiyamTask(taskId)) {
-        if (typeof checkAndShowQiyamPrompt === "function") checkAndShowQiyamPrompt();
-    }
+    setTaskVal(taskId, Math.max(0, current + delta));
 }
 
 function isQiyamTask(taskId) {
@@ -1342,14 +1340,10 @@ function setTaskVal(taskId, val) {
         renderDailyView();
     }
 
-    if (val > prevVal) {
-        if (isObligatoryPrayerTask(taskId)) {
-            if (typeof checkAndShowNawafelPrompt === "function") checkAndShowNawafelPrompt(taskId);
-            else if (typeof triggerNawafelPrompt === "function") triggerNawafelPrompt(taskId);
-        }
-        if (isQiyamTask(taskId) && typeof checkAndShowQiyamPrompt === "function") {
-            checkAndShowQiyamPrompt();
-        }
+    if (isObligatoryPrayerTask(taskId) && val > 0) {
+        checkAndShowNawafelPrompt(taskId);
+    } else if (val > prevVal && isQiyamTask(taskId)) {
+        checkAndShowQiyamPrompt();
     } else if (val === 0 && isObligatoryPrayerTask(taskId)) {
         if (typeof removePrayerExtras === "function") removePrayerExtras(taskId);
     }

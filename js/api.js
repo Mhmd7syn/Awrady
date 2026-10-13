@@ -20,6 +20,7 @@ class EnjazAPI {
         }
 
         try {
+            if (this.client) this.client.removeAllChannels();
             this.client = window.supabase.createClient(url, key);
             this._setupRealtimeSync();
             return true;
@@ -31,10 +32,11 @@ class EnjazAPI {
 
     _setupRealtimeSync() {
         if (!this.client) return;
+        const filter = `username=eq.${this.currentUser}`;
         this.client
             .channel("enjaz_live_sync")
-            .on("postgres_changes", { event: "*", schema: "public", table: "daily_progress" }, payload => this._notify("daily_progress", payload))
-            .on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, payload => this._notify("tasks", payload))
+            .on("postgres_changes", { event: "*", schema: "public", table: "daily_progress", filter }, payload => this._notify("daily_progress", payload))
+            .on("postgres_changes", { event: "*", schema: "public", table: "tasks", filter }, payload => this._notify("tasks", payload))
             .subscribe();
     }
 
