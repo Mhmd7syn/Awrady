@@ -318,3 +318,25 @@ publishable key, anyone can read every user's tasks, progress, and `users.passwo
 and can write any user's rows. Passwords are hashed in the browser with a fixed, shared
 salt. The real fix is Supabase Auth plus RLS on `auth.uid()`. That changes the auth flow
 and schema, so it is not part of this cleanup.
+
+---
+
+## Status (2026-10-13)
+
+| Step | State |
+|------|-------|
+| 0 (live bugs) | Done |
+| 1 (dead files/code) | Done — `d204bb9` |
+| 2 (guards/fallbacks) | Done — `1354be0`, `ac7d857` |
+| 3 (one implementation per rule) | Done — `d96159c` |
+| 4 (constants) | Done for keys, salts, tables, limits, thresholds. Inline styles deferred (below). |
+| 5 (split files) | Done for JS: `daily-view`, `day-summary`, `task-modal`, `quick-add-modal`, `analytics-breakdown`, `pomodoro-alerts`. ES modules and CSS split deferred (below). |
+| 6 (verify) | Graphify rebuilt: 245 nodes, no duplicate definitions. Browser smoke test: app boots, all tabs switch, modals open, no console errors on the current script versions. JS is 5,908 lines; `css/style.css` 1,922. |
+
+## Deferred (optional, do later)
+
+1. **ES modules (D5)** — one `<script type="module">`, explicit imports/exports, delete `window.X = X` blocks. Large, touches every file; needs a test pass afterwards.
+2. **Split `css/style.css`** into `base/layout/daily/modals/auth-lock.css`. No rule changes; update `index.html` and `sw.js`.
+3. **Inline styles** — ~140 `style="…"` attributes in `index.html` and hex/`rgba()` colors in JS template strings → CSS classes using the `:root` variables.
+4. **Data model / offline cache (`store.js`, `state.js`)** — the planned cache + pending queue module was not built.
+5. **Security** — Supabase RLS / auth (see Security section); separate task.
