@@ -22,16 +22,9 @@ var appData = {
 window.appData = appData;
 
 let currentDateStr = getLocalTodayString();
-let currentTab = "view-daily";
-
-// Nested navigation state
-let currentViewCategory = null; 
-let currentViewSubcategory = null;
-
 let chartTimeRange = "all";
 let chartInstance = null;
 let editingTaskId = null;
-let nawafelPromptTimeout = null;
 
 function getUserStorageKey() {
     const u = (window.enjazAPI?.currentUser || (window.authManager && window.authManager.getCurrentUser()) || "primary_user").toLowerCase();
@@ -56,7 +49,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     setupNavigation();
     setupDailyControls();
     if (typeof setupTaskManager === "function") setupTaskManager();
-    if (typeof setupCategoryManager === "function") setupCategoryManager();
     if (typeof setupNawafelToast === "function") setupNawafelToast();
     if (typeof setupQiyamToast === "function") setupQiyamToast();
     if (typeof setupPomodoroControls === "function") setupPomodoroControls();
@@ -79,7 +71,6 @@ window.startApp = async function(username) {
         setupNavigation();
         setupDailyControls();
         if (typeof setupTaskManager === "function") setupTaskManager();
-        if (typeof setupCategoryManager === "function") setupCategoryManager();
         if (typeof setupNawafelToast === "function") setupNawafelToast();
         if (typeof setupQiyamToast === "function") setupQiyamToast();
         if (typeof setupPomodoroControls === "function") setupPomodoroControls();
@@ -260,8 +251,6 @@ async function initData() {
 function loadDefaultAppData() {
     if (typeof DEFAULT_AWRAD_DATA !== "undefined") {
         appData = JSON.parse(JSON.stringify(DEFAULT_AWRAD_DATA));
-    } else if (typeof INITIAL_APP_DATA !== "undefined") {
-        appData = JSON.parse(JSON.stringify(INITIAL_APP_DATA));
     } else {
         appData = {
             categories: (typeof DEFAULT_CATEGORIES !== "undefined") ? JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)) : [],
@@ -296,7 +285,7 @@ function saveData(immediate = false) {
             taskProgress[t.id] = {
                 target,
                 achieved: val,
-                hours: (t.type === "ساعة" || t.category === "خروج") ? (val / 60) : 0,
+                hours: t.type === "ساعة" ? (val / 60) : 0,
                 score: target > 0 ? (val / target) : 0
             };
         });
@@ -427,7 +416,7 @@ function isPrayerSelector(task) {
     if (task.type === "صلاة") return true;
     const cat = (task.category || "").trim();
     const sub = (task.subcategory || "").trim();
-    return (cat === "صلاة" || cat === "الصلاة") && (sub === "فرض" || sub === "فرائض");
+    return cat === "صلاة" && sub === "فرض";
 }
 
 function isObligatoryPrayerTask(taskId) {
@@ -447,7 +436,6 @@ function setupNavigation() {
             tab.classList.add("active");
             
             const targetViewId = tab.getAttribute("data-tab");
-            currentTab = targetViewId;
             
             document.querySelectorAll(".tab-view").forEach(view => {
                 view.classList.remove("active");
@@ -544,17 +532,8 @@ function setupDailyControls() {
     if (btnQuickAdd) btnQuickAdd.addEventListener("click", () => {
         if (typeof openQuickAddModal === "function") openQuickAddModal();
     });
-
-    // Wire bonus/onetime modal close buttons (kept for backward compat)
-    const btnCloseBonusModal = document.getElementById("btn-close-bonus-modal");
-    if (btnCloseBonusModal) btnCloseBonusModal.addEventListener("click", () => {
-        if (typeof closeBonusTaskModal === "function") closeBonusTaskModal();
-    });
-    const btnCancelBonusModal = document.getElementById("btn-cancel-bonus-modal");
-    if (btnCancelBonusModal) btnCancelBonusModal.addEventListener("click", () => {
-        if (typeof closeBonusTaskModal === "function") closeBonusTaskModal();
-    });
 }
+
 function isTimeTask(task) {
     if (!task) return false;
     const catObj = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) 
@@ -598,10 +577,6 @@ function renderDailyView() {
     if (!grid) return;
     grid.innerHTML = "";
     grid.classList.remove("hidden"); // make sure grid is visible
-
-    // Hide nav grid since we render tasks directly
-    const navGrid = document.getElementById("daily-nav-grid");
-    if (navGrid) navGrid.style.display = "none";
 
     // Update date header
     const dateTitle = document.getElementById("display-date-title");
@@ -1181,11 +1156,6 @@ function attachTaskControlListeners(grid) {
 function toggleDeactivateTaskForDate(taskId, dateStr) {
     if (!appData.logs[dateStr]) appData.logs[dateStr] = { entries: {}, disabledTaskIds: [] };
     const log = appData.logs[dateStr];
-    // Normalize legacy field name
-    if (log.deactivatedTaskIds && !log.disabledTaskIds) {
-        log.disabledTaskIds = log.deactivatedTaskIds;
-        delete log.deactivatedTaskIds;
-    }
     if (!log.disabledTaskIds) log.disabledTaskIds = [];
     const idx = log.disabledTaskIds.indexOf(taskId);
     if (idx >= 0) log.disabledTaskIds.splice(idx, 1);
@@ -1193,33 +1163,6 @@ function toggleDeactivateTaskForDate(taskId, dateStr) {
     saveData();
     renderDailyView();
     if (typeof updateDailyScoreSummary === "function") updateDailyScoreSummary();
-}
-
-function removeBonusTaskFromDate(taskId, dateStr) {
-    if (appData.logs[dateStr] && appData.logs[dateStr].bonusTaskIds) {
-        appData.logs[dateStr].bonusTaskIds = appData.logs[dateStr].bonusTaskIds.filter(id => id !== taskId);
-    }
-    if (appData.logs[dateStr] && appData.logs[dateStr].entries) {
-        delete appData.logs[dateStr].entries[taskId];
-    }
-    saveData();
-    renderDailyView();
-}
-
-function removeOneTimeTask(taskId, dateStr) {
-    if (confirm("هل أنت متأكد من حذف هذه المهمة المؤقتة؟")) {
-        appData.tasks = appData.tasks.filter(t => t.id !== taskId);
-        if (!appData.deletedTaskIds) appData.deletedTaskIds = [];
-        if (!appData.deletedTaskIds.includes(taskId)) appData.deletedTaskIds.push(taskId);
-        if (appData.logs[dateStr] && appData.logs[dateStr].entries) {
-            delete appData.logs[dateStr].entries[taskId];
-        }
-        if (appData.logs[dateStr] && appData.logs[dateStr].bonusTaskIds) {
-            appData.logs[dateStr].bonusTaskIds = appData.logs[dateStr].bonusTaskIds.filter(id => id !== taskId);
-        }
-        saveData();
-        renderDailyView();
-    }
 }
 
 function getTaskVal(taskId) {

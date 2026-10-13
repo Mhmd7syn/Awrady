@@ -17,7 +17,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
     <!-- Supabase JS Client for 24/7 Cloud Sync -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="css/style.css?v=20261011_4">
+    <link rel="stylesheet" href="css/style.css?v=20261013_7">
     <link rel="icon" type="image/x-icon" href="app-icon.ico">
 
     <!-- PWA & Mobile Web App Meta Tags -->
@@ -191,24 +191,8 @@
                 </div>
             </div>
 
-            <!-- Dynamic Category Groups & Navigation -->
-            <div id="daily-breadcrumb" class="tasks-filter-bar hidden" style="justify-content: flex-start; gap: 10px; align-items: center;">
-                <button class="btn-icon" id="btn-daily-back" title="عودة" style="background: rgba(255,255,255,0.1); padding: 5px 12px; border-radius: 8px; font-size: 0.9rem;"><i class="fa-solid fa-arrow-right"></i> عودة</button>
-                <h3 id="daily-current-level-title" style="margin: 0; font-size: 1.1rem; color: #f8fafc;">التصنيفات</h3>
-            </div>
-            
-            <div id="daily-nav-grid" class="nav-cards-grid">
-                <!-- Dynamically populated -->
-            </div>
-
             <div id="daily-tasks-grid" class="tasks-grid hidden">
                 <!-- Dynamically populated by JS -->
-            </div>
-
-            <div id="empty-tasks-message" class="empty-state glass-card hidden">
-                <i class="fa-solid fa-circle-check icon-lg emerald-text"></i>
-                <h3>لا توجد مهام مجدولة</h3>
-                <p>تم إنجاز كافة المهام المجدولة لهذا القسم.</p>
             </div>
         </section>
 
@@ -279,9 +263,6 @@
                     </button>
                     <button class="btn-filter-status" data-status-filter="archived">
                         <i class="fa-solid fa-box-archive gold-text"></i> <span>المؤرشفة</span> <span class="filter-count" id="filter-count-archived">0</span>
-                    </button>
-                    <button class="btn-filter-status" data-status-filter="removed" style="display: none;">
-                        <i class="fa-solid fa-trash-can rose-text"></i> <span>المحذوفة</span> <span class="filter-count" id="filter-count-removed">0</span>
                     </button>
                 </div>
             </div>
@@ -360,12 +341,6 @@
                     <div id="cloud-sync-status-badge" style="padding: 8px 16px; border-radius: 30px; background: rgba(255, 255, 255, 0.08); color: #94a3b8; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px; border: 1px solid rgba(255, 255, 255, 0.15);">
                         <i class="fa-solid fa-cloud"></i> <span id="cloud-sync-status-text">تخزين محلي (غير مقترن بالسحابة)</span>
                     </div>
-                </div>
-
-                <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                    <button class="btn-outline" id="btn-download-cloud-backup" style="border-color: #f59e0b; color: #f59e0b;">
-                        <i class="fa-solid fa-cloud-arrow-down"></i> <span>تنزيل نسخة احتياطية من السحابة (JSON)</span>
-                    </button>
                 </div>
             </div>
 
@@ -693,25 +668,6 @@
         </div>
     </div>
 
-    <!-- BONUS UNSCHEDULED TASK SELECTOR MODAL -->
-    <div id="bonus-task-modal" class="modal-overlay hidden">
-        <div class="modal-container glass-card" style="max-width: 500px;">
-            <div class="modal-header">
-                <h3><i class="fa-solid fa-gift gold-text"></i> إضافة ورد غير مجدول كـ بونص لليوم</h3>
-                <button class="btn-close" id="btn-close-bonus-modal"><i class="fa-solid fa-xmark"></i></button>
-            </div>
-            <div class="modal-body" style="padding: 15px 0;">
-                <p style="font-size: 0.9rem; color: #a0aec0; margin-bottom: 15px;">اختر من بين الأوراد والمهام غير المجدولة اليوم لإضافتها كـ ورد بونص بدون هدف إجباري:</p>
-                <div id="bonus-tasks-picker-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 320px; overflow-y: auto;">
-                    <!-- Dynamically populated -->
-                </div>
-            </div>
-            <div class="modal-footer" style="margin-top: 15px;">
-                <button type="button" class="btn-secondary" id="btn-cancel-bonus-modal">إغلاق</button>
-            </div>
-        </div>
-    </div>
-
 
 
     <!-- POMODORO TIMER MODAL -->
@@ -870,28 +826,24 @@
         </div>
     </div>
 
-    <!-- Audio Element for Pomodoro Alarm -->
-    <audio id="pomodoro-alarm" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 
     <!-- Scripts -->
-    <script src="js/config/constants.js?v=20261013_1"></script>
-    <script src="js/config/default-data.js?v=20261013_1"></script>
-    <script src="js/api.js?v=20261013_1"></script>
-    <script src="js/utils/debounce.js?v=20261013_1"></script>
-    <script src="js/utils/date-utils.js?v=20261013_1"></script>
-    <script src="js/core/schedule-engine.js?v=20261013_1"></script>
-    <script src="js/core/scoring-engine.js?v=20261013_1"></script>
-    <script src="js/components/pomodoro.js?v=20261013_1"></script>
-    <script src="js/components/nawafel-toast.js?v=20261013_1"></script>
-    <script src="js/components/weekly-modal.js?v=20261013_1"></script>
-    <script src="js/components/daily-view.js?v=20261013_1"></script>
-    <script src="js/components/task-manager.js?v=20261013_1"></script>
-    <script src="js/components/category-manager.js?v=20261013_1"></script>
-    <script src="js/components/analytics-view.js?v=20261013_1"></script>
-    <script src="js/components/data-manager.js?v=20261013_1"></script>
-    <script src="js/components/auth-manager.js?v=20261013_6"></script>
-    <script src="js/components/security-lock.js?v=20261013_1"></script>
-    <script src="js/app.js?v=20261013_3"></script>
+    <script src="js/config/constants.js?v=20261013_7"></script>
+    <script src="js/config/default-data.js?v=20261013_7"></script>
+    <script src="js/api.js?v=20261013_7"></script>
+    <script src="js/utils/date-utils.js?v=20261013_7"></script>
+    <script src="js/core/schedule-engine.js?v=20261013_7"></script>
+    <script src="js/core/scoring-engine.js?v=20261013_7"></script>
+    <script src="js/components/pomodoro.js?v=20261013_7"></script>
+    <script src="js/components/nawafel-toast.js?v=20261013_7"></script>
+    <script src="js/components/weekly-modal.js?v=20261013_7"></script>
+    <script src="js/components/task-manager.js?v=20261013_7"></script>
+    <script src="js/components/category-manager.js?v=20261013_7"></script>
+    <script src="js/components/analytics-view.js?v=20261013_7"></script>
+    <script src="js/components/data-manager.js?v=20261013_7"></script>
+    <script src="js/components/auth-manager.js?v=20261013_7"></script>
+    <script src="js/components/security-lock.js?v=20261013_7"></script>
+    <script src="js/app.js?v=20261013_7"></script>
 
     <!-- PWA Service Worker Registration -->
     <script>

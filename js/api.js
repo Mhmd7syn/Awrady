@@ -90,13 +90,6 @@ class EnjazAPI {
         return data?.[0] || null;
     }
 
-    async deleteTask(taskId) {
-        if (!this.client) return false;
-        const { error } = await this.client.from("tasks").update({ is_archived: true }).eq("username", this.currentUser).eq("task_id", taskId);
-        if (error) throw error;
-        return true;
-    }
-
     async purgeTask(taskId) {
         if (!this.client) return false;
         const { error } = await this.client.from("tasks").delete().eq("username", this.currentUser).eq("task_id", taskId);

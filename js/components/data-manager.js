@@ -85,24 +85,18 @@ function updateCloudSyncUI(syncInfo) {
     }
 }
 
-function updateStorageUIStatus(status) {
-    // Cloud-only mode (Supabase)
-}
-
 function setupDataManagement() {
 
     const btnExport = document.getElementById("btn-export-json");
     if (btnExport) {
         btnExport.addEventListener("click", () => {
-            const dataToSave = (typeof appData !== "undefined" && appData) ? appData : window.appData;
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataToSave, null, 2));
-            const downloadAnchor = document.createElement('a');
-            downloadAnchor.setAttribute("href", dataStr);
-            const dateStr = (typeof getLocalTodayString === "function") ? getLocalTodayString() : new Date().toISOString().split("T")[0];
-            downloadAnchor.setAttribute("download", `awrady_backup_${dateStr}.json`);
-            document.body.appendChild(downloadAnchor);
-            downloadAnchor.click();
-            downloadAnchor.remove();
+            const blob = new Blob([JSON.stringify(appData, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `awrady_backup_${getLocalTodayString()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
         });
     }
 
@@ -167,15 +161,7 @@ function setupDataManagement() {
     // ------------------------------------------------------------------------
     // 24/7 CLOUD SYNC (SUPABASE) CONTROLS & STATUS
     // ------------------------------------------------------------------------
-    // Clean up obsolete manual configuration keys from previous sessions
-    try {
-        localStorage.removeItem("AWRAD_SUPABASE_URL");
-        localStorage.removeItem("AWRAD_SUPABASE_KEY");
-        localStorage.removeItem("AWRAD_ACTIVE_USER");
-    } catch (_) {}
-
     const headerCloudPill = document.getElementById("header-cloud-pill");
-    const btnDownloadCloudBackup = document.getElementById("btn-download-cloud-backup");
 
     const refreshCloudStatus = () => {
         if (window.enjazAPI && window.enjazAPI.client) {
@@ -212,20 +198,6 @@ function setupDataManagement() {
             } catch (err) {
                 updateCloudSyncUI({ state: "offline", message: "تعذر الاتصال بالسحابة: " + err.message });
             }
-        });
-    }
-
-    if (btnDownloadCloudBackup) {
-        btnDownloadCloudBackup.addEventListener("click", () => {
-            const currentData = (typeof appData !== "undefined" && appData) ? appData : window.appData;
-            const jsonStr = JSON.stringify(currentData, null, 2);
-            const blob = new Blob([jsonStr], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `awrady_backup_${new Date().toISOString().split("T")[0]}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
         });
     }
 

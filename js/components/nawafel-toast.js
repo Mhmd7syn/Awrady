@@ -89,7 +89,7 @@ function savePrayerExtras() {
                 window.appData.logs[curDateStr].prayerExtras = {};
             }
 
-            const prayerId = currentPrayerTaskId || "generic_prayer";
+            const prayerId = currentPrayerTaskId;
             const oldExtras = window.appData.logs[curDateStr].prayerExtras[prayerId] || { nawafel: 0, azkar: false };
 
             const nawafelDiff = tempNawafelCount - oldExtras.nawafel;
@@ -101,7 +101,7 @@ function savePrayerExtras() {
             };
 
             if (nawafelDiff !== 0) {
-                let nawafelTask = window.appData.tasks.find(t => !t.isArchived && (t.id === "task_sunnah" || t.id === "task_3" || t.subcategory === "نوافل" || t.name.includes("نوافل") || t.name.includes("سنة") || t.name.includes("سنن") || t.name.includes("الرواتب")));
+                let nawafelTask = window.appData.tasks.find(t => !t.isArchived && (t.id === "task_sunnah" || t.subcategory === "نوافل" || t.name.includes("نوافل") || t.name.includes("سنة") || t.name.includes("سنن") || t.name.includes("الرواتب")));
                 if (!nawafelTask) {
                     nawafelTask = {
                         id: "task_sunnah",
@@ -168,7 +168,7 @@ function removePrayerExtras(prayerTaskId) {
     const extras = window.appData.logs[curDateStr].prayerExtras[prayerTaskId];
     if (extras) {
         if (extras.nawafel > 0) {
-            const nawafelTask = window.appData.tasks.find(t => !t.isArchived && (t.id === "task_sunnah" || t.id === "task_3" || t.subcategory === "نوافل" || t.name.includes("نوافل") || t.name.includes("سنة") || t.name.includes("سنن")));
+            const nawafelTask = window.appData.tasks.find(t => !t.isArchived && (t.id === "task_sunnah" || t.subcategory === "نوافل" || t.name.includes("نوافل") || t.name.includes("سنة") || t.name.includes("سنن")));
             if (nawafelTask && typeof setTaskVal === "function" && typeof getTaskVal === "function") {
                 setTaskVal(nawafelTask.id, Math.max(0, getTaskVal(nawafelTask.id) - extras.nawafel));
             }

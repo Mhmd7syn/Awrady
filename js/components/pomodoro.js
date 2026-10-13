@@ -820,25 +820,11 @@ function stopTitleBlinking() {
 }
 
 /**
- * Play alarm chime (Web Audio API synthesis + HTML Audio fallback)
+ * Play alarm chime (Web Audio API synthesis, works offline)
  */
 function playPomoAlarm() {
     ensureAudioUnlocked();
-
-    // 1. Web Audio API synthesis (100% offline, guaranteed, zero latency)
     playWebAudioChime();
-
-    // 2. Also try HTML Audio element as secondary
-    const alarm = document.getElementById("pomodoro-alarm");
-    if (alarm) {
-        try {
-            alarm.currentTime = 0;
-            const playPromise = alarm.play();
-            if (playPromise !== undefined && typeof playPromise.catch === "function") {
-                playPromise.catch(() => {});
-            }
-        } catch (e) {}
-    }
 }
 
 /**
@@ -991,15 +977,6 @@ function loadPomoState() {
     } catch (e) {
         console.warn("Failed to load pomo state", e);
     }
-}
-
-/**
- * Clear saved Pomodoro state
- */
-function clearPomoState() {
-    try {
-        localStorage.removeItem("AWRAD_POMO_STATE");
-    } catch (e) {}
 }
 
 // Auto-initialize as soon as DOM is ready

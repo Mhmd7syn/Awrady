@@ -215,13 +215,13 @@ class ScheduleEngine {
         const taskType = effProps.type || task.type;
         const taskName = effProps.name || task.name;
 
-        const isFastingCategory = (taskCat === "صيام" || taskCat === "صوم" || taskType === "صوم" || (taskName && (taskName.includes("صيام") || taskName.includes("صوم"))));
+        const isFastingCategory = (taskCat === "صوم" || taskType === "صوم" || (taskName && (taskName.includes("صيام") || taskName.includes("صوم"))));
 
         if (hijriInfo.isRamadan && isFastingCategory) {
             return true;
         }
 
-        if (sched === "WhiteDays" || sched.includes("WhiteDays") || sched.includes("البيض")) {
+        if (sched.includes("WhiteDays")) {
             return hijriInfo.isWhiteDay;
         }
 
@@ -235,42 +235,13 @@ class ScheduleEngine {
     }
 
     /**
-     * Clears cached properties and sorted history on a task or all tasks
+     * Clears cached properties and sorted history on a task
      * @param {Object} [task] 
      */
     static invalidateTaskCache(task) {
         if (!task) return;
         task._effPropsCache = null;
         task._sortedHistory = null;
-    }
-
-    static clearAllCaches(tasks) {
-        if (Array.isArray(tasks)) {
-            tasks.forEach(t => ScheduleEngine.invalidateTaskCache(t));
-        } else if (typeof window !== "undefined" && window.appData && Array.isArray(window.appData.tasks)) {
-            window.appData.tasks.forEach(t => ScheduleEngine.invalidateTaskCache(t));
-        }
-    }
-
-    /**
-     * Check if a task uses the prayer selector control (Fard prayers or custom prayer selectors)
-     * @param {Object} task 
-     * @returns {boolean}
-     */
-    static isPrayerSelector(task) {
-        if (!task) return false;
-        if (task.type === "صلاة" || task.type === "prayer_selector") return true;
-        if (task.category === "صلاة" && (task.subcategory === "فرض" || task.type === "صلاة")) return true;
-        return false;
-    }
-
-    /**
-     * Check if task ID corresponds to one of the 5 obligatory Fard prayers
-     * @param {string} taskId 
-     * @returns {boolean}
-     */
-    static isObligatoryPrayerTask(taskId) {
-        return ["task_fajr", "task_dhuhr", "task_asr", "task_maghrib", "task_isha"].includes(taskId);
     }
 }
 

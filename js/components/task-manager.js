@@ -304,7 +304,7 @@ function createTaskRowElement(task, isArchived) {
     const isOt = !!(task.isOneTime || task.schedule === "OneTime");
     let schedText;
     if (isOt) {
-        const dStr = task.oneTimeDate || (Array.isArray(task.oneTimeDates) ? task.oneTimeDates[0] : null);
+        const dStr = task.oneTimeDate;
         schedText = dStr ? `📅 التاريخ: ${dStr}` : `📅 لمرة واحدة فقط`;
     } else {
         const schedDisplay = formatScheduleDisplay(task.schedule);
@@ -430,15 +430,7 @@ function deleteForever(id) {
         // 1. Remove permanently from appData.tasks
         appData.tasks = appData.tasks.filter(x => x.id !== id);
 
-        // 2. Track deleted ID in tombstones for multi-device & cloud sync
-        if (!appData.deletedTaskIds) {
-            appData.deletedTaskIds = [];
-        }
-        if (!appData.deletedTaskIds.includes(id)) {
-            appData.deletedTaskIds.push(id);
-        }
-
-        // 3. Purge all references and logs for this task
+        // 2. Purge all references and logs for this task
         if (appData.logs) {
             Object.keys(appData.logs).forEach(dateStr => {
                 const log = appData.logs[dateStr];
@@ -481,15 +473,11 @@ function autoDetectType(catName, subcatName) {
         if (subcatName) {
             const sub = (c.subcategories || []).find(s => s.name === subcatName);
             if (sub && sub.defaultUnit) return sub.defaultUnit;
-            if ((catName === "صلاة" || catName === "الصلاة") && (subcatName === "فرض" || subcatName === "فرائض")) return "صلاة";
+            if (catName === "صلاة" && subcatName === "فرض") return "صلاة";
         }
         if (c.defaultUnit) return c.defaultUnit;
     }
     return "مهمة";
-}
-
-function isTimeBasedType(type) {
-    return type === "ساعة" || type === "ساعات ودقايق" || type === "وقت" || type === "دقيقة";
 }
 
 function openTaskModal(id, options = {}) {
@@ -611,11 +599,6 @@ function openTaskModal(id, options = {}) {
             if (radio) radio.checked = true;
             if (otBox) otBox.classList.remove("hidden");
             if (otDateInput) otDateInput.value = defaultDate;
-        } else if (options.isBonus) {
-            if (title) title.innerHTML = `<i class="fa-solid fa-gift gold-text"></i> إنشاء ورد إضافي (بونص)`;
-            const radio = document.querySelector(`input[name="schedule_type"][value="Everyday"]`);
-            if (radio) radio.checked = true;
-            if (otBox) otBox.classList.add("hidden");
         } else {
             if (title) title.innerHTML = `<i class="fa-solid fa-plus"></i> إضافة ورد أو مهمة مخصصة`;
             const radio = document.querySelector(`input[name="schedule_type"][value="Everyday"]`);
@@ -631,7 +614,7 @@ function openTaskModal(id, options = {}) {
         }
         if (targetInput) targetInput.value = "1";
         if (commentInput) commentInput.value = "";
-        if (bonusCheck) bonusCheck.checked = options.isBonus || false;
+        if (bonusCheck) bonusCheck.checked = false;
         if (weekdaysBox) weekdaysBox.classList.add("hidden");
 
         const dtBox = document.getElementById("day-targets-box");
@@ -760,9 +743,6 @@ function saveTaskFromModal() {
             oldTask.isBonus = isBonus;
             oldTask.isOneTime = (schedType === "OneTime");
             oldTask.oneTimeDate = (schedType === "OneTime") ? chosenOneTimeDate : null;
-            if (schedType === "OneTime") {
-                if (oldTask.oneTimeDates) delete oldTask.oneTimeDates;
-            }
         }
     } else {
         const newTask = {
@@ -813,75 +793,6 @@ function saveTaskFromModal() {
     if (typeof updateChartAndAnalytics === "function") updateChartAndAnalytics();
 }
 
-function openBonusTaskModal() {
-    const modal = document.getElementById("bonus-task-modal");
-    const container = document.getElementById("bonus-tasks-picker-list");
-    if (!modal || !container) return;
-
-    container.innerHTML = "";
-
-    const log = appData.logs[currentDateStr] || { entries: {}, bonusTaskIds: [] };
-    const todayBonusIds = log.bonusTaskIds || [];
-
-    const availableBonusTasks = appData.tasks.filter(t => {
-        if (t.isArchived || t.isOneTime) return false;
-        if (todayBonusIds.includes(t.id)) return false;
-        const isSched = isTaskScheduledForDate(t, currentDateStr, 0);
-        return !isSched || t.isBonus;
-    });
-
-    if (availableBonusTasks.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state" style="padding: 20px 10px;">
-                <p style="color: #a0aec0; margin: 0;">جميع الأوراد النشطة مجدولة اليوم بالفعل أو مضافة كـ بونص!</p>
-                <button class="btn-primary btn-sm" id="btn-create-new-bonus-task" style="margin-top: 12px; font-size: 0.85rem;"><i class="fa-solid fa-plus"></i> إنشـاء ورد إضافي جديد</button>
-            </div>
-        `;
-        const createBtn = document.getElementById("btn-create-new-bonus-task");
-        if (createBtn) {
-            createBtn.addEventListener("click", () => {
-                closeBonusTaskModal();
-                openTaskModal(null, { isBonus: true });
-            });
-        }
-    } else {
-        availableBonusTasks.forEach(task => {
-            const row = document.createElement("div");
-            row.style.cssText = "display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); padding: 10px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08);";
-            
-            const iconHtml = getCategoryIconHtml(task);
-            row.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <div style="font-size: 1.2rem; color: #f59e0b;">${iconHtml}</div>
-                    <div>
-                        <h5 style="margin: 0; color: #f8fafc; font-size: 0.95rem;">${task.name}</h5>
-                        <span style="font-size: 0.8rem; color: #94a3b8;">${task.category}${task.subcategory ? ' - ' + task.subcategory : ''} | ${task.type}</span>
-                    </div>
-                </div>
-                <button class="btn-action-pill btn-bonus-pill btn-add-as-bonus" data-task-id="${task.id}">
-                    <i class="fa-solid fa-plus"></i> إضافة كـ بونص
-                </button>
-            `;
-            container.appendChild(row);
-        });
-
-        container.querySelectorAll(".btn-add-as-bonus").forEach(btn => {
-            btn.addEventListener("click", (e) => {
-                const tid = e.currentTarget.getAttribute("data-task-id");
-                addBonusTaskToDate(tid, currentDateStr);
-                closeBonusTaskModal();
-            });
-        });
-    }
-
-    modal.classList.remove("hidden");
-}
-
-function closeBonusTaskModal() {
-    const modal = document.getElementById("bonus-task-modal");
-    if (modal) modal.classList.add("hidden");
-}
-
 function addBonusTaskToDate(taskId, dateStr) {
     if (!appData.logs[dateStr]) appData.logs[dateStr] = { entries: {}, bonusTaskIds: [] };
     if (!appData.logs[dateStr].bonusTaskIds) appData.logs[dateStr].bonusTaskIds = [];
@@ -895,23 +806,6 @@ function addBonusTaskToDate(taskId, dateStr) {
     renderDailyView();
     if (typeof updateDailyScoreSummary === "function") updateDailyScoreSummary();
     if (typeof updateHeaderTodayScore === "function") updateHeaderTodayScore();
-}
-
-function syncUnitEstMinsState(unitVal, estInput) {
-    if (!estInput) return;
-    const u = (unitVal || "").trim().toLowerCase();
-    if (u === "ساعة" || u === "ساعات ودقايق" || u === "وقت" || u === "ساعات") {
-        estInput.value = "60";
-        estInput.disabled = true;
-        estInput.title = "محسوب تلقائياً للساعات (60 دقيقة)";
-    } else if (u === "دقيقة" || u === "دقائق") {
-        estInput.value = "1";
-        estInput.disabled = true;
-        estInput.title = "محسوب تلقائياً للدقائق (1 دقيقة)";
-    } else {
-        estInput.disabled = false;
-        estInput.title = "";
-    }
 }
 
 // ============================================================================

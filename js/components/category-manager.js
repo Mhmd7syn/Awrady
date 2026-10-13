@@ -42,7 +42,3 @@ function renderCategoriesManager() {
     const countEl = document.getElementById("count-categories");
     if (countEl) countEl.textContent = categories.length;
 }
-
-function setupCategoryManager() {
-    // Categories are constant reference data; no mutation handlers needed
-}

@@ -11,7 +11,7 @@ function getRecordedDates() {
         const log = appData.logs[d];
         if (!log) return false;
         const hasPositiveEntries = log.entries && Object.values(log.entries).some(v => v > 0);
-        const hasPrecomputed = (log.precomputedScore !== undefined && log.precomputedScore !== null) || (log.legacyTotalScore !== undefined && log.legacyTotalScore !== null);
+        const hasPrecomputed = log.precomputedScore !== undefined && log.precomputedScore !== null;
         const hasBonus = log.bonusTaskIds && log.bonusTaskIds.length > 0;
         const hasDisabled = log.disabledTaskIds && log.disabledTaskIds.length > 0;
         return hasPositiveEntries || hasPrecomputed || hasBonus || hasDisabled;
@@ -355,12 +355,6 @@ const TASK_STATUS_CONFIG = {
         label: "مؤرشفة",
         icon: "fa-box-archive",
         badgeClass: "badge-status-archived"
-    },
-    removed: {
-        key: "removed",
-        label: "محذوفة",
-        icon: "fa-trash-can",
-        badgeClass: "badge-status-removed"
     }
 };
 
@@ -393,21 +387,14 @@ function renderTaskBreakdown(allDates) {
     setupAnalyticsFilters();
 
     // 1. Collect all valid tasks: current active tasks + archived + onetime
-    const allTasksList = [];
-    const seenTaskIds = new Set();
-
-    (appData.tasks || []).forEach(t => {
-        seenTaskIds.add(t.id);
-        allTasksList.push(t);
-    });
+    const allTasksList = [...(appData.tasks || [])];
 
     // 2. Update status filter badges count
     const counts = {
         all: allTasksList.length,
         scheduled: 0,
         onetime: 0,
-        archived: 0,
-        removed: 0
+        archived: 0
     };
 
     allTasksList.forEach(t => {
@@ -419,13 +406,11 @@ function renderTaskBreakdown(allDates) {
     const elCountScheduled = document.getElementById("filter-count-scheduled");
     const elCountOnetime = document.getElementById("filter-count-onetime");
     const elCountArchived = document.getElementById("filter-count-archived");
-    const elCountRemoved = document.getElementById("filter-count-removed");
 
     if (elCountAll) elCountAll.textContent = counts.all;
     if (elCountScheduled) elCountScheduled.textContent = counts.scheduled;
     if (elCountOnetime) elCountOnetime.textContent = counts.onetime;
     if (elCountArchived) elCountArchived.textContent = counts.archived;
-    if (elCountRemoved) elCountRemoved.textContent = counts.removed;
 
     // 3. Filter tasks based on active status filter
     const filteredTasks = (analyticsTaskStatusFilter === "all")
@@ -437,8 +422,7 @@ function renderTaskBreakdown(allDates) {
             all: "لا توجد أوراد أو مهام لعرض نسبة الالتزام",
             scheduled: "لا توجد مهام مجدولة حالياً",
             onetime: "لا توجد مهام لمرة واحدة",
-            archived: "قائمة المهام المؤرشفة فارغة",
-            removed: "لا توجد مهام محذوفة"
+            archived: "قائمة المهام المؤرشفة فارغة"
         };
         container.innerHTML = `<div class="empty-state"><h3>${emptyLabels[analyticsTaskStatusFilter] || 'لا توجد مهام لعرضها'}</h3></div>`;
         return;
@@ -513,7 +497,6 @@ function renderTaskBreakdown(allDates) {
 
             const targetDate = task.oneTimeDate || (task.createdAt ? task.createdAt.slice(0, 10) : null);
             const archiveCutoff = task.archivedAt || null;
-            const deletedCutoff = task.deletedAt || null;
 
             // Check if task has any past logged entries (for legacy tasks without explicit cutoff dates)
             let taskHasAnyLogs = false;
@@ -538,14 +521,6 @@ function renderTaskBreakdown(allDates) {
                 if (statusKey === "onetime") {
                     if ((targetDate && d === targetDate) || val > 0) {
                         isScheduled = true;
-                    }
-                } else if (statusKey === "removed") {
-                    if (deletedCutoff && d >= deletedCutoff) {
-                        isScheduled = val > 0;
-                    } else if (!deletedCutoff && lastLoggedDate && d > lastLoggedDate) {
-                        isScheduled = val > 0;
-                    } else {
-                        isScheduled = isTaskScheduledForDate(task, d, val);
                     }
                 } else if (statusKey === "archived") {
                     if (archiveCutoff && d > archiveCutoff) {
@@ -606,8 +581,6 @@ function renderTaskBreakdown(allDates) {
                 metaExtra = `<span>•</span><span><i class="fa-regular fa-calendar"></i> ${targetDate}</span>`;
             } else if (statusKey === "archived" && archiveCutoff) {
                 metaExtra = `<span>•</span><span><i class="fa-solid fa-box-archive"></i> ${archiveCutoff}</span>`;
-            } else if (statusKey === "removed" && deletedCutoff) {
-                metaExtra = `<span>•</span><span><i class="fa-solid fa-trash-can"></i> ${deletedCutoff}</span>`;
             }
 
             const card = document.createElement("div");

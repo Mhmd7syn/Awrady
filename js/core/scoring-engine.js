@@ -19,10 +19,6 @@ class ScoringEngine {
         }
     }
 
-    static clearScoreCache() {
-        ScoringEngine._scoreCache.clear();
-    }
-
     /**
      * Returns the time weight (in minutes) for a task used in weighted-average scoring
      * @param {Object} task 
@@ -47,7 +43,7 @@ class ScoringEngine {
         const sub = (cat && subcatName && cat.subcategories) ? cat.subcategories.find(s => s.name === subcatName) : null;
         const unit = typeVal || (sub && sub.defaultUnit) || (cat && cat.defaultUnit) || "";
 
-        if (unit === "ساعة" || unit === "ساعات" || unit === "ساعات ودقايق" || unit === "وقت" || catName === "خروج" || catName === "شغل" || catName === "مذاكرة" || catName === "استماع") {
+        if (unit === "ساعة" || unit === "ساعات" || unit === "ساعات ودقايق" || unit === "وقت" || catName === "شغل" || catName === "مذاكرة" || catName === "استماع") {
             return 60 * targetVal;
         }
 
@@ -110,7 +106,7 @@ class ScoringEngine {
         let reqTotalWeight = 0.0;
         let bonusWeightedScore = 0.0;
 
-        const disabledIds = log.disabledTaskIds || log.deactivatedTaskIds || [];
+        const disabledIds = log.disabledTaskIds || [];
 
         // Pre-resolve date context once per day evaluation loop
         const dateContext = {
@@ -119,7 +115,6 @@ class ScoringEngine {
         };
 
         (appData.tasks || []).forEach(task => {
-            if (task.parentTaskId) return;
             if (task.isArchived) {
                 const archiveCutoff = task.archivedAt || null;
                 const val = (log.entries && log.entries[task.id] !== undefined) ? log.entries[task.id] : 0;
@@ -150,23 +145,12 @@ class ScoringEngine {
                 const unit = type || (catObj && catObj.defaultUnit) || "";
                 let normVal = Number(val) || 0;
                 let normTarget = target;
-                let isHourBased = (unit === "ساعة" || unit === "ساعات ودقايق" || unit === "وقت" || unit === "ساعات" || cat === "خروج" || cat === "مذاكرة" || cat === "شغل" || cat === "استماع");
+                let isHourBased = (unit === "ساعة" || unit === "ساعات ودقايق" || unit === "وقت" || unit === "ساعات" || cat === "مذاكرة" || cat === "شغل" || cat === "استماع");
                 if (isHourBased) {
                     normTarget = target * 60;
                 }
 
-                let taskRatio = 0.0;
-                if (task.pairedTaskId) {
-                    const pairedVal = (log.entries && log.entries[task.pairedTaskId]) || 0;
-                    const pairedTask = appData.tasks.find(t => t.id === task.pairedTaskId);
-                    const pairedEff = pairedTask && typeof ScheduleEngine !== "undefined" 
-                        ? ScheduleEngine.getTaskEffectiveProps(pairedTask, dateStr, dateContext) 
-                        : null;
-                    const pairedMult = pairedEff ? (pairedEff.multiplier || 0.5) : 0.5;
-                    taskRatio = ((normVal * multiplier) + (pairedVal * pairedMult)) / normTarget;
-                } else {
-                    taskRatio = (normVal * multiplier) / normTarget;
-                }
+                const taskRatio = (normVal * multiplier) / normTarget;
 
                 const weight = ScoringEngine.getTaskWeightMinutes(task, dateStr, appData, dateContext);
 
@@ -189,8 +173,6 @@ class ScoringEngine {
                 finalResult = 1.0;
             } else if (log.precomputedScore !== undefined && log.precomputedScore !== null) {
                 finalResult = log.precomputedScore;
-            } else if (log.legacyTotalScore !== undefined && log.legacyTotalScore !== null) {
-                finalResult = log.legacyTotalScore;
             } else {
                 finalResult = 0;
             }
@@ -204,42 +186,8 @@ class ScoringEngine {
 
         return finalResult;
     }
-
-    /**
-     * Updates header today score display
-     */
-    static updateHeaderTodayScore() {
-        if (typeof window === "undefined") return;
-        const todayStr = typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().split("T")[0];
-        const todayScore = ScoringEngine.calculateDayScore(todayStr);
-        const percentage = Math.round(todayScore * 100);
-        const el = document.getElementById("header-today-score");
-        if (el) {
-            el.textContent = `${percentage}%`;
-        }
-    }
 }
 
-// Automatically wire cache invalidation to StateManager & StorageEngine
 if (typeof window !== "undefined") {
-    if (window.stateManager && typeof window.stateManager.save === "function") {
-        const origStateSave = window.stateManager.save.bind(window.stateManager);
-        window.stateManager.save = function(immediate = false) {
-            ScoringEngine.invalidateScoreCache();
-            return origStateSave(immediate);
-        };
-    }
-    if (window.storageEngine && typeof window.storageEngine.saveData === "function") {
-        const origStorageSave = window.storageEngine.saveData.bind(window.storageEngine);
-        window.storageEngine.saveData = function(key, data) {
-            ScoringEngine.invalidateScoreCache();
-            return origStorageSave(key, data);
-        };
-    }
-
     window.ScoringEngine = ScoringEngine;
-    window.scoringEngine = ScoringEngine;
-    window.calculateDayScore = (dateStr, appDataRef, returnHours) => ScoringEngine.calculateDayScore(dateStr, appDataRef, returnHours);
-    window.getTaskWeightMinutes = (task, dateStr, appDataRef, dateContext) => ScoringEngine.getTaskWeightMinutes(task, dateStr, appDataRef, dateContext);
-    window.invalidateScoreCache = (dateStr) => ScoringEngine.invalidateScoreCache(dateStr);
 }

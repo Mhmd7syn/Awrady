@@ -79,10 +79,6 @@ function getHijriEnPartsFormatter() {
 
 const _hijriDetailsCache = new Map();
 
-function clearHijriDateCache() {
-    _hijriDetailsCache.clear();
-}
-
 /**
  * Gets 3-letter English weekday abbreviation (e.g. Sun, Mon, Tue)
  * Fast static array lookup replaces heavy toLocaleDateString
@@ -225,7 +221,6 @@ if (typeof window !== "undefined") {
     window.getHijriDateDetails = getHijriDateDetails;
     window.getDatesForCurrentWeek = getDatesForCurrentWeek;
     window.addDays = addDays;
-    window.clearHijriDateCache = clearHijriDateCache;
 
     // Aliases for backward compatibility with app.js
     window.getHijriDetails = getHijriDateDetails;
