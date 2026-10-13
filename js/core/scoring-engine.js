@@ -10,11 +10,7 @@ class ScoringEngine {
      * @returns {string}
      */
     static getTaskUnit(task) {
-        if (typeof getTaskUnit === "function") return getTaskUnit(task);
-        if (!task) return "تكرار";
-        const cat = APP_CONSTANTS.CATEGORIES.find(c => c.name === task.category);
-        const sub = (cat && task.subcategory) ? cat.subcategories?.find(s => s.name === task.subcategory) : null;
-        return sub?.defaultUnit || cat?.defaultUnit || task.type || "تكرار";
+        return getTaskUnit(task);
     }
 
     /**
@@ -23,9 +19,7 @@ class ScoringEngine {
      * @returns {boolean}
      */
     static isTimeTask(task) {
-        if (typeof isTimeTask === "function") return isTimeTask(task);
-        const unit = ScoringEngine.getTaskUnit(task);
-        return unit === "ساعة" || unit === "ساعات" || unit === "ساعات ودقايق" || unit === "وقت" || unit === "دقيقة";
+        return isTimeTask(task);
     }
 
     /**

@@ -102,7 +102,7 @@ function getTasksSummaryByDay(options = null) {
 
 function showWeeklyHoursModal(forceCurrentDate = false) {
     const realTodayStr = getLocalTodayString();
-    const curDateStr = typeof currentDateStr !== "undefined" ? currentDateStr : realTodayStr;
+    const curDateStr = currentDateStr;
     
     if (forceCurrentDate || !weeklyModalRefDateStr) {
         weeklyModalRefDateStr = curDateStr;

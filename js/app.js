@@ -161,20 +161,16 @@ async function initData() {
             });
 
             loaded = true;
-            if (typeof updateCloudSyncUI === "function") {
-                updateCloudSyncUI({
+            updateCloudSyncUI({
                     state: navigator.onLine ? "synced" : "offline",
                     message: navigator.onLine ? "متزامن سحابياً مع Supabase 24/7" : "وضع عدم الاتصال"
                 });
-            }
         } catch (err) {
             console.warn("[initData] Supabase initialization fallback:", err.message);
-            if (typeof updateCloudSyncUI === "function") {
-                updateCloudSyncUI({
+            updateCloudSyncUI({
                     state: "offline",
                     message: "وضع عدم الاتصال (محفوظ محلياً)"
                 });
-            }
         }
     }
 
@@ -282,13 +278,11 @@ function setupNavigation() {
             document.getElementById(targetViewId).classList.add("active");
 
             if (targetViewId === "view-analytics") {
-                if (typeof initChart === "function" && (typeof chartInstance === "undefined" || !chartInstance)) {
+                if (!chartInstance) {
                     initChart();
                 }
-                if (typeof updateChartAndAnalytics === "function") {
-                    updateChartAndAnalytics();
-                }
-            } else if (targetViewId === "view-manager" && typeof renderTaskManager === "function") {
+                updateChartAndAnalytics();
+            } else if (targetViewId === "view-manager") {
                 renderTaskManager();
             }
         });
@@ -351,10 +345,6 @@ function setupDailyControls() {
 
 
 function renderDailyView() {
-    if (typeof window.renderDailyView === "function" && window.renderDailyView !== renderDailyView) {
-        window.renderDailyView();
-        return;
-    }
     const grid = document.getElementById("daily-tasks-grid");
     if (!grid) return;
     grid.innerHTML = "";
@@ -801,9 +791,7 @@ function attachTaskControlListeners(grid) {
             e.stopPropagation();
             const taskId = btn.getAttribute("data-id");
             const taskName = btn.getAttribute("data-name") || "";
-            if (typeof openPomodoroModal === "function") {
-                openPomodoroModal(taskId, taskName);
-            }
+            openPomodoroModal(taskId, taskName);
         });
     });
 
@@ -904,7 +892,7 @@ function updateTaskCardInPlace(taskId, val, task = null) {
     const targetStrEl = card.querySelector(".task-target-str");
     if (targetStrEl) {
         const rawTarget = task.target || 0;
-        const isTime = typeof isTimeTask === "function" ? isTimeTask(task) : false;
+        const isTime = isTimeTask(task);
         const catObj = APP_CONSTANTS.CATEGORIES.find(c => c.name === task.category);
         const unitLabel = isTime ? "دقيقة" : (task.type || (catObj && catObj.defaultUnit) || "");
         const targetStr = rawTarget > 0 ? `${val}/${target} ${unitLabel}` : `${val}`;

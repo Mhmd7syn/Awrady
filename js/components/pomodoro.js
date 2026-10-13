@@ -678,11 +678,11 @@ function commitWorkMinutesToDisk(minutes, showAlert = false) {
         updateChartAndAnalytics();
 
         if (showAlert) {
-            const timeStr = typeof formatTimeHM === "function" ? formatTimeHM(minutes) : `${minutes} دقيقة`;
+            const timeStr = formatTimeHM(minutes);
             alert(`✅ تم حفظ ${timeStr} عمل في مهمة (${PomodoroTimer.taskName || 'المحددة'}) بنجاح!`);
         }
     } else if (showAlert) {
-        const timeStr = typeof formatTimeHM === "function" ? formatTimeHM(minutes) : `${minutes} دقيقة`;
+        const timeStr = formatTimeHM(minutes);
         alert(`✅ تم إكمال ${timeStr} تركيز عام بنجاح! لم يتم ربط الوقت بمهمة معينة.`);
     }
 

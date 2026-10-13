@@ -173,7 +173,7 @@ function getDatesForCurrentWeek(referenceDate = new Date()) {
     const week = [];
     const todayStr = getLocalTodayString();
 
-    const weekdays = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.WEEKDAYS) ? APP_CONSTANTS.WEEKDAYS : [];
+    const weekdays = APP_CONSTANTS.WEEKDAYS;
     const arabicDays = weekdays.map(w => w.ar);
     const englishDays = weekdays.map(w => w.key);
 

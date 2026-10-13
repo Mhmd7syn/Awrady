@@ -497,8 +497,7 @@ function saveTaskFromModal() {
     }
 
     const parsedTarget = targetStr === "" ? 1 : Math.max(0.5, parseFloat(targetStr) || 1);
-    const localToday = getLocalTodayString();
-    const selectedDate = (typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : localToday;
+    const selectedDate = currentDateStr;
     const otDateInput = document.getElementById("task-onetime-date-input");
     const chosenOneTimeDate = (schedType === "OneTime" && otDateInput?.value) ? otDateInput.value : selectedDate;
 
@@ -697,7 +696,7 @@ function populateQuickAddExistingList() {
             }
 
             const isAlreadyBonus = todayBonusIds.includes(task.id);
-            const iconHtml = typeof getCategoryIconHtml === "function" ? getCategoryIconHtml(task) : '<i class="fa-solid fa-list-check"></i>';
+            const iconHtml = getCategoryIconHtml(task);
             const catInfo = `${task.category || 'عام'}${task.subcategory ? ' - ' + task.subcategory : ''}`;
 
             const row = document.createElement("div");
