@@ -15,10 +15,14 @@ const STORAGE_KEY = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.STORA
 
 // Global Application State
 var appData = {
-    categories: [],
     tasks: [],
     logs: {}
 };
+Object.defineProperty(appData, "categories", {
+    get: () => APP_CONSTANTS.CATEGORIES,
+    enumerable: false,
+    configurable: true
+});
 window.appData = appData;
 
 let currentDateStr = getLocalTodayString();
@@ -70,10 +74,14 @@ window.startApp = async function(username) {
 
 window.logoutApp = function() {
     appData = {
-        categories: (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) ? APP_CONSTANTS.CATEGORIES : [],
         tasks: [],
         logs: {}
     };
+    Object.defineProperty(appData, "categories", {
+        get: () => APP_CONSTANTS.CATEGORIES,
+        enumerable: false,
+        configurable: true
+    });
     window.appData = appData;
     const todayEl = document.getElementById("header-today-score");
     if (todayEl) todayEl.textContent = "0%";
@@ -86,12 +94,7 @@ let _dbSaveTimer = null;
 async function initData() {
     let loaded = false;
 
-    // 1. Categories are constant reference definitions from constants.js
-    appData.categories = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) 
-        ? APP_CONSTANTS.CATEGORIES 
-        : ((typeof DEFAULT_CATEGORIES !== "undefined") ? DEFAULT_CATEGORIES : []);
-
-    // 2. Attempt initialization via direct Supabase API for tasks and daily progress
+    // 1. Attempt initialization via direct Supabase API for tasks and daily progress
     if (window.enjazAPI && window.enjazAPI.init()) {
         try {
             const results = await Promise.allSettled([
@@ -110,19 +113,7 @@ async function initData() {
 
             if (allProgress && allProgress.length > 0) {
                 allProgress.forEach(row => {
-                    const entries = {};
-                    if (row.task_progress) {
-                        for (const [tid, info] of Object.entries(row.task_progress)) {
-                            entries[tid] = (typeof info === "object" && info !== null) ? (info.achieved ?? 0) : Number(info) || 0;
-                        }
-                    }
-                    appData.logs[row.date] = {
-                        entries,
-                        prayerExtras: row.prayer_extras || {},
-                        precomputedScore: Number(row.total_score) || 0,
-                        totalHours: Number(row.total_hours) || 0,
-                        _loadedFromDB: true
-                    };
+                    appData.logs[row.date] = rowToLog(row);
                 });
             }
 
@@ -139,17 +130,9 @@ async function initData() {
                 if (table === "daily_progress" && payload.new?.date === currentDateStr) {
                     const row = payload.new;
                     if (!appData.logs) appData.logs = {};
-                    const entries = {};
-                    if (row.task_progress) {
-                        for (const [tid, info] of Object.entries(row.task_progress)) {
-                            entries[tid] = (typeof info === "object" && info !== null) ? (info.achieved ?? 0) : Number(info) || 0;
-                        }
-                    }
                     appData.logs[currentDateStr] = {
                         ...appData.logs[currentDateStr],
-                        entries,
-                        prayerExtras: row.prayer_extras || {},
-                        _loadedFromDB: true
+                        ...rowToLog(row)
                     };
                     renderDailyView();
                     updateHeaderTodayScore();
@@ -213,9 +196,6 @@ async function initData() {
     }
 
     // 3. Fallback defaults if still empty
-    if (!appData.categories || appData.categories.length === 0) {
-        appData.categories = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) ? APP_CONSTANTS.CATEGORIES : DEFAULT_CATEGORIES;
-    }
     if (!appData.tasks || appData.tasks.length === 0) {
         appData.tasks = (typeof DEFAULT_TASKS !== "undefined") ? JSON.parse(JSON.stringify(DEFAULT_TASKS)) : [];
     }
@@ -224,15 +204,15 @@ async function initData() {
 }
 
 function loadDefaultAppData() {
-    if (typeof DEFAULT_AWRAD_DATA !== "undefined") {
-        appData = JSON.parse(JSON.stringify(DEFAULT_AWRAD_DATA));
-    } else {
-        appData = {
-            categories: (typeof DEFAULT_CATEGORIES !== "undefined") ? JSON.parse(JSON.stringify(DEFAULT_CATEGORIES)) : [],
-            tasks: (typeof DEFAULT_TASKS !== "undefined") ? JSON.parse(JSON.stringify(DEFAULT_TASKS)) : [],
-            logs: {}
-        };
-    }
+    appData = {
+        tasks: (typeof DEFAULT_TASKS !== "undefined") ? JSON.parse(JSON.stringify(DEFAULT_TASKS)) : [],
+        logs: {}
+    };
+    Object.defineProperty(appData, "categories", {
+        get: () => APP_CONSTANTS.CATEGORIES,
+        enumerable: false,
+        configurable: true
+    });
 }
 
 function saveData(immediate = false) {
@@ -283,18 +263,6 @@ function saveData(immediate = false) {
 const isTaskScheduledForDate = (task, dateStr, loggedVal = null) => ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, loggedVal);
 const isBonusTaskForDate = (task, dateStr, loggedVal = null) => ScheduleEngine.isBonusTaskForDate(task, dateStr, appData, loggedVal);
 
-function isPrayerSelector(task) {
-    if (task.type === "صلاة") return true;
-    const cat = (task.category || "").trim();
-    const sub = (task.subcategory || "").trim();
-    return cat === "صلاة" && sub === "فرض";
-}
-
-function isObligatoryPrayerTask(taskId) {
-    const task = appData.tasks.find(t => t.id === taskId);
-    if (!task) return false;
-    return isPrayerSelector(task);
-}
 
 // ============================================================================
 // NAVIGATION & CONTROLS
@@ -337,17 +305,7 @@ async function switchActiveDate(newDate) {
             const dayProgress = await window.enjazAPI.getDayProgress(currentDateStr);
             if (dayProgress) {
                 if (!appData.logs) appData.logs = {};
-                const entries = {};
-                if (dayProgress.task_progress) {
-                    for (const [tid, info] of Object.entries(dayProgress.task_progress)) {
-                        entries[tid] = (typeof info === "object" && info !== null) ? (info.achieved ?? 0) : Number(info) || 0;
-                    }
-                }
-                appData.logs[currentDateStr] = {
-                    entries,
-                    prayerExtras: dayProgress.prayer_extras || {},
-                    _loadedFromDB: true
-                };
+                appData.logs[currentDateStr] = rowToLog(dayProgress);
             }
         } catch (_) {}
     }
@@ -377,39 +335,6 @@ function setupDailyControls() {
     });
 }
 
-function isTimeTask(task) {
-    if (!task) return false;
-    const catObj = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) 
-        ? APP_CONSTANTS.CATEGORIES.find(c => c.name === task.category) 
-        : null;
-    const type = task.type || (catObj && catObj.defaultUnit) || "";
-    return type === "ساعة" || type === "ساعات" || type === "ساعات ودقايق" || type === "وقت" || type === "دقيقة";
-}
-
-function getTaskNormalizedTarget(task, dateStr = null) {
-    if (!task) return 0;
-    const curDate = dateStr || (typeof currentDateStr !== "undefined" ? currentDateStr : getLocalTodayString());
-    const effProps = (typeof ScheduleEngine !== "undefined") ? ScheduleEngine.getTaskEffectiveProps(task, curDate) : task;
-    const target = (effProps && effProps.target !== undefined && effProps.target !== null) ? effProps.target : (task.target || 0);
-    if (isTimeTask(task) || isTimeTask(effProps)) {
-        return target * 60;
-    }
-    return target;
-}
-
-function isTaskCompleted(task, val, dateStr = null) {
-    const normTarget = getTaskNormalizedTarget(task, dateStr);
-    if (normTarget > 0) {
-        return val >= normTarget;
-    }
-    return val > 0;
-}
-
-if (typeof window !== "undefined") {
-    window.isTimeTask = isTimeTask;
-    window.getTaskNormalizedTarget = getTaskNormalizedTarget;
-    window.isTaskCompleted = isTaskCompleted;
-}
 
 function renderDailyView() {
     if (typeof window.renderDailyView === "function" && window.renderDailyView !== renderDailyView) {
@@ -500,24 +425,15 @@ function renderDailyView() {
     const allScheduled = appData.tasks.filter(t => ScheduleEngine.isVisibleOn(t, currentDateStr, appData));
 
     // Group all active tasks (pending & completed) by Category
-    const categoryGroupMap = new Map();
-    (appData.categories || []).forEach(c => {
-        categoryGroupMap.set(c.name, { ...c, tasks: [] });
-    });
-
     const disabledTasks = allScheduled.filter(t => disabledIds.includes(t.id));
     const activeTasks = allScheduled.filter(t => !disabledIds.includes(t.id));
-    activeTasks.forEach(t => {
+    const activeItems = activeTasks.map(t => {
         const val = getTaskVal(t.id);
         const normTarget = getTaskNormalizedTarget(t, currentDateStr);
         const isDone = isTaskCompleted(t, val, currentDateStr);
-        
-        const catName = t.category || "أخرى";
-        if (!categoryGroupMap.has(catName)) {
-            categoryGroupMap.set(catName, { name: catName, label: catName, icon: "fa-folder", tasks: [] });
-        }
-        categoryGroupMap.get(catName).tasks.push({ task: t, val, target: normTarget, isDone });
+        return { task: t, val, target: normTarget, isDone };
     });
+    const categoryGroupMap = groupTasksByCategory(activeItems);
 
     if (activeTasks.length === 0) {
         grid.innerHTML = `
@@ -617,61 +533,9 @@ function renderDailyView() {
                 const iconHtml = getCategoryIconHtml(task);
                 const bonusBadge = isBonus ? `<span class="tag-badge" style="font-size:0.7rem; background:rgba(245,158,11,0.2); color:#f59e0b; border-color:rgba(245,158,11,0.4);">بونص</span>` : "";
                 const rawTarget = task.target || 0;
-                const catObj = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) ? APP_CONSTANTS.CATEGORIES.find(c => c.name === task.category) : null;
-                const unit = task.type || (catObj && catObj.defaultUnit) || '';
+                const unit = getTaskUnit(task);
                 const targetDisplay = rawTarget > 0 ? `(${rawTarget} ${unit})` : '';
-                
-                const isPrayer = isPrayerSelector(task);
-                const isTime = isTimeTask(task);
-
-                let controlsHtml = "";
-                if (isPrayer) {
-                    controlsHtml = `
-                        <div class="prayer-toggles" data-id="${task.id}" style="margin-top:14px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.05);">
-                            <button class="btn-prayer ${val === 1 ? 'active-mosque' : ''}" data-prayer-val="1" data-id="${task.id}" title="صلاة جماعة / مسجد">🕌 جماعة</button>
-                            <button class="btn-prayer ${val === 0.5 ? 'active-home' : ''}" data-prayer-val="0.5" data-id="${task.id}" title="صلاة منفرد">🏠 منفرد</button>
-                            <button class="btn-prayer ${val === 0 ? 'active-none' : ''}" data-prayer-val="0" data-id="${task.id}" title="لم تُصلَّ بعد">❌ لم أصل</button>
-                            <button class="btn-action-sm btn-task-off" data-id="${task.id}" title="إيقاف لهذا اليوم" style="font-size:0.75rem; padding:4px 8px; opacity:0.6;">⏸</button>
-                        </div>
-                    `;
-                } else if (isTime) {
-                    const hours = Math.floor(val / 60);
-                    const minutes = val % 60;
-                    controlsHtml = `
-                        <div class="task-controls-area time-controls-area" data-id="${task.id}" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-                            <div style="display:flex; align-items:center; gap:6px;">
-                                <div style="display:flex; align-items:center; background:rgba(0,0,0,0.4); border:1px solid var(--glass-border); border-radius:8px; padding:2px 6px;">
-                                    <input type="number" class="input-time-hours" data-id="${task.id}" value="${hours}" min="0" max="24" style="width:38px; background:transparent; border:none; color:#fff; font-weight:700; font-size:0.95rem; text-align:center;">
-                                    <span style="font-size:0.75rem; color:var(--text-secondary);">ساعة</span>
-                                </div>
-                                <div style="display:flex; align-items:center; background:rgba(0,0,0,0.4); border:1px solid var(--glass-border); border-radius:8px; padding:2px 6px;">
-                                    <input type="number" class="input-time-minutes" data-id="${task.id}" value="${minutes}" min="0" max="59" step="5" style="width:38px; background:transparent; border:none; color:#fff; font-weight:700; font-size:0.95rem; text-align:center;">
-                                    <span style="font-size:0.75rem; color:var(--text-secondary);">دقيقة</span>
-                                </div>
-                            </div>
-
-                            <div style="display:flex; align-items:center; gap:4px;">
-                                <button class="btn-step btn-pomo-trigger" data-id="${task.id}" data-name="${task.name}" style="font-size:0.8rem; padding:3px 8px; border-radius:6px; color:#10b981; border:1px solid rgba(16,185,129,0.3); background:rgba(16,185,129,0.12);" title="بدء مؤقت التركيز لهذه المهمة"><i class="fa-solid fa-stopwatch"></i></button>
-                                <button class="btn-step btn-step-time" data-id="${task.id}" data-time-delta="15" style="font-size:0.8rem; padding:3px 8px; border-radius:6px;" title="زيادة 15 دقيقة">+15د</button>
-                                <button class="btn-step btn-step-time" data-id="${task.id}" data-time-delta="-15" style="font-size:0.8rem; padding:3px 8px; border-radius:6px;" title="إنقاص 15 دقيقة">-15د</button>
-                                <button class="btn-action-sm btn-task-off" data-id="${task.id}" title="إيقاف لهذا اليوم" style="font-size:0.75rem; padding:4px 8px; opacity:0.6;">⏸</button>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    controlsHtml = `
-                        <div class="task-controls-area" data-id="${task.id}">
-                            <div class="step-controls">
-                                <button class="btn-step btn-val-minus" data-id="${task.id}">-</button>
-                                <input type="text" class="input-count" value="${val}" readonly>
-                                <button class="btn-step btn-val-plus" data-id="${task.id}">+</button>
-                            </div>
-                            <div style="display:flex; gap:6px; align-items:center;">
-                                <button class="btn-action-sm btn-task-off" data-id="${task.id}" title="إيقاف لهذا اليوم" style="font-size:0.75rem; padding:4px 8px; opacity:0.6;">⏸</button>
-                            </div>
-                        </div>
-                    `;
-                }
+                const controlsHtml = renderTaskControls(task, val, { compact: false });
 
                 card.innerHTML = `
                     <div class="task-header">
@@ -714,57 +578,14 @@ function renderDailyView() {
                 pill.setAttribute("data-task-id", task.id);
                 pill.style.cssText = "display:flex; flex-direction:column; padding:10px 14px; margin-bottom:8px; border-radius:10px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); gap:6px;";
                 
-                const isPrayer = isPrayerSelector(task);
-                const isTime = isTimeTask(task);
-
                 const iconHtml = getCategoryIconHtml(task);
                 const overTarget = target > 0 && val > target;
                 const rawTarget = task.target || 0;
-                const catObj = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) ? APP_CONSTANTS.CATEGORIES.find(c => c.name === task.category) : null;
-                const unitLabel = isTime ? "دقيقة" : (task.type || (catObj && catObj.defaultUnit) || "");
+                const unitLabel = isTimeTask(task) ? "دقيقة" : getTaskUnit(task);
                 const targetStr = rawTarget > 0 ? `${val}/${target} ${unitLabel}` : `${val}`;
                 const progressPct = target > 0 ? Math.min(100, Math.round((val / target) * 100)) : (val > 0 ? 100 : 0);
                 const barColor = overTarget ? "#f59e0b" : "#10b981";
-
-                let minControlsHtml = "";
-                if (isPrayer) {
-                    minControlsHtml = `
-                        <div class="prayer-toggles" data-id="${task.id}">
-                            <button class="btn-prayer ${val === 1 ? 'active-mosque' : ''}" data-prayer-val="1" data-id="${task.id}" style="padding:3px 8px; font-size:0.75rem;" title="جماعة">🕌 جماعة</button>
-                            <button class="btn-prayer ${val === 0.5 ? 'active-home' : ''}" data-prayer-val="0.5" data-id="${task.id}" style="padding:3px 8px; font-size:0.75rem;" title="منفرد">🏠 منفرد</button>
-                            <button class="btn-prayer ${val === 0 ? 'active-none' : ''}" data-prayer-val="0" data-id="${task.id}" style="padding:3px 8px; font-size:0.75rem;" title="لم تصلي">❌ لم أصل</button>
-                            <button class="btn-action-sm" data-edit-id="${task.id}" title="تعديل الورد" style="padding:2px 6px; color:var(--gold-primary); font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
-                        </div>
-                    `;
-                } else if (isTime) {
-                    const hours = Math.floor(val / 60);
-                    const minutes = val % 60;
-                    minControlsHtml = `
-                        <div class="task-controls" data-id="${task.id}" style="display:flex; align-items:center; gap:6px;">
-                            <div style="display:flex; align-items:center; background:rgba(0,0,0,0.3); border:1px solid rgba(16,185,129,0.3); border-radius:6px; padding:1px 4px;">
-                                <input type="number" class="input-time-hours" data-id="${task.id}" value="${hours}" min="0" max="24" style="width:28px; background:transparent; border:none; color:#10b981; font-weight:700; font-size:0.8rem; text-align:center;">
-                                <span style="font-size:0.7rem; color:#10b981;">س</span>
-                            </div>
-                            <div style="display:flex; align-items:center; background:rgba(0,0,0,0.3); border:1px solid rgba(16,185,129,0.3); border-radius:6px; padding:1px 4px;">
-                                <input type="number" class="input-time-minutes" data-id="${task.id}" value="${minutes}" min="0" max="59" step="5" style="width:28px; background:transparent; border:none; color:#10b981; font-weight:700; font-size:0.8rem; text-align:center;">
-                                <span style="font-size:0.7rem; color:#10b981;">د</span>
-                            </div>
-                            <button class="btn-step btn-pomo-trigger" data-id="${task.id}" data-name="${task.name}" style="padding:2px 6px; font-size:0.75rem; color:#10b981; border:1px solid rgba(16,185,129,0.3); background:rgba(16,185,129,0.12);" title="بدء مؤقت التركيز لهذه المهمة"><i class="fa-solid fa-stopwatch"></i></button>
-                            <button class="btn-step btn-step-time" data-id="${task.id}" data-time-delta="15" style="padding:2px 6px; font-size:0.75rem;" title="زيادة 15 دقيقة كبونص">+15د</button>
-                            <button class="btn-step btn-step-time" data-id="${task.id}" data-time-delta="-15" style="padding:2px 6px; font-size:0.75rem;" title="إنقاص 15 دقيقة">-15د</button>
-                            <button class="btn-action-sm" data-edit-id="${task.id}" title="تعديل الورد" style="padding:2px 6px; color:var(--gold-primary); font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
-                        </div>
-                    `;
-                } else {
-                    minControlsHtml = `
-                        <div class="task-controls" data-id="${task.id}" style="display:flex; align-items:center; gap:6px;">
-                            <button class="btn-val-minus btn-action-sm" data-id="${task.id}" style="padding:2px 8px; font-size:0.8rem;" title="تراجع / إنقاص">-</button>
-                            <input type="text" class="input-count" value="${val}" readonly style="width:40px; height:26px; font-size:0.8rem; padding:0;">
-                            <button class="btn-val-plus btn-action-sm" data-id="${task.id}" style="padding:2px 8px; font-size:0.8rem;" title="زيادة كبونص">+</button>
-                            <button class="btn-action-sm" data-edit-id="${task.id}" title="تعديل الورد" style="padding:2px 6px; color:var(--gold-primary); font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>
-                        </div>
-                    `;
-                }
+                const minControlsHtml = renderTaskControls(task, val, { compact: true });
 
                 pill.innerHTML = `
                     <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">

@@ -3,7 +3,7 @@
  * Provides offline caching, lightning-fast app shell loading, and network resilience.
  */
 
-const CACHE_NAME = "awrady-pwa-v22";
+const CACHE_NAME = "awrady-pwa-v23";
 
 const PRECACHE_ASSETS = [
     "./",
@@ -17,6 +17,7 @@ const PRECACHE_ASSETS = [
     "./js/utils/date-utils.js",
     "./js/core/schedule-engine.js",
     "./js/core/scoring-engine.js",
+    "./js/core/task-rules.js",
     "./js/components/pomodoro.js",
     "./js/components/nawafel-toast.js",
     "./js/components/weekly-modal.js",

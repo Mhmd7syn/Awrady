@@ -99,31 +99,7 @@ function renderGroupedTasks(containerEl, tasksList, isArchivedList = false, isOn
         return 0;
     }
 
-    const catMap = new Map();
-    (appData.categories || []).forEach(c => {
-        catMap.set(c.name, {
-            name: c.name,
-            label: c.label || c.name,
-            icon: c.icon || "fa-list-check",
-            subcategories: c.subcategories || [],
-            tasks: []
-        });
-    });
-
-    tasksList.forEach(task => {
-        const catName = task.category || "أخرى";
-        if (!catMap.has(catName)) {
-            catMap.set(catName, {
-                name: catName,
-                label: catName,
-                icon: "fa-folder",
-                subcategories: [],
-                tasks: []
-            });
-        }
-        catMap.get(catName).tasks.push(task);
-    });
-
+    const catMap = groupTasksByCategory(tasksList);
     let totalTaskCount = 0;
 
     catMap.forEach(catGroupData => {
@@ -142,30 +118,14 @@ function renderGroupedTasks(containerEl, tasksList, isArchivedList = false, isOn
         catHeader.innerHTML = `
             <div class="manager-cat-header-title">
                 <i class="fa-solid ${iconClass}"></i>
-                <span>${catGroupData.label}</span>
+                <span>${catGroupData.label || catGroupData.name}</span>
             </div>
             <span class="manager-cat-count-badge">${catTasks.length} ${catTasks.length === 1 ? 'ورد' : (catTasks.length <= 10 ? 'أوراد' : 'ورد')}</span>
         `;
         catCard.appendChild(catHeader);
 
-        const subMap = new Map();
-        (catGroupData.subcategories || []).forEach(sub => {
-            subMap.set(sub.name, []);
-        });
-
-        const generalTasks = [];
-        catTasks.forEach(task => {
-            const subName = (task.subcategory || "").trim();
-            if (subName) {
-                if (!subMap.has(subName)) {
-                    subMap.set(subName, []);
-                }
-                subMap.get(subName).push(task);
-            } else {
-                generalTasks.push(task);
-            }
-        });
-
+        const subMap = catGroupData.subMap;
+        const generalTasks = catGroupData.generalTasks;
         const hasSubcategoriesWithTasks = Array.from(subMap.values()).some(arr => arr.length > 0);
 
         if (hasSubcategoriesWithTasks) {
@@ -214,15 +174,7 @@ function formatScheduleDisplay(sched) {
     if (sched === "Optional") return "اختياري / عند التنفيذ";
     if (sched === "OneTime") return "لمرة واحدة فقط";
 
-    const dayNameMap = {
-        "Sat": "السبت",
-        "Sun": "الأحد",
-        "Mon": "الإثنين",
-        "Tue": "الثلاثاء",
-        "Wed": "الأربعاء",
-        "Thu": "الخميس",
-        "Fri": "الجمعة"
-    };
+    const dayNameMap = Object.fromEntries(((typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.WEEKDAYS) ? APP_CONSTANTS.WEEKDAYS : []).map(w => [w.key, w.ar]));
 
     const parts = sched.split(",").map(s => s.trim()).filter(Boolean);
     if (parts.length > 0) {

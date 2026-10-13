@@ -420,30 +420,7 @@ function renderTaskBreakdown(allDates) {
         return;
     }
 
-    const catMap = new Map();
-    (appData.categories || []).forEach(c => {
-        catMap.set(c.name, {
-            name: c.name,
-            label: c.label || c.name,
-            icon: c.icon || "fa-list-check",
-            subcategories: c.subcategories || [],
-            tasks: []
-        });
-    });
-
-    filteredTasks.forEach(task => {
-        const catName = task.category || "أخرى";
-        if (!catMap.has(catName)) {
-            catMap.set(catName, {
-                name: catName,
-                label: catName,
-                icon: "fa-folder",
-                subcategories: [],
-                tasks: []
-            });
-        }
-        catMap.get(catName).tasks.push(task);
-    });
+    const catMap = groupTasksByCategory(filteredTasks);
 
     catMap.forEach(catGroupData => {
         const catTasks = catGroupData.tasks;
@@ -459,24 +436,8 @@ function renderTaskBreakdown(allDates) {
         const rawIcon = catGroupData.icon || "fa-folder";
         const iconClass = rawIcon.startsWith("fa-") ? rawIcon : `fa-${rawIcon}`;
 
-        const subMap = new Map();
-        (catGroupData.subcategories || []).forEach(sub => {
-            subMap.set(sub.name, []);
-        });
-
-        const generalTasks = [];
-        catTasks.forEach(task => {
-            const subName = (task.subcategory || "").trim();
-            if (subName) {
-                if (!subMap.has(subName)) {
-                    subMap.set(subName, []);
-                }
-                subMap.get(subName).push(task);
-            } else {
-                generalTasks.push(task);
-            }
-        });
-
+        const subMap = catGroupData.subMap;
+        const generalTasks = catGroupData.generalTasks;
         const hasSubcategoriesWithTasks = Array.from(subMap.values()).some(arr => arr.length > 0);
 
         const createBreakdownCard = (task) => {
@@ -532,12 +493,7 @@ function renderTaskBreakdown(allDates) {
                     scheduledDaysCount++;
                     if (val > 0) {
                         activeTimes++;
-                        let tgt = (task.target && task.target > 0) ? task.target : 1;
-                        const catObj = (appData && appData.categories) ? appData.categories.find(c => c.name === task.category) : null;
-                        const typeVal = task.type || (catObj && catObj.defaultUnit) || "";
-                        if (typeVal === "ساعة" || typeVal === "ساعات" || typeVal === "ساعات ودقايق" || typeVal === "وقت" || task.category === "مذاكرة" || task.category === "شغل" || task.category === "استماع") {
-                            tgt = tgt * 60;
-                        }
+                        const tgt = getTaskNormalizedTarget(task);
                         const ratio = val / tgt;
                         sumRatio += ratio;
                     }
@@ -551,12 +507,7 @@ function renderTaskBreakdown(allDates) {
                 const val = (log && log.entries) ? (log.entries[task.id] || 0) : 0;
                 if (val > 0) {
                     activeTimes = 1;
-                    let tgt = (task.target && task.target > 0) ? task.target : 1;
-                    const catObj = (appData && appData.categories) ? appData.categories.find(c => c.name === task.category) : null;
-                    const typeVal = task.type || (catObj && catObj.defaultUnit) || "";
-                    if (typeVal === "ساعة" || typeVal === "ساعات" || typeVal === "ساعات ودقايق" || typeVal === "وقت" || task.category === "مذاكرة" || task.category === "شغل" || task.category === "استماع") {
-                        tgt = tgt * 60;
-                    }
+                    const tgt = getTaskNormalizedTarget(task);
                     sumRatio = (val / tgt);
                 }
             }
