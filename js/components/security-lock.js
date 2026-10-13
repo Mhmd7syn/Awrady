@@ -26,22 +26,9 @@ class SecurityLock {
      * Compute SHA-256 hash of PIN string
      */
     async hashPin(pin, salt = this.SALT) {
-        const activeSalt = salt || this.SALT;
-        if (!window.crypto || !window.crypto.subtle) {
-            // Fallback lightweight hash if crypto.subtle is unavailable
-            let hash = 0;
-            const str = activeSalt + pin;
-            for (let i = 0; i < str.length; i++) {
-                hash = ((hash << 5) - hash) + str.charCodeAt(i);
-                hash |= 0;
-            }
-            return "simple_" + Math.abs(hash).toString(16);
-        }
-
-        const msgBuffer = new TextEncoder().encode(activeSalt + pin);
-        const hashBuffer = await window.crypto.subtle.digest("SHA-256", msgBuffer);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        const msgBuffer = new TextEncoder().encode((salt || this.SALT) + pin);
+        const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
+        return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
     /**

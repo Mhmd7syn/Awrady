@@ -14,14 +14,6 @@ function getLocalTodayString(dateObj = new Date()) {
     return `${year}-${month}-${day}`;
 }
 
-/**
- * Formats a Date object into YYYY-MM-DD string
- * @param {Date} dateObj 
- * @returns {string}
- */
-function formatDateStr(dateObj) {
-    return getLocalTodayString(dateObj);
-}
 
 /**
  * Formats minutes into human-readable Arabic hours & minutes
@@ -110,11 +102,11 @@ function getArabicDateFormatted(dateStr) {
  * Smart Hijri Date & Lunar Calendar details calculation (Umm al-Qura)
  * Memoized per dateStr to eliminate redundant Intl formatter allocations
  * @param {string} dateStr 
- * @returns {{ hDay: number, hMonth: number, hYear: number, dateStringAr: string, isWhiteDay: boolean, isRamadan: boolean }}
+ * @returns {{ hDay: number, hMonth: number, hYear: number, monthName: string, formatted: string, isWhiteDay: boolean, isRamadan: boolean }}
  */
 function getHijriDateDetails(dateStr) {
     if (!dateStr) {
-        return { hDay: 0, hMonth: 0, hYear: 0, day: 0, monthName: "", dateStringAr: "التقويم الهجري", formatted: "التقويم الهجري", hijriFormatted: "التقويم الهجري", isWhiteDay: false, isRamadan: false };
+        return { hDay: 0, hMonth: 0, hYear: 0, monthName: "", formatted: "التقويم الهجري", isWhiteDay: false, isRamadan: false };
     }
     const cleanKey = typeof dateStr === "string" 
         ? (dateStr.includes("T") ? dateStr.split("T")[0] : dateStr)
@@ -143,21 +135,20 @@ function getHijriDateDetails(dateStr) {
         const hijriMonthNames = ["", "محرم", "صفر", "ربيع الأول", "ربيع الثاني", "جمادى الأولى", "جمادى الآخرة", "رجب", "شعبان", "رمضان", "شوال", "ذو القعدة", "ذو الحجة"];
         const monthName = hijriMonthNames[hMonth] || "";
 
-        const formattedHijri = dateStringAr.includes("هـ") ? dateStringAr : dateStringAr + " هـ";
+        const formatted = dateStringAr.includes("هـ") ? dateStringAr : dateStringAr + " هـ";
         const result = {
-            hDay, hMonth, hYear,
-            day: hDay,
+            hDay,
+            hMonth,
+            hYear,
             monthName,
-            dateStringAr: formattedHijri,
-            formatted: formattedHijri,
-            hijriFormatted: formattedHijri,
+            formatted,
             isWhiteDay,
             isRamadan
         };
         _hijriDetailsCache.set(cleanKey, result);
         return result;
     } catch (e) {
-        const fallback = { hDay: 0, hMonth: 0, hYear: 0, day: 0, monthName: "", dateStringAr: "التقويم الهجري", formatted: "التقويم الهجري", hijriFormatted: "التقويم الهجري", isWhiteDay: false, isRamadan: false };
+        const fallback = { hDay: 0, hMonth: 0, hYear: 0, monthName: "", formatted: "التقويم الهجري", isWhiteDay: false, isRamadan: false };
         _hijriDetailsCache.set(cleanKey, fallback);
         return fallback;
     }
@@ -214,16 +205,10 @@ function addDays(dateStr, days) {
 
 if (typeof window !== "undefined") {
     window.getLocalTodayString = getLocalTodayString;
-    window.formatDateStr = formatDateStr;
     window.formatTimeHM = formatTimeHM;
     window.getDayOfWeekAbbrev = getDayOfWeekAbbrev;
     window.getArabicDateFormatted = getArabicDateFormatted;
     window.getHijriDateDetails = getHijriDateDetails;
     window.getDatesForCurrentWeek = getDatesForCurrentWeek;
     window.addDays = addDays;
-
-    // Aliases for backward compatibility with app.js
-    window.getHijriDetails = getHijriDateDetails;
-    window.formatDateArabic = getArabicDateFormatted;
-    window.getDayOfWeekStr = getDayOfWeekAbbrev;
 }

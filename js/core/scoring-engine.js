@@ -1,75 +1,55 @@
 /**
  * Awrady Dashboard - Scoring Engine
- * Weighted-average equation system, daily score aggregation, time estimation, and streak statistics.
+ * Weighted-average equation system, daily score aggregation, and time estimation.
  */
 
 class ScoringEngine {
-    static _scoreCache = new Map();
+    /**
+     * Resolves the task time unit
+     * @param {Object} task 
+     * @returns {string}
+     */
+    static getTaskUnit(task) {
+        if (typeof getTaskUnit === "function") return getTaskUnit(task);
+        if (!task) return "تكرار";
+        const cat = (typeof APP_CONSTANTS !== "undefined" ? APP_CONSTANTS.CATEGORIES : []).find(c => c.name === task.category);
+        const sub = (cat && task.subcategory) ? cat.subcategories?.find(s => s.name === task.subcategory) : null;
+        return sub?.defaultUnit || cat?.defaultUnit || task.type || "تكرار";
+    }
 
     /**
-     * Invalidate cached day scores
-     * @param {string|null} [dateStr=null] Specific date to invalidate, or null to clear all
+     * Checks if a task is hour/time-based
+     * @param {Object} task 
+     * @returns {boolean}
      */
-    static invalidateScoreCache(dateStr = null) {
-        if (dateStr) {
-            ScoringEngine._scoreCache.delete(dateStr + "_s");
-            ScoringEngine._scoreCache.delete(dateStr + "_h");
-        } else {
-            ScoringEngine._scoreCache.clear();
-        }
+    static isTimeTask(task) {
+        if (typeof isTimeTask === "function") return isTimeTask(task);
+        const unit = ScoringEngine.getTaskUnit(task);
+        return unit === "ساعة" || unit === "ساعات" || unit === "ساعات ودقايق" || unit === "وقت" || unit === "دقيقة";
     }
 
     /**
      * Returns the time weight (in minutes) for a task used in weighted-average scoring
      * @param {Object} task 
-     * @param {string|null} [dateStr=null] 
-     * @param {Object} [appDataRef] 
-     * @param {Object|null} [dateContext=null] Optional pre-resolved { dayAbbrev, hijriInfo }
      * @returns {number} Weight in minutes
      */
-    static getTaskWeightMinutes(task, dateStr = null, appDataRef = null, dateContext = null) {
+    static getTaskWeightMinutes(task) {
         if (!task) return 1;
-        const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
-        const effProps = dateStr && typeof ScheduleEngine !== "undefined" 
-            ? ScheduleEngine.getTaskEffectiveProps(task, dateStr, dateContext) 
-            : task;
+        const targetVal = (task.target && task.target > 0) ? task.target : 1;
 
-        const targetVal = (effProps.target && effProps.target > 0) ? effProps.target : (task.target && task.target > 0 ? task.target : 1);
-        const catName = effProps.category || task.category;
-        const subcatName = effProps.subcategory || task.subcategory;
-        const typeVal = effProps.type || task.type;
-
-        const cat = appData && appData.categories ? appData.categories.find(c => c.name === catName) : ((typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) ? APP_CONSTANTS.CATEGORIES.find(c => c.name === catName) : null);
-        const sub = (cat && subcatName && cat.subcategories) ? cat.subcategories.find(s => s.name === subcatName) : null;
-        const unit = typeVal || (sub && sub.defaultUnit) || (cat && cat.defaultUnit) || "";
-
-        if (unit === "ساعة" || unit === "ساعات" || unit === "ساعات ودقايق" || unit === "وقت" || catName === "شغل" || catName === "مذاكرة" || catName === "استماع") {
+        if (ScoringEngine.isTimeTask(task)) {
             return 60 * targetVal;
         }
 
-        // Resolve estimated minutes per unit (Subcategory -> Category -> Hour/Unit Fallback -> 1)
-        let estMins = (sub && sub.defaultEstimatedMinutes > 0) ? sub.defaultEstimatedMinutes
-            : ((cat && cat.defaultEstimatedMinutes > 0) ? cat.defaultEstimatedMinutes : null);
-
-        if (!estMins) {
-            if (unit === "ساعة" || unit === "ساعات" || unit === "ساعات ودقايق" || unit === "وقت") {
-                estMins = 60;
-            } else {
-                estMins = 1;
-            }
-        }
+        const cat = (typeof APP_CONSTANTS !== "undefined" ? APP_CONSTANTS.CATEGORIES : []).find(c => c.name === task.category);
+        const sub = (cat && task.subcategory) ? cat.subcategories?.find(s => s.name === task.subcategory) : null;
+        const estMins = sub?.defaultEstimatedMinutes || cat?.defaultEstimatedMinutes || 1;
 
         return estMins * targetVal;
     }
 
     /**
      * Calculates the overall completion score (0.0 to 1.0+) or total achieved hours for a given date.
-     * Clean Mathematical Model:
-     * - Required Tasks Weight (W_req) = Sum of (weight_i) for scheduled required tasks
-     * - Required Tasks Score (S_req) = Sum of (ratio_i * weight_i) for scheduled required tasks
-     * - Bonus Tasks Score (S_bonus) = Sum of (ratio_j * weight_j) for bonus tasks with logged progress (val > 0)
-     * - Final Score = (S_req + S_bonus) / W_req
-     * 
      * @param {string} dateStr Format "YYYY-MM-DD"
      * @param {Object} [appDataRef] Optional data store reference
      * @param {boolean} [returnHours=false] If true, returns total achieved hours instead of score percentage ratio
@@ -79,27 +59,15 @@ class ScoringEngine {
         const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
         if (!appData || !appData.logs) return 0;
 
-        const cacheKey = dateStr + (returnHours ? "_h" : "_s");
-        const isDefaultAppData = !appDataRef || (typeof window !== "undefined" && appDataRef === window.appData);
-        if (isDefaultAppData && ScoringEngine._scoreCache.has(cacheKey)) {
-            return ScoringEngine._scoreCache.get(cacheKey);
-        }
-
         const log = appData.logs[dateStr];
-        if (!log) {
-            if (isDefaultAppData) ScoringEngine._scoreCache.set(cacheKey, 0);
-            return 0;
-        }
+        if (!log) return 0;
 
-        if (!returnHours && log.precomputedScore !== undefined && log.precomputedScore !== null && (!log.entries || Object.keys(log.entries).length === 0)) {
-            const score = Number(log.precomputedScore) || 0;
-            if (isDefaultAppData) ScoringEngine._scoreCache.set(cacheKey, score);
-            return score;
-        }
-        if (returnHours && log.totalHours !== undefined && log.totalHours !== null && (!log.entries || Object.keys(log.entries).length === 0)) {
-            const hours = Number(log.totalHours) || 0;
-            if (isDefaultAppData) ScoringEngine._scoreCache.set(cacheKey, hours);
-            return hours;
+        // If historical row has no task entries, return stored totals
+        if (!log.entries || Object.keys(log.entries).length === 0) {
+            if (returnHours) {
+                return Number(log.total_hours ?? log.totalHours) || 0;
+            }
+            return Number(log.total_score ?? log.precomputedScore) || 0;
         }
 
         let reqWeightedScore = 0.0;
@@ -107,57 +75,28 @@ class ScoringEngine {
         let bonusWeightedScore = 0.0;
 
         const disabledIds = log.disabledTaskIds || [];
-
-        // Pre-resolve date context once per day evaluation loop
         const dateContext = {
-            dayAbbrev: typeof getDayOfWeekAbbrev === "function" ? getDayOfWeekAbbrev(dateStr) : "",
-            hijriInfo: typeof getHijriDateDetails === "function" ? getHijriDateDetails(dateStr) : { isWhiteDay: false, isRamadan: false }
+            dayAbbrev: getDayOfWeekAbbrev(dateStr),
+            hijriInfo: getHijriDateDetails(dateStr)
         };
 
         (appData.tasks || []).forEach(task => {
-            if (task.isArchived) {
-                const archiveCutoff = task.archivedAt || null;
-                const val = (log.entries && log.entries[task.id] !== undefined) ? log.entries[task.id] : 0;
-                if (!archiveCutoff || dateStr > archiveCutoff) {
-                    if (val === 0) return;
-                }
-            }
+            if (task.isArchived && (!log.entries || !log.entries[task.id])) return;
             if (disabledIds.includes(task.id)) return;
 
-            const val = (log.entries && log.entries[task.id] !== undefined) ? log.entries[task.id] : 0;
-            const isBonus = typeof ScheduleEngine !== "undefined" 
-                ? ScheduleEngine.isBonusTaskForDate(task, dateStr, appData, val, dateContext) 
-                : !!task.isBonus;
-            const isScheduled = typeof ScheduleEngine !== "undefined" 
-                ? ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val, dateContext) 
-                : true;
+            const val = Number(log.entries?.[task.id]) || 0;
+            const isBonus = ScheduleEngine.isBonusTaskForDate(task, dateStr, appData, val, dateContext);
+            const isScheduled = ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val, dateContext);
 
             if (isScheduled || (isBonus && val > 0)) {
-                const effProps = typeof ScheduleEngine !== "undefined" 
-                    ? ScheduleEngine.getTaskEffectiveProps(task, dateStr, dateContext) 
-                    : task;
-
-                const target = (effProps.target && effProps.target > 0) ? effProps.target : 1;
-                const multiplier = effProps.multiplier !== undefined ? effProps.multiplier : 1.0;
-                const type = effProps.type || task.type;
-                const cat = effProps.category || task.category;
-                const catObj = (appData && appData.categories) ? appData.categories.find(c => c.name === cat) : ((typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) ? APP_CONSTANTS.CATEGORIES.find(c => c.name === cat) : null);
-                const unit = type || (catObj && catObj.defaultUnit) || "";
-                let normVal = Number(val) || 0;
-                let normTarget = target;
-                let isHourBased = (unit === "ساعة" || unit === "ساعات ودقايق" || unit === "وقت" || unit === "ساعات" || cat === "مذاكرة" || cat === "شغل" || cat === "استماع");
-                if (isHourBased) {
-                    normTarget = target * 60;
-                }
-
-                const taskRatio = (normVal * multiplier) / normTarget;
-
-                const weight = ScoringEngine.getTaskWeightMinutes(task, dateStr, appData, dateContext);
+                const target = (task.target && task.target > 0) ? task.target : 1;
+                const isTime = ScoringEngine.isTimeTask(task);
+                const normTarget = isTime ? target * 60 : target;
+                const taskRatio = val / normTarget;
+                const weight = ScoringEngine.getTaskWeightMinutes(task);
 
                 if (isBonus) {
-                    if (val > 0) {
-                        bonusWeightedScore += taskRatio * weight;
-                    }
+                    if (val > 0) bonusWeightedScore += taskRatio * weight;
                 } else {
                     reqWeightedScore += taskRatio * weight;
                     reqTotalWeight += weight;
@@ -165,27 +104,17 @@ class ScoringEngine {
             }
         });
 
-        let finalResult = 0;
         if (returnHours) {
-            finalResult = (reqWeightedScore + bonusWeightedScore) / 60;
-        } else if (reqTotalWeight === 0) {
-            if (bonusWeightedScore > 0) {
-                finalResult = 1.0;
-            } else if (log.precomputedScore !== undefined && log.precomputedScore !== null) {
-                finalResult = log.precomputedScore;
-            } else {
-                finalResult = 0;
-            }
-        } else {
-            finalResult = (reqWeightedScore + bonusWeightedScore) / reqTotalWeight;
+            return (reqWeightedScore + bonusWeightedScore) / 60;
         }
-
-        if (isDefaultAppData) {
-            ScoringEngine._scoreCache.set(cacheKey, finalResult);
+        if (reqTotalWeight === 0) {
+            return bonusWeightedScore > 0 ? 1.0 : (Number(log.total_score ?? log.precomputedScore) || 0);
         }
-
-        return finalResult;
+        return (reqWeightedScore + bonusWeightedScore) / reqTotalWeight;
     }
+
+    // No-op cache invalidation kept for backward compatibility
+    static invalidateScoreCache() {}
 }
 
 if (typeof window !== "undefined") {

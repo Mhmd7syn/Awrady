@@ -101,59 +101,23 @@ function savePrayerExtras() {
             };
 
             if (nawafelDiff !== 0) {
-                let nawafelTask = window.appData.tasks.find(t => !t.isArchived && (t.id === "task_sunnah" || t.subcategory === "نوافل" || t.name.includes("نوافل") || t.name.includes("سنة") || t.name.includes("سنن") || t.name.includes("الرواتب")));
-                if (!nawafelTask) {
-                    nawafelTask = {
-                        id: "task_sunnah",
-                        name: "السنن الرواتب",
-                        type: "ركعة",
-                        schedule: "Everyday",
-                        target: 12,
-                        multiplier: 1.0,
-                        isArchived: false,
-                        icon: "sparkles",
-                        category: "صلاة",
-                        subcategory: "نوافل"
-                    };
-                    window.appData.tasks.push(nawafelTask);
-                }
-                const curVal = typeof getTaskVal === "function" ? getTaskVal(nawafelTask.id) : ((window.appData.logs[curDateStr].entries[nawafelTask.id]) || 0);
-                const newVal = Math.max(0, curVal + nawafelDiff);
-                if (typeof setTaskVal === "function") {
-                    setTaskVal(nawafelTask.id, newVal);
-                } else {
-                    window.appData.logs[curDateStr].entries[nawafelTask.id] = newVal;
+                const nawafelTask = window.appData.tasks.find(t => !t.isArchived && t.id === "task_sunnah");
+                if (nawafelTask) {
+                    const curVal = getTaskVal(nawafelTask.id);
+                    setTaskVal(nawafelTask.id, Math.max(0, curVal + nawafelDiff));
                 }
             }
 
             if (azkarDiff !== 0) {
-                let azkarTask = window.appData.tasks.find(t => !t.isArchived && (t.id === "task_azkar_prayer" || t.name === "أذكار بعد الصلاة" || t.name.includes("الاذكار بعد الصلاة") || t.name.includes("أذكار")));
-                if (!azkarTask) {
-                    azkarTask = {
-                        id: "task_azkar_prayer",
-                        name: "أذكار بعد الصلاة",
-                        type: "تكرار",
-                        schedule: "Everyday",
-                        target: 5,
-                        multiplier: 1.0,
-                        isArchived: false,
-                        icon: "hands-praying",
-                        category: "أذكار وتسبيح",
-                        subcategory: ""
-                    };
-                    window.appData.tasks.push(azkarTask);
-                }
-                const curVal = typeof getTaskVal === "function" ? getTaskVal(azkarTask.id) : ((window.appData.logs[curDateStr].entries[azkarTask.id]) || 0);
-                const newVal = Math.max(0, curVal + azkarDiff);
-                if (typeof setTaskVal === "function") {
-                    setTaskVal(azkarTask.id, newVal);
-                } else {
-                    window.appData.logs[curDateStr].entries[azkarTask.id] = newVal;
+                const azkarTask = window.appData.tasks.find(t => !t.isArchived && t.id === "task_azkar_prayer");
+                if (azkarTask) {
+                    const curVal = getTaskVal(azkarTask.id);
+                    setTaskVal(azkarTask.id, Math.max(0, curVal + azkarDiff));
                 }
             }
 
-            if (typeof saveData === "function") saveData();
-            if (typeof renderDailyView === "function") renderDailyView();
+            saveData();
+            renderDailyView();
         }
     } catch (err) {
         console.error("Error saving prayer extras:", err);
@@ -164,25 +128,24 @@ function savePrayerExtras() {
 
 function removePrayerExtras(prayerTaskId) {
     const curDateStr = typeof currentDateStr !== "undefined" ? currentDateStr : getLocalTodayString();
-    if (!window.appData || !window.appData.logs[curDateStr] || !window.appData.logs[curDateStr].prayerExtras) return;
-    const extras = window.appData.logs[curDateStr].prayerExtras[prayerTaskId];
-    if (extras) {
-        if (extras.nawafel > 0) {
-            const nawafelTask = window.appData.tasks.find(t => !t.isArchived && (t.id === "task_sunnah" || t.subcategory === "نوافل" || t.name.includes("نوافل") || t.name.includes("سنة") || t.name.includes("سنن")));
-            if (nawafelTask && typeof setTaskVal === "function" && typeof getTaskVal === "function") {
-                setTaskVal(nawafelTask.id, Math.max(0, getTaskVal(nawafelTask.id) - extras.nawafel));
-            }
+    const log = window.appData?.logs?.[curDateStr];
+    if (!log?.prayerExtras?.[prayerTaskId]) return;
+    const extras = log.prayerExtras[prayerTaskId];
+    if (extras.nawafel > 0) {
+        const nawafelTask = window.appData.tasks.find(t => !t.isArchived && t.id === "task_sunnah");
+        if (nawafelTask) {
+            setTaskVal(nawafelTask.id, Math.max(0, getTaskVal(nawafelTask.id) - extras.nawafel));
         }
-        if (extras.azkar) {
-            const azkarTask = window.appData.tasks.find(t => !t.isArchived && (t.id === "task_azkar_prayer" || t.name === "أذكار بعد الصلاة" || t.name.includes("الاذكار بعد الصلاة")));
-            if (azkarTask && typeof setTaskVal === "function" && typeof getTaskVal === "function") {
-                setTaskVal(azkarTask.id, Math.max(0, getTaskVal(azkarTask.id) - 1));
-            }
-        }
-        delete window.appData.logs[curDateStr].prayerExtras[prayerTaskId];
-        if (typeof saveData === "function") saveData();
-        if (typeof renderDailyView === "function") renderDailyView();
     }
+    if (extras.azkar) {
+        const azkarTask = window.appData.tasks.find(t => !t.isArchived && t.id === "task_azkar_prayer");
+        if (azkarTask) {
+            setTaskVal(azkarTask.id, Math.max(0, getTaskVal(azkarTask.id) - 1));
+        }
+    }
+    delete log.prayerExtras[prayerTaskId];
+    saveData();
+    renderDailyView();
 }
 
 function setupQiyamToast() {
@@ -230,36 +193,13 @@ function hideQiyamPrompt() {
 function saveQiyamExtras() {
     try {
         if (tempQiyamWirdCount > 0 && window.appData) {
-            const curDateStr = typeof currentDateStr !== "undefined" ? currentDateStr : getLocalTodayString();
-            let wirdTask = window.appData.tasks.find(t => !t.isArchived && (t.id === "task_quran_read" || t.category === "قرآن" || t.name === "ورد التلاوة" || t.name.includes("ورد التلاوة") || t.name.includes("تلاوة") || t.name.includes("القرآن")));
-            
-            if (!wirdTask) {
-                wirdTask = {
-                    id: "task_quran_read",
-                    name: "ورد التلاوة",
-                    type: "صفحة",
-                    schedule: "Everyday",
-                    target: 5,
-                    multiplier: 1.0,
-                    isArchived: false,
-                    icon: "book-open",
-                    category: "قرآن",
-                    subcategory: ""
-                };
-                window.appData.tasks.push(wirdTask);
+            const wirdTask = window.appData.tasks.find(t => !t.isArchived && t.id === "task_quran_read");
+            if (wirdTask) {
+                const curVal = getTaskVal(wirdTask.id);
+                setTaskVal(wirdTask.id, curVal + tempQiyamWirdCount);
+                saveData();
+                renderDailyView();
             }
-
-            const curVal = typeof getTaskVal === "function" ? getTaskVal(wirdTask.id) : ((window.appData.logs[curDateStr] && window.appData.logs[curDateStr].entries[wirdTask.id]) || 0);
-            const newVal = curVal + tempQiyamWirdCount;
-
-            if (typeof setTaskVal === "function") {
-                setTaskVal(wirdTask.id, newVal);
-            } else {
-                if (!window.appData.logs[curDateStr]) window.appData.logs[curDateStr] = { entries: {} };
-                window.appData.logs[curDateStr].entries[wirdTask.id] = newVal;
-            }
-            if (typeof saveData === "function") saveData();
-            if (typeof renderDailyView === "function") renderDailyView();
         }
     } catch (err) {
         console.error("Error saving qiyam extras:", err);

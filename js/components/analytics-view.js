@@ -54,9 +54,7 @@ function updateAnalyticsHeroMetrics(selectedDates = null) {
 
     let sumScores = 0;
     activeDates.forEach(d => {
-        sumScores += (typeof ScoringEngine !== "undefined")
-            ? ScoringEngine.calculateDayScore(d, (typeof appData !== "undefined" ? appData : null), false)
-            : calculateDayScore(d, null, false);
+        sumScores += ScoringEngine.calculateDayScore(d, appData, false);
     });
 
     const averageScore = sumScores / activeDates.length;
@@ -90,9 +88,7 @@ function renderAllTimeStats() {
     } else {
         let sumScores = 0;
         allDates.forEach(d => {
-            sumScores += (typeof ScoringEngine !== "undefined")
-                ? ScoringEngine.calculateDayScore(d, (typeof appData !== "undefined" ? appData : null), false)
-                : calculateDayScore(d, null, false);
+            sumScores += ScoringEngine.calculateDayScore(d, appData, false);
         });
 
         const averageScore = sumScores / allDates.length;
@@ -272,14 +268,10 @@ function updateChartAndAnalytics() {
     let bestDayLabel = "--";
 
     selectedDates.forEach((dateStr, idx) => {
-        const hours = (typeof ScoringEngine !== "undefined")
-            ? ScoringEngine.calculateDayScore(dateStr, (typeof appData !== "undefined" ? appData : null), true)
-            : calculateDayScore(dateStr, null, true);
+        const hours = ScoringEngine.calculateDayScore(dateStr, appData, true);
         const hoursFormatted = Math.round(hours * 10) / 10;
 
-        const score = (typeof ScoringEngine !== "undefined")
-            ? ScoringEngine.calculateDayScore(dateStr, (typeof appData !== "undefined" ? appData : null), false)
-            : calculateDayScore(dateStr, null, false);
+        const score = ScoringEngine.calculateDayScore(dateStr, appData, false);
 
         const dateParts = dateStr.split("-");
         const label = dateParts.length === 3 ? `${parseInt(dateParts[2], 10)}/${parseInt(dateParts[1], 10)}` : dateStr;
@@ -540,10 +532,9 @@ function renderTaskBreakdown(allDates) {
                     scheduledDaysCount++;
                     if (val > 0) {
                         activeTimes++;
-                        const effProps = getTaskEffectiveProps(task, d);
-                        let tgt = (effProps.target && effProps.target > 0) ? effProps.target : (task.target && task.target > 0 ? task.target : 1);
-                        const catObj = (appData && appData.categories) ? appData.categories.find(c => c.name === (effProps.category || task.category)) : null;
-                        const typeVal = effProps.type || task.type || (catObj && catObj.defaultUnit) || "";
+                        let tgt = (task.target && task.target > 0) ? task.target : 1;
+                        const catObj = (appData && appData.categories) ? appData.categories.find(c => c.name === task.category) : null;
+                        const typeVal = task.type || (catObj && catObj.defaultUnit) || "";
                         if (typeVal === "ساعة" || typeVal === "ساعات" || typeVal === "ساعات ودقايق" || typeVal === "وقت" || task.category === "مذاكرة" || task.category === "شغل" || task.category === "استماع") {
                             tgt = tgt * 60;
                         }

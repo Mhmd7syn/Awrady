@@ -117,6 +117,15 @@ function setupDataManagement() {
                         }
                         window.appData = appData;
                         saveData(true);
+                        if (window.enjazAPI?.client) {
+                            try {
+                                for (const t of (appData.tasks || [])) {
+                                    await window.enjazAPI.saveTask(t);
+                                }
+                            } catch (e) {
+                                console.warn("[EnjazAPI] Import tasks sync error:", e);
+                            }
+                        }
                         
                         renderDailyView();
                         if (typeof renderAllTimeStats === "function") renderAllTimeStats();
@@ -140,6 +149,13 @@ function setupDataManagement() {
             if (confirm("هل أنت متأكد من مسح جميع السجلات ونقاط الإنجاز التاريخية؟ (ستبقى المهام والتصنيفات كما هي)")) {
                 appData.logs = {};
                 saveData(true);
+                if (window.enjazAPI?.client) {
+                    try {
+                        await window.enjazAPI.client.from("daily_progress").delete().eq("username", window.enjazAPI.currentUser);
+                    } catch (e) {
+                        console.warn("[EnjazAPI] Reset progress sync error:", e);
+                    }
+                }
                 alert("🧹 تم مسح سجلات الإنجاز بنجاح!");
                 location.reload();
             }
@@ -152,6 +168,15 @@ function setupDataManagement() {
             if (confirm("هل أنت متأكد من إعادة ضبط التعديلات واستعادة البيانات والمهام الافتراضية للنظام؟")) {
                 loadDefaultAppData();
                 saveData(true);
+                if (window.enjazAPI?.client) {
+                    try {
+                        for (const task of appData.tasks) {
+                            await window.enjazAPI.saveTask(task);
+                        }
+                    } catch (e) {
+                        console.warn("[EnjazAPI] Reset tasks sync error:", e);
+                    }
+                }
                 alert("🔄 تم إعادة ضبط التطبيق بنجاح على البيانات الافتراضية!");
                 location.reload();
             }

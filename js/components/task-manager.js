@@ -55,15 +55,12 @@ function setupTaskManager() {
     document.querySelectorAll('input[name="schedule_type"]').forEach(radio => {
         radio.addEventListener("change", (e) => {
             const box = document.getElementById("weekdays-selector-box");
-            const dtBox = document.getElementById("day-targets-box");
             const otBox = document.getElementById("onetime-date-selector-box");
             if (box) {
                 if (e.target.value === "Weekdays") {
                     box.classList.remove("hidden");
-                    if (dtBox) dtBox.classList.remove("hidden");
                 } else {
                     box.classList.add("hidden");
-                    if (dtBox) dtBox.classList.add("hidden");
                 }
             }
             if (otBox) {
@@ -71,35 +68,11 @@ function setupTaskManager() {
                     otBox.classList.remove("hidden");
                     const otDateInput = document.getElementById("task-onetime-date-input");
                     if (otDateInput && !otDateInput.value) {
-                        const cur = (typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : (typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().split("T")[0]);
-                        otDateInput.value = cur;
+                        otDateInput.value = (typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : getLocalTodayString();
                     }
                 } else {
                     otBox.classList.add("hidden");
                 }
-            }
-        });
-    });
-
-    const enableDayTargetsCheck = document.getElementById("task-enable-day-targets");
-    if (enableDayTargetsCheck) {
-        enableDayTargetsCheck.addEventListener("change", (e) => {
-            const grid = document.getElementById("day-targets-inputs-grid");
-            if (grid) {
-                if (e.target.checked) {
-                    grid.classList.remove("hidden");
-                    renderDayTargetsInputs();
-                } else {
-                    grid.classList.add("hidden");
-                }
-            }
-        });
-    }
-
-    document.querySelectorAll('#weekdays-selector-box input[type=checkbox]').forEach(chk => {
-        chk.addEventListener("change", () => {
-            if (document.getElementById("task-enable-day-targets")?.checked) {
-                renderDayTargetsInputs();
             }
         });
     });
@@ -111,43 +84,6 @@ function setupTaskManager() {
             saveTaskFromModal();
         });
     }
-}
-
-function renderDayTargetsInputs(taskDayTargets = null) {
-    const grid = document.getElementById("day-targets-inputs-grid");
-    if (!grid) return;
-    grid.innerHTML = "";
-
-    const dayLabels = {
-        "Sat": "السبت (Sat)",
-        "Sun": "الأحد (Sun)",
-        "Mon": "الإثنين (Mon)",
-        "Tue": "الثلاثاء (Tue)",
-        "Wed": "الأربعاء (Wed)",
-        "Thu": "الخميس (Thu)",
-        "Fri": "الجمعة (Fri)"
-    };
-
-    const checkedDays = [];
-    document.querySelectorAll('#weekdays-selector-box input[type=checkbox]:checked').forEach(c => checkedDays.push(c.value));
-
-    if (checkedDays.length === 0) {
-        grid.innerHTML = `<span style="grid-column: 1 / -1; font-size: 0.8rem; color: #94a3b8;">يرجى اختيار الأيام أولاً من القائمة أعلاه</span>`;
-        return;
-    }
-
-    const defaultTarget = document.getElementById("task-target-input")?.value || "1";
-
-    checkedDays.forEach(day => {
-        const item = document.createElement("div");
-        item.style.cssText = "display:flex; flex-direction:column; gap:4px; background:rgba(0,0,0,0.25); padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.08);";
-        const val = (taskDayTargets && taskDayTargets[day] !== undefined) ? taskDayTargets[day] : defaultTarget;
-        item.innerHTML = `
-            <label style="font-size:0.75rem; color:#f8fafc; font-weight:600;">${dayLabels[day] || day}</label>
-            <input type="number" step="0.5" min="0.5" class="day-target-input" data-day="${day}" value="${val}" style="padding:4px 8px; border-radius:6px; border:1px solid rgba(16,185,129,0.4); background:#0f172a; color:#fff; font-size:0.85rem; font-weight:bold; width:100%;">
-        `;
-        grid.appendChild(item);
-    });
 }
 
 function renderGroupedTasks(containerEl, tasksList, isArchivedList = false, isOneTimeList = false) {
@@ -411,9 +347,6 @@ function archiveTask(id, isArchive) {
                 t.target = 1;
             }
         }
-        if (typeof ScheduleEngine !== "undefined" && typeof ScheduleEngine.invalidateTaskCache === "function") {
-            ScheduleEngine.invalidateTaskCache(t);
-        }
         saveData(true);
         if (window.enjazAPI?.client) {
             window.enjazAPI.saveTask(t).catch(e => console.warn("[EnjazAPI] archiveTask:", e.message));
@@ -451,10 +384,6 @@ function deleteForever(id) {
             });
         }
 
-        if (typeof ScheduleEngine !== "undefined" && typeof ScheduleEngine.invalidateTaskCache === "function") {
-            ScheduleEngine.invalidateTaskCache(t);
-        }
-
         saveData();
         if (window.enjazAPI?.client) {
             window.enjazAPI.purgeTask(id).catch(e => console.warn("[EnjazAPI] purgeTask:", e.message));
@@ -490,8 +419,6 @@ function openTaskModal(id, options = {}) {
     const subcatInput = document.getElementById("task-subcategory-input");
     const targetInput = document.getElementById("task-target-input");
     const weekdaysBox = document.getElementById("weekdays-selector-box");
-    const commentInput = document.getElementById("task-comment-input");
-    const bonusCheck = document.getElementById("task-is-bonus-input");
 
     if (!modal) return;
 
@@ -515,7 +442,6 @@ function openTaskModal(id, options = {}) {
             updateSubcats(catInput.value);
         };
 
-        // Populate categories select
         catInput.innerHTML = "";
         appData.categories.forEach(c => {
             const opt = document.createElement("option");
@@ -538,11 +464,9 @@ function openTaskModal(id, options = {}) {
             if (catInput) catInput.value = task.category || (appData.categories[0]?.name || "صلاة");
             updateSubcats(catInput?.value, task.subcategory || "");
             if (targetInput) targetInput.value = task.target !== null ? task.target : "";
-            if (commentInput) commentInput.value = task.comment || "";
-            if (bonusCheck) bonusCheck.checked = task.isBonus || false;
 
-            const isOt = !!(task.isOneTime || task.schedule === "OneTime");
-            const sched = isOt ? "OneTime" : (task.schedule || "Everyday");
+            const isOt = task.schedule === "OneTime";
+            const sched = task.schedule || "Everyday";
             if (sched === "Everyday" || sched === "Ramadan" || sched === "WhiteDays" || sched === "Optional" || sched === "OneTime") {
                 const radio = document.querySelector(`input[name="schedule_type"][value="${sched}"]`);
                 if (radio) radio.checked = true;
@@ -562,36 +486,16 @@ function openTaskModal(id, options = {}) {
             if (isOt) {
                 if (otBox) otBox.classList.remove("hidden");
                 if (otDateInput) {
-                    const existingDate = task.oneTimeDate || "";
-                    otDateInput.value = existingDate || ((typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : (typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().split("T")[0]));
+                    otDateInput.value = (task.createdAt || "").slice(0, 10) || ((typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : getLocalTodayString());
                 }
             } else {
                 if (otBox) otBox.classList.add("hidden");
-            }
-
-            const dtBox = document.getElementById("day-targets-box");
-            const dtCheck = document.getElementById("task-enable-day-targets");
-            const dtGrid = document.getElementById("day-targets-inputs-grid");
-
-            if (task.dayTargets && Object.keys(task.dayTargets).length > 0) {
-                if (dtBox) dtBox.classList.remove("hidden");
-                if (dtCheck) dtCheck.checked = true;
-                if (dtGrid) dtGrid.classList.remove("hidden");
-                renderDayTargetsInputs(task.dayTargets);
-            } else {
-                if (dtCheck) dtCheck.checked = false;
-                if (dtGrid) dtGrid.classList.add("hidden");
-                if (sched !== "Everyday" && sched !== "Ramadan" && sched !== "WhiteDays" && sched !== "Optional" && sched !== "OneTime") {
-                    if (dtBox) dtBox.classList.remove("hidden");
-                } else {
-                    if (dtBox) dtBox.classList.add("hidden");
-                }
             }
         }
     } else {
         const otBox = document.getElementById("onetime-date-selector-box");
         const otDateInput = document.getElementById("task-onetime-date-input");
-        const defaultDate = (typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : (typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().split("T")[0]);
+        const defaultDate = (typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : getLocalTodayString();
 
         if (options.isOneTime) {
             if (title) title.innerHTML = `<i class="fa-solid fa-bolt gold-text"></i> إضافة مهمة لمرة واحدة فقط`;
@@ -613,16 +517,7 @@ function openTaskModal(id, options = {}) {
             updateSubcats(catInput.value, "");
         }
         if (targetInput) targetInput.value = "1";
-        if (commentInput) commentInput.value = "";
-        if (bonusCheck) bonusCheck.checked = false;
         if (weekdaysBox) weekdaysBox.classList.add("hidden");
-
-        const dtBox = document.getElementById("day-targets-box");
-        const dtCheck = document.getElementById("task-enable-day-targets");
-        const dtGrid = document.getElementById("day-targets-inputs-grid");
-        if (dtBox) dtBox.classList.add("hidden");
-        if (dtCheck) dtCheck.checked = false;
-        if (dtGrid) dtGrid.classList.add("hidden");
     }
 
     modal.classList.remove("hidden");
@@ -638,11 +533,8 @@ function saveTaskFromModal() {
     const id = document.getElementById("task-id-input").value || `task_${Date.now()}`;
     const name = document.getElementById("task-name-input").value.trim();
     const cat = document.getElementById("task-category-input").value;
-    const subcat = document.getElementById("task-subcategory-input").value;
-    const type = autoDetectType(cat, subcat);
+    const subcat = document.getElementById("task-subcategory-input").value || null;
     const targetStr = document.getElementById("task-target-input").value;
-    const taskComment = document.getElementById("task-comment-input").value.trim();
-    const isBonus = document.getElementById("task-is-bonus-input")?.checked || false;
 
     let schedType = document.querySelector('input[name="schedule_type"]:checked').value;
     let scheduleVal = schedType;
@@ -652,97 +544,26 @@ function saveTaskFromModal() {
         scheduleVal = checkedDays.length > 0 ? checkedDays.join(", ") : "Everyday";
     }
 
-    let dayTargets = null;
-    const isDayTargetsEnabled = document.getElementById("task-enable-day-targets")?.checked;
-    if (schedType === "Weekdays" && isDayTargetsEnabled) {
-        dayTargets = {};
-        document.querySelectorAll('.day-target-input').forEach(inp => {
-            const d = inp.getAttribute("data-day");
-            const v = parseFloat(inp.value);
-            if (d && !isNaN(v) && v > 0) {
-                dayTargets[d] = v;
-            }
-        });
-        if (Object.keys(dayTargets).length === 0) dayTargets = null;
-    }
-
-    const parsedTarget = targetStr === "" ? null : parseFloat(targetStr);
-    const localToday = typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().split("T")[0];
+    const parsedTarget = targetStr === "" ? 1 : Math.max(0.5, parseFloat(targetStr) || 1);
+    const localToday = getLocalTodayString();
     const selectedDate = (typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : localToday;
     const otDateInput = document.getElementById("task-onetime-date-input");
-    const chosenOneTimeDate = (schedType === "OneTime" && otDateInput && otDateInput.value) ? otDateInput.value : selectedDate;
-    const effectiveDate = (schedType === "OneTime" && chosenOneTimeDate > localToday) ? localToday : ((selectedDate > localToday) ? localToday : selectedDate);
+    const chosenOneTimeDate = (schedType === "OneTime" && otDateInput?.value) ? otDateInput.value : selectedDate;
 
+    let savedTask = null;
     if (editingTaskId) {
         const idx = appData.tasks.findIndex(t => t.id === editingTaskId);
         if (idx >= 0) {
             const oldTask = appData.tasks[idx];
-            const creationDate = oldTask.createdAt || "2000-01-01";
-            oldTask.createdAt = creationDate;
-
-            if (!oldTask.history || !Array.isArray(oldTask.history) || oldTask.history.length === 0) {
-                oldTask.history = [{
-                    effectiveFrom: creationDate,
-                    name: oldTask.name,
-                    category: oldTask.category,
-                    subcategory: oldTask.subcategory,
-                    type: oldTask.type,
-                    target: oldTask.target,
-                    dayTargets: oldTask.dayTargets || null,
-                    multiplier: oldTask.multiplier !== undefined ? oldTask.multiplier : 1.0,
-                    schedule: oldTask.schedule,
-                    isBonus: oldTask.isBonus || false,
-                    comment: oldTask.comment || ""
-                }];
-            }
-
-            if (oldTask.history && Array.isArray(oldTask.history)) {
-                oldTask.history.forEach(h => {
-                    h.name = name;
-                    h.category = cat;
-                    h.subcategory = subcat;
-                    h.type = type;
-                    h.isBonus = isBonus;
-                    h.comment = taskComment;
-                });
-            }
-
-            const snapshot = {
-                effectiveFrom: effectiveDate,
-                name: name,
-                category: cat,
-                subcategory: subcat,
-                type: type,
-                target: parsedTarget,
-                dayTargets: dayTargets,
-                multiplier: oldTask.multiplier !== undefined ? oldTask.multiplier : 1.0,
-                schedule: scheduleVal,
-                isBonus: isBonus,
-                comment: taskComment,
-                isOneTime: (schedType === "OneTime"),
-                oneTimeDate: (schedType === "OneTime") ? chosenOneTimeDate : null
-            };
-
-            // Remove any snapshot from effectiveDate onwards so stale migration/historical snapshots never override this new edit forward
-            oldTask.history = oldTask.history.filter(h => h.effectiveFrom && h.effectiveFrom < effectiveDate);
-            oldTask.history.push(snapshot);
-
-            // Ensure baseline history snapshot date is not later than creation date if it's the only one
-            if (oldTask.history.length === 1 && oldTask.history[0].effectiveFrom > creationDate) {
-                oldTask.history[0].effectiveFrom = creationDate;
-            }
-
             oldTask.name = name;
             oldTask.category = cat;
             oldTask.subcategory = subcat;
-            oldTask.type = type;
             oldTask.target = parsedTarget;
-            oldTask.dayTargets = dayTargets;
             oldTask.schedule = scheduleVal;
-            oldTask.comment = taskComment;
-            oldTask.isBonus = isBonus;
-            oldTask.isOneTime = (schedType === "OneTime");
-            oldTask.oneTimeDate = (schedType === "OneTime") ? chosenOneTimeDate : null;
+            if (schedType === "OneTime") {
+                oldTask.createdAt = chosenOneTimeDate;
+            }
+            savedTask = oldTask;
         }
     } else {
         const newTask = {
@@ -750,37 +571,15 @@ function saveTaskFromModal() {
             name: name,
             category: cat,
             subcategory: subcat,
-            type: type,
             target: parsedTarget,
-            dayTargets: dayTargets,
-            multiplier: 1.0, 
             schedule: scheduleVal,
             isArchived: false,
-            comment: taskComment,
-            isBonus: isBonus,
-            isOneTime: (schedType === "OneTime"),
-            oneTimeDate: (schedType === "OneTime") ? chosenOneTimeDate : null,
-            createdAt: (schedType === "OneTime") ? chosenOneTimeDate : selectedDate,
-            history: [{
-                effectiveFrom: (schedType === "OneTime") ? chosenOneTimeDate : selectedDate,
-                name: name,
-                category: cat,
-                subcategory: subcat,
-                type: type,
-                target: parsedTarget,
-                dayTargets: dayTargets,
-                multiplier: 1.0,
-                schedule: scheduleVal,
-                isBonus: isBonus,
-                comment: taskComment,
-                isOneTime: (schedType === "OneTime"),
-                oneTimeDate: (schedType === "OneTime") ? chosenOneTimeDate : null
-            }]
+            createdAt: (schedType === "OneTime") ? chosenOneTimeDate : selectedDate
         };
         appData.tasks.push(newTask);
+        savedTask = newTask;
     }
 
-    const savedTask = editingTaskId ? appData.tasks.find(t => t.id === editingTaskId) : appData.tasks[appData.tasks.length - 1];
     closeTaskModal();
     saveData(true);
     if (window.enjazAPI?.client && savedTask) {

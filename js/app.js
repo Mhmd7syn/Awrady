@@ -34,29 +34,16 @@ function getUserStorageKey() {
 // ============================================================================
 // INITIALIZATION & STATE MANAGEMENT
 // ============================================================================
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", () => {
+    if (typeof setupDataManagement === "function") setupDataManagement();
     if (window.authManager) {
         window.authManager.init();
-        if (!window.authManager.isLoggedIn()) {
-            return; // Halt startup until login/register
+        if (window.authManager.isLoggedIn()) {
+            window.startApp(window.authManager.getCurrentUser());
         }
+    } else {
+        window.startApp("primary_user");
     }
-    if (window.securityLock) {
-        window.securityLock.init();
-    }
-    if (typeof setupDataManagement === "function") setupDataManagement();
-    await initData();
-    setupNavigation();
-    setupDailyControls();
-    if (typeof setupTaskManager === "function") setupTaskManager();
-    if (typeof setupNawafelToast === "function") setupNawafelToast();
-    if (typeof setupQiyamToast === "function") setupQiyamToast();
-    if (typeof setupPomodoroControls === "function") setupPomodoroControls();
-    
-    // Initial Render
-    renderDailyView();
-    if (typeof renderAllTimeStats === "function") renderAllTimeStats();
-    updateHeaderTodayScore();
 });
 
 window.startApp = async function(username) {
@@ -109,13 +96,11 @@ async function initData() {
         try {
             const results = await Promise.allSettled([
                 window.enjazAPI.getTasks(true),
-                window.enjazAPI.getDayProgress(currentDateStr),
-                window.enjazAPI.getProgressRange("2020-01-01", "2099-12-31")
+                window.enjazAPI.getAllProgress()
             ]);
 
             const tasks = results[0].status === "fulfilled" ? results[0].value : null;
-            const dayProgress = results[1].status === "fulfilled" ? results[1].value : null;
-            const allProgress = results[2].status === "fulfilled" ? results[2].value : null;
+            const allProgress = results[1].status === "fulfilled" ? results[1].value : null;
 
             if (tasks && tasks.length > 0) {
                 appData.tasks = tasks;
@@ -141,20 +126,12 @@ async function initData() {
                 });
             }
 
-            if (dayProgress) {
-                const entries = {};
-                if (dayProgress.task_progress) {
-                    for (const [tid, info] of Object.entries(dayProgress.task_progress)) {
-                        entries[tid] = (typeof info === "object" && info !== null) ? (info.achieved ?? 0) : Number(info) || 0;
-                    }
+            // Seed default tasks to Supabase if database has 0 tasks (B12 fix)
+            if ((!appData.tasks || appData.tasks.length === 0) && typeof DEFAULT_TASKS !== "undefined" && DEFAULT_TASKS.length > 0) {
+                appData.tasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
+                for (const t of appData.tasks) {
+                    await window.enjazAPI.createTask(t).catch(e => console.warn("[initData] Seed task error:", e.message));
                 }
-                appData.logs[currentDateStr] = {
-                    entries,
-                    prayerExtras: dayProgress.prayer_extras || {},
-                    precomputedScore: Number(dayProgress.total_score) || 0,
-                    totalHours: Number(dayProgress.total_hours) || 0,
-                    _loadedFromDB: true
-                };
             }
 
             // Realtime WebSocket subscription
@@ -192,7 +169,6 @@ async function initData() {
                         const task = appData.tasks.find(t => t.id === row.task_id);
                         if (task) {
                             Object.assign(task, fields);
-                            ScheduleEngine.invalidateTaskCache(task);
                         } else {
                             appData.tasks.push({ id: row.task_id, ...fields, createdAt: row.created_at });
                         }
@@ -245,7 +221,6 @@ async function initData() {
     }
 
     window.appData = appData;
-    saveData(true);
 }
 
 function loadDefaultAppData() {
@@ -305,112 +280,8 @@ function saveData(immediate = false) {
     }
 }
 
-// Helper: Get effective task properties for a date
-function getTaskEffectiveProps(task, dateStr) {
-    if (typeof window.getTaskEffectiveProps === "function" && window.getTaskEffectiveProps !== getTaskEffectiveProps) {
-        return window.getTaskEffectiveProps(task, dateStr);
-    }
-    if (task.history && Array.isArray(task.history) && task.history.length > 0) {
-        const sortedHistory = [...task.history].sort((a, b) => (a.effectiveFrom || "2000-01-01").localeCompare(b.effectiveFrom || "2000-01-01"));
-        let effective = sortedHistory[0];
-        for (let entry of sortedHistory) {
-            if (entry.effectiveFrom <= dateStr) {
-                effective = entry;
-            } else {
-                break;
-            }
-        }
-        return effective;
-    }
-    return task;
-}
-
-function isBonusTaskForDate(task, dateStr, loggedVal = null) {
-    if (typeof ScheduleEngine !== "undefined" && typeof ScheduleEngine.isBonusTaskForDate === "function") {
-        return ScheduleEngine.isBonusTaskForDate(task, dateStr, appData, loggedVal);
-    }
-    if (!task) return false;
-    const effProps = getTaskEffectiveProps(task, dateStr);
-    const log = appData.logs && appData.logs[dateStr];
-    const val = (loggedVal !== null) ? loggedVal : ((log && log.entries) ? (log.entries[task.id] || 0) : 0);
-
-    if (log && log.bonusTaskIds && Array.isArray(log.bonusTaskIds) && log.bonusTaskIds.includes(task.id)) {
-        return true;
-    }
-
-    if ((effProps && effProps.isBonus) || task.isBonus) return true;
-
-    const sched = (effProps.schedule || task.schedule || "").trim();
-    const isOneTime = task.isOneTime || sched === "OneTime";
-    const targetDate = task.oneTimeDate || effProps.oneTimeDate;
-
-    if (isOneTime) {
-        if (targetDate === dateStr) {
-            return false;
-        }
-        return val > 0;
-    }
-
-    const isEveryday = (sched === "Everyday" || sched === "" || sched.toLowerCase() === "everyday");
-    const dayAbbrev = typeof getDayOfWeekAbbrev === "function" ? getDayOfWeekAbbrev(dateStr) : "";
-
-    if (!isEveryday && !sched.includes(dayAbbrev) && sched !== "WhiteDays" && sched !== "Ramadan") {
-        return val > 0;
-    }
-    return false;
-}
-
-function isTaskScheduledForDate(task, dateStr, loggedVal = null) {
-    if (typeof ScheduleEngine !== "undefined" && typeof ScheduleEngine.isTaskScheduledForDate === "function") {
-        return ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, loggedVal);
-    }
-    if (task.isArchived) {
-        const cutoff = task.archivedAt || null;
-        const val = (loggedVal !== null) ? loggedVal : getTaskVal(task.id);
-        if (!cutoff || dateStr > cutoff) {
-            return val > 0;
-        }
-    }
-    const effProps = getTaskEffectiveProps(task, dateStr);
-    const creationDate = (task.createdAt || (task.history && task.history[0]?.effectiveFrom) || "2000-01-01").slice(0, 10);
-    
-    // Strict OneTime Date check
-    const isOneTime = task.isOneTime || effProps.schedule === "OneTime" || task.schedule === "OneTime";
-    if (isOneTime) {
-        const targetDate = task.oneTimeDate || effProps.oneTimeDate || creationDate;
-        if (dateStr === targetDate) return true;
-        if (loggedVal !== null && loggedVal > 0) return true;
-        return false;
-    }
-
-    if (dateStr < creationDate) {
-        if (loggedVal !== null && loggedVal > 0) return true;
-        return false;
-    }
-    if (isBonusTaskForDate(task, dateStr)) return true;
-    if (task.isOneTime || effProps.schedule === "OneTime") {
-        const targetDate = task.oneTimeDate || creationDate;
-        if (dateStr === targetDate) return true;
-        if (loggedVal !== null && loggedVal > 0) return true;
-        return false;
-    }
-    const sched = effProps.schedule || "Everyday";
-    if (sched === "Everyday") return true;
-    if (sched === "Optional") {
-        if (loggedVal !== null && loggedVal > 0) return true;
-        return false;
-    }
-
-    const hijri = getHijriDetails(dateStr);
-    if (sched === "Ramadan") return hijri.isRamadan;
-    if (sched === "WhiteDays") return hijri.isWhiteDay;
-
-    const dayOfWeek = getDayOfWeekStr(dateStr);
-    const allowedDays = sched.split(",").map(s => s.trim());
-    if (allowedDays.includes(dayOfWeek)) return true;
-    if (sched.includes("WhiteDays") && hijri.isWhiteDay) return true;
-    return false;
-}
+const isTaskScheduledForDate = (task, dateStr, loggedVal = null) => ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, loggedVal);
+const isBonusTaskForDate = (task, dateStr, loggedVal = null) => ScheduleEngine.isBonusTaskForDate(task, dateStr, appData, loggedVal);
 
 function isPrayerSelector(task) {
     if (task.type === "صلاة") return true;
@@ -443,34 +314,6 @@ function setupNavigation() {
             document.getElementById(targetViewId).classList.add("active");
 
             if (targetViewId === "view-analytics") {
-                if (window.enjazAPI?.client) {
-                    window.enjazAPI.getProgressRange("2020-01-01", "2099-12-31").then(rows => {
-                        if (rows && rows.length > 0) {
-                            if (!appData.logs) appData.logs = {};
-                            rows.forEach(r => {
-                                if (!appData.logs[r.date]) {
-                                    appData.logs[r.date] = { entries: {} };
-                                }
-                                appData.logs[r.date].precomputedScore = r.total_score;
-                                appData.logs[r.date].totalHours = r.total_hours;
-                                if (r.task_progress && Object.keys(appData.logs[r.date].entries || {}).length === 0) {
-                                    for (const [tid, info] of Object.entries(r.task_progress)) {
-                                        appData.logs[r.date].entries[tid] = (typeof info === "object" && info !== null) ? (info.achieved ?? 0) : Number(info) || 0;
-                                    }
-                                }
-                            });
-                            if (typeof updateChartAndAnalytics === "function") {
-                                updateChartAndAnalytics();
-                            }
-                            if (typeof renderAllTimeStats === "function") {
-                                renderAllTimeStats();
-                            }
-                            if (typeof updateHeaderTodayScore === "function") {
-                                updateHeaderTodayScore();
-                            }
-                        }
-                    }).catch(() => {});
-                }
                 if (typeof initChart === "function" && (typeof chartInstance === "undefined" || !chartInstance)) {
                     initChart();
                 }
@@ -581,24 +424,23 @@ function renderDailyView() {
     // Update date header
     const dateTitle = document.getElementById("display-date-title");
     const hijriPill = document.getElementById("display-hijri-title");
-    const hijri = getHijriDetails(currentDateStr);
-    if (dateTitle) dateTitle.textContent = formatDateArabic(currentDateStr);
+    const hijri = getHijriDateDetails(currentDateStr);
+    if (dateTitle) dateTitle.textContent = getArabicDateFormatted(currentDateStr);
     if (hijriPill) {
         let tagsHtml = "";
         if (hijri.isRamadan) tagsHtml += ` <span class="badge badge-emerald" style="font-size:0.75rem;">🌙 رمضان</span>`;
         if (hijri.isWhiteDay) tagsHtml += ` <span class="badge badge-gold" style="font-size:0.75rem;">⭐ الأيام البيض</span>`;
-        const hijriText = hijri.hijriFormatted || hijri.formatted || hijri.dateStringAr || "";
+        const hijriText = hijri.formatted || "";
         hijriPill.innerHTML = `<i class="fa-solid fa-calendar-alt gold-text"></i> ${hijriText}${tagsHtml}`;
     }
-
 
     // Update Tomorrow Fasting Reminder banner (triggered the day before: Sunday for Monday, Wednesday for Thursday, and before each White Day)
     const fastingBanner = document.getElementById("tomorrow-fasting-banner");
     if (fastingBanner) {
-        const tomorrowStr = typeof addDays === "function" ? addDays(currentDateStr, 1) : null;
+        const tomorrowStr = addDays(currentDateStr, 1);
         if (tomorrowStr) {
-            const tomorrowDayAbbrev = typeof getDayOfWeekAbbrev === "function" ? getDayOfWeekAbbrev(tomorrowStr) : "";
-            const tomorrowHijri = typeof getHijriDateDetails === "function" ? getHijriDateDetails(tomorrowStr) : { isWhiteDay: false, isRamadan: false };
+            const tomorrowDayAbbrev = getDayOfWeekAbbrev(tomorrowStr);
+            const tomorrowHijri = getHijriDateDetails(tomorrowStr);
 
             const isTomorrowMonday = (tomorrowDayAbbrev === "Mon");
             const isTomorrowThursday = (tomorrowDayAbbrev === "Thu");
@@ -618,11 +460,11 @@ function renderDailyView() {
                 let badgeText = "تذكير بالصيام";
 
                 if (isTomorrowMonday && isTomorrowWhiteDay) {
-                    titleText = `✨ تذكير: غداً صيام الإثنين ومن الأيام البيض (${tomorrowHijri.day} ${tomorrowHijri.monthName})`;
+                    titleText = `✨ تذكير: غداً صيام الإثنين ومن الأيام البيض (${tomorrowHijri.hDay} ${tomorrowHijri.monthName})`;
                     descText = `اجتماع فضيلتين: غداً الإثنين ومن الأيام البيض — لا تنسَ تبييت نية الصيام والسحور.`;
                     badgeText = "سُنة مؤكدة";
                 } else if (isTomorrowThursday && isTomorrowWhiteDay) {
-                    titleText = `✨ تذكير: غداً صيام الخميس ومن الأيام البيض (${tomorrowHijri.day} ${tomorrowHijri.monthName})`;
+                    titleText = `✨ تذكير: غداً صيام الخميس ومن الأيام البيض (${tomorrowHijri.hDay} ${tomorrowHijri.monthName})`;
                     descText = `اجتماع فضيلتين: غداً الخميس ومن الأيام البيض — لا تنسَ تبييت نية الصيام والسحور.`;
                     badgeText = "سُنة مؤكدة";
                 } else if (isTomorrowMonday) {
@@ -634,8 +476,8 @@ function renderDailyView() {
                     descText = `سُنّة مؤكدة: تُعرَض الأعمال يوم الخميس — لا تنسَ تبييت نية الصيام والسحور.`;
                     badgeText = "سُنة الخميس";
                 } else if (isTomorrowWhiteDay) {
-                    const whiteDayIndex = (tomorrowHijri.day === 13) ? "أول" : ((tomorrowHijri.day === 14) ? "ثاني" : "ثالث");
-                    titleText = `🌕 تذكير: غداً صيام ${whiteDayIndex} الأيام البيض (${tomorrowHijri.day} ${tomorrowHijri.monthName})`;
+                    const whiteDayIndex = (tomorrowHijri.hDay === 13) ? "أول" : ((tomorrowHijri.hDay === 14) ? "ثاني" : "ثالث");
+                    titleText = `🌕 تذكير: غداً صيام ${whiteDayIndex} الأيام البيض (${tomorrowHijri.hDay} ${tomorrowHijri.monthName})`;
                     descText = `سُنّة صيام الأيام البيض (13 و 14 و 15) — لا تنسَ تبييت نية الصيام والسحور.`;
                     badgeText = "الأيام البيض";
                 }
@@ -655,16 +497,7 @@ function renderDailyView() {
     const disabledIds = log.disabledTaskIds || [];
     const bonusIds = log.bonusTaskIds || [];
 
-    const allScheduled = appData.tasks.filter(t => {
-        if (bonusIds.includes(t.id)) return true;
-        if (t.isArchived) {
-            const cutoff = t.archivedAt || null;
-            if (!cutoff || currentDateStr > cutoff) {
-                return getTaskVal(t.id) > 0;
-            }
-        }
-        return isTaskScheduledForDate(t, currentDateStr, getTaskVal(t.id));
-    });
+    const allScheduled = appData.tasks.filter(t => ScheduleEngine.isVisibleOn(t, currentDateStr, appData));
 
     // Group all active tasks (pending & completed) by Category
     const categoryGroupMap = new Map();
@@ -783,8 +616,6 @@ function renderDailyView() {
                 
                 const iconHtml = getCategoryIconHtml(task);
                 const bonusBadge = isBonus ? `<span class="tag-badge" style="font-size:0.7rem; background:rgba(245,158,11,0.2); color:#f59e0b; border-color:rgba(245,158,11,0.4);">بونص</span>` : "";
-                const commentHtml = task.comment ? `<p style="font-size:0.8rem; color:var(--text-secondary); margin:6px 0 0 0;">${task.comment}</p>` : "";
-
                 const rawTarget = task.target || 0;
                 const catObj = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.CATEGORIES) ? APP_CONSTANTS.CATEGORIES.find(c => c.name === task.category) : null;
                 const unit = task.type || (catObj && catObj.defaultUnit) || '';
@@ -852,8 +683,6 @@ function renderDailyView() {
                             </div>
                         </div>
                     </div>
-
-                    ${commentHtml}
 
                     <div class="task-progress-bar-bg">
                         <div class="task-progress-bar-fill" style="width: ${progressPct}%"></div>
@@ -1296,26 +1125,11 @@ function setTaskVal(taskId, val) {
 // SCORING ENGINE INTEGRATION & HELPERS
 // ============================================================================
 function getTaskWeightMinutes(task, dateStr = null) {
-    if (typeof ScoringEngine !== "undefined") {
-        return ScoringEngine.getTaskWeightMinutes(task, dateStr, appData);
-    }
-    const engine = window.ScoringEngine || window.scoringEngine;
-    if (engine) {
-        return engine.getTaskWeightMinutes(task, dateStr, appData);
-    }
-    return 15;
+    return ScoringEngine.getTaskWeightMinutes(task, dateStr, appData);
 }
 
 function calculateDayScore(dateStr, appDataRef = null, returnHours = false) {
-    const data = appDataRef || (typeof appData !== "undefined" ? appData : null);
-    if (typeof ScoringEngine !== "undefined") {
-        return ScoringEngine.calculateDayScore(dateStr, data, returnHours);
-    }
-    const engine = window.ScoringEngine || window.scoringEngine;
-    if (engine) {
-        return engine.calculateDayScore(dateStr, data, returnHours);
-    }
-    return 0;
+    return ScoringEngine.calculateDayScore(dateStr, appDataRef || appData, returnHours);
 }
 
 function updateDailyScoreSummary() {
@@ -1337,17 +1151,7 @@ function updateDailyScoreSummary() {
     }
 
     // Count completed tasks for the badge
-    const bonusIds = (appData.logs[currentDateStr] && appData.logs[currentDateStr].bonusTaskIds) || [];
-    const allScheduled = appData.tasks.filter(t => {
-        if (bonusIds.includes(t.id)) return true;
-        if (t.isArchived) {
-            const cutoff = t.archivedAt || null;
-            if (!cutoff || currentDateStr > cutoff) {
-                return getTaskVal(t.id) > 0;
-            }
-        }
-        return isTaskScheduledForDate(t, currentDateStr, getTaskVal(t.id));
-    });
+    const allScheduled = appData.tasks.filter(t => ScheduleEngine.isVisibleOn(t, currentDateStr, appData));
     let completedCount = 0;
     let inProgressCount = 0;
     allScheduled.forEach(t => {
@@ -1365,21 +1169,20 @@ function updateDailyScoreSummary() {
     // Calculate remaining estimated time in minutes for today's scheduled non-bonus tasks
     let totalRemainingMinutes = 0;
     allScheduled.forEach(t => {
-        const isBonus = typeof ScheduleEngine !== "undefined" ? ScheduleEngine.isBonusTaskForDate(t, currentDateStr, appData) : !!t.isBonus;
+        const isBonus = ScheduleEngine.isBonusTaskForDate(t, currentDateStr, appData);
         if (isBonus) return;
 
         const val = getTaskVal(t.id);
-        const effProps = (typeof ScheduleEngine !== "undefined") ? ScheduleEngine.getTaskEffectiveProps(t, currentDateStr) : t;
-        const target = (effProps && effProps.target != null) ? effProps.target : (t.target || 0);
+        const target = t.target || 0;
 
-        if (isTimeTask(t) || isTimeTask(effProps)) {
+        if (isTimeTask(t)) {
             const normTarget = getTaskNormalizedTarget(t, currentDateStr);
             if (normTarget > 0 && val < normTarget) {
                 totalRemainingMinutes += (normTarget - val);
             }
         } else {
             if (target > 0 && val < target) {
-                const totalWeightMins = (typeof ScoringEngine !== "undefined") ? ScoringEngine.getTaskWeightMinutes(t, currentDateStr, appData) : (target * 5);
+                const totalWeightMins = ScoringEngine.getTaskWeightMinutes(t, currentDateStr, appData);
                 const unitWeightMins = totalWeightMins / (target || 1);
                 const remUnits = target - val;
                 totalRemainingMinutes += (remUnits * unitWeightMins);

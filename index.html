@@ -533,12 +533,6 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="task-comment-input">ملاحظة / تعليق (يظهر تحت اسم المهمة)</label>
-                    <input type="text" id="task-comment-input" placeholder="مثال: قراءة من صفحة كذا إلى كذا، أو تفاصيل أخرى...">
-                </div>
-
-
-                <div class="form-group">
                     <label>جدول التكرار والأيام (Day / Schedule)</label>
                     <div class="schedule-options-radio">
                         <label class="radio-card">
@@ -563,15 +557,6 @@
                         </label>
                     </div>
 
-                    <div class="form-group" style="margin-top: 12px; background: rgba(245, 158, 11, 0.08); padding: 10px 14px; border-radius: 10px; border: 1px dashed rgba(245, 158, 11, 0.3);">
-                        <label class="toggle-switch-card" style="padding:0; background:transparent; border:none; margin:0; cursor:pointer; display:flex; align-items:center; justify-content:space-between;">
-                            <span style="font-size:0.9rem; color:#f8fafc; font-weight:600;"><i class="fa-solid fa-gift gold-text"></i> احتساب كـ ورد إضافي (بونص Bonus)</span>
-                            <input type="checkbox" id="task-is-bonus-input">
-                            <span class="toggle-slider" style="margin:0;"></span>
-                        </label>
-                        <small class="hint-text" style="color: #cbd5e1; margin-top: 4px; display: block;">الورد البونص يمنح نقاطاً إضافية للتفوق بدون فرض هدف إجباري ينقص معدلك اليومي.</small>
-                    </div>
-
                     <div id="weekdays-selector-box" class="weekdays-selector hidden">
                         <label class="weekday-check"><input type="checkbox" value="Sat"><span>السبت (Sat)</span></label>
                         <label class="weekday-check"><input type="checkbox" value="Sun"><span>الأحد (Sun)</span></label>
@@ -580,18 +565,6 @@
                         <label class="weekday-check"><input type="checkbox" value="Wed"><span>الأربعاء (Wed)</span></label>
                         <label class="weekday-check"><input type="checkbox" value="Thu"><span>الخميس (Thu)</span></label>
                         <label class="weekday-check"><input type="checkbox" value="Fri"><span>الجمعة (Fri)</span></label>
-                    </div>
-
-                    <div id="day-targets-box" class="day-targets-container hidden" style="margin-top: 12px; padding: 12px 14px; background: rgba(16, 185, 129, 0.06); border-radius: 10px; border: 1px dashed rgba(16, 185, 129, 0.35);">
-                        <label class="toggle-switch-card" style="padding:0; background:transparent; border:none; margin:0; cursor:pointer; display:flex; align-items:center; justify-content:space-between;">
-                            <span style="font-size:0.9rem; color:#10b981; font-weight:700;"><i class="fa-solid fa-calendar-check"></i> تحديد أهداف مختلفة لكل يوم (Day Targets)</span>
-                            <input type="checkbox" id="task-enable-day-targets">
-                            <span class="toggle-slider" style="margin:0;"></span>
-                        </label>
-                        <small class="hint-text" style="color: #cbd5e1; margin-top: 4px; display: block;">تخصيص هدف (Target) مستقل لكل يوم من الأيام المختارة (مثال: الأحد 2 ساعة، الثلاثاء 3 ساعات).</small>
-                        <div id="day-targets-inputs-grid" class="day-targets-grid hidden" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 10px; margin-top: 10px;">
-                            <!-- Dynamically generated inputs for checked days -->
-                        </div>
                     </div>
 
                     <div id="onetime-date-selector-box" class="form-group hidden" style="margin-top: 12px; background: rgba(245, 158, 11, 0.08); padding: 12px 14px; border-radius: 10px; border: 1px dashed rgba(245, 158, 11, 0.35);">

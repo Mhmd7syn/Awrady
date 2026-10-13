@@ -25,16 +25,7 @@ const PomodoroTimer = {
  * Get active application dataset with safe fallbacks
  */
 function getActiveAppData() {
-    if (typeof window !== "undefined" && window.appData && Array.isArray(window.appData.tasks) && window.appData.tasks.length > 0) {
-        return window.appData;
-    }
-    if (typeof appData !== "undefined" && appData && Array.isArray(appData.tasks) && appData.tasks.length > 0) {
-        return appData;
-    }
-    if (typeof DEFAULT_AWRAD_DATA !== "undefined" && DEFAULT_AWRAD_DATA && Array.isArray(DEFAULT_AWRAD_DATA.tasks)) {
-        return DEFAULT_AWRAD_DATA;
-    }
-    return null;
+    return (typeof window !== "undefined" && window.appData) ? window.appData : null;
 }
 
 /**
@@ -203,14 +194,12 @@ function populatePomoTaskSelect() {
     if (appData && Array.isArray(appData.tasks)) {
         const timeTypes = ["ساعة", "ساعات", "ساعات ودقايق", "وقت", "دقيقة"];
         
-        const curDate = (typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : (typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().split("T")[0]);
+        const curDate = (typeof currentDateStr !== "undefined" && currentDateStr) ? currentDateStr : getLocalTodayString();
         // Filter active tasks (prioritize time-based, then other non-archived tasks; for one-time tasks, only include if scheduled today or logged today)
         const activeTasks = appData.tasks.filter(t => {
             if (t.isArchived) return false;
             if (t.isOneTime || t.schedule === "OneTime") {
-                const isSched = (typeof ScheduleEngine !== "undefined")
-                    ? ScheduleEngine.isTaskScheduledForDate(t, curDate, appData)
-                    : false;
+                const isSched = ScheduleEngine.isTaskScheduledForDate(t, curDate, appData);
                 const hasLoggedToday = !!(appData.logs && appData.logs[curDate]?.entries?.[t.id] > 0);
                 return isSched || hasLoggedToday;
             }
@@ -668,7 +657,7 @@ function handlePomoCompletion() {
  */
 function commitWorkMinutesToDisk(minutes, showAlert = false) {
     if (minutes <= 0) return 0;
-    const realTodayStr = typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().split("T")[0];
+    const realTodayStr = getLocalTodayString();
     const appData = getActiveAppData();
 
     if (PomodoroTimer.taskId && appData) {

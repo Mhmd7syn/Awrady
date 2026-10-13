@@ -12,19 +12,8 @@ class AuthManager {
     }
 
     async hashPassword(password) {
-        const str = this.SALT + password;
-        if (window.crypto?.subtle) {
-            try {
-                const buf = await window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
-                return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
-            } catch (_) {}
-        }
-        let hash = 0;
-        for (let i = 0; i < str.length; i++) {
-            hash = ((hash << 5) - hash) + str.charCodeAt(i);
-            hash |= 0;
-        }
-        return "h_" + Math.abs(hash).toString(16);
+        const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(this.SALT + password));
+        return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
     getCurrentUser() {

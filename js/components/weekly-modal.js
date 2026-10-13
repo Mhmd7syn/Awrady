@@ -17,14 +17,12 @@ function toggleWeeklyOption(optKey) {
 function navigateWeeklyModal(daysShift) {
     const curDateStr = typeof currentDateStr !== "undefined" ? currentDateStr : getLocalTodayString();
     const currentRef = weeklyModalRefDateStr || curDateStr || getLocalTodayString();
-    const d = new Date(currentRef + "T12:00:00");
-    d.setDate(d.getDate() + daysShift);
-    weeklyModalRefDateStr = formatDateStr(d);
+    weeklyModalRefDateStr = addDays(currentRef, daysShift);
     showWeeklyHoursModal();
 }
 
 function resetWeeklyModalToToday() {
-    weeklyModalRefDateStr = typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().split("T")[0];
+    weeklyModalRefDateStr = getLocalTodayString();
     showWeeklyHoursModal();
 }
 
@@ -32,39 +30,31 @@ function getTasksSummaryByDay(options = null) {
     const opts = options || weeklyModalOptions;
     const curDateStr = typeof currentDateStr !== "undefined" ? currentDateStr : getLocalTodayString();
     const refDateStr = weeklyModalRefDateStr || curDateStr || getLocalTodayString();
-    const days = typeof getDatesForCurrentWeek === "function" ? getDatesForCurrentWeek(refDateStr) : [];
+    const days = getDatesForCurrentWeek(refDateStr);
 
     const result = {};
 
     days.forEach(day => {
         let totalMins = 0;
         const taskList = [];
-        const dateStr = day.dateStr || day.mockDate;
-        const dataStore = (typeof window !== "undefined" && window.appData) ? window.appData : (typeof appData !== "undefined" ? appData : { tasks: [] });
+        const dateStr = day.dateStr;
+        const dataStore = window.appData || { tasks: [] };
 
         (dataStore.tasks || []).forEach(t => {
             if (t.isArchived) return;
 
-            const logEntry = (dataStore.logs && dataStore.logs[dateStr]) ? dataStore.logs[dateStr] : null;
-            const val = (logEntry && logEntry.entries && logEntry.entries[t.id] !== undefined) ? logEntry.entries[t.id] : 0;
-            const isExplicitBonus = logEntry && logEntry.bonusTaskIds && Array.isArray(logEntry.bonusTaskIds) && logEntry.bonusTaskIds.includes(t.id);
+            const logEntry = dataStore.logs?.[dateStr];
+            const val = logEntry?.entries?.[t.id] || 0;
+            const isExplicitBonus = logEntry?.bonusTaskIds?.includes(t.id);
 
-            const effProps = typeof ScheduleEngine !== "undefined"
-                ? ScheduleEngine.getTaskEffectiveProps(t, dateStr)
-                : t;
+            const cat = t.category || "";
+            const sched = (t.schedule || "").trim();
+            const isOneTime = sched === "OneTime";
+            const isEveryday = sched === "Everyday" || sched === "";
+            const isBonus = Boolean(isExplicitBonus);
 
-            const cat = effProps.category || t.category || "";
-            const sched = (effProps.schedule || t.schedule || "").trim();
-            const isOneTime = (t.isOneTime || sched === "OneTime");
-            const isEveryday = (sched === "Everyday" || sched === "" || sched.toLowerCase() === "everyday");
-            const isBonus = !!(t.isBonus || effProps.isBonus || isExplicitBonus);
+            const isScheduled = ScheduleEngine.isTaskScheduledForDate(t, dateStr, dataStore, val);
 
-            const isScheduled = typeof ScheduleEngine !== "undefined" 
-                ? ScheduleEngine.isTaskScheduledForDate(t, dateStr, dataStore, val)
-                : true;
-
-            // Weekly Schedule Modal Filtering Rules:
-            // 1. Bonus Tasks (isBonus === true): ONLY show if logged (val > 0) OR explicitly added in bonusTaskIds for dateStr!
             if (isBonus) {
                 if (!(val > 0) && !isExplicitBonus) return;
                 if (!opts.includeBonusAndOneTime) return;
@@ -76,19 +66,17 @@ function getTasksSummaryByDay(options = null) {
                 if (isEveryday && !opts.includeEveryday) return;
             }
 
-            const weightMins = typeof ScoringEngine !== "undefined" 
-                ? ScoringEngine.getTaskWeightMinutes(t, dateStr, dataStore) 
-                : 1;
-
+            const weightMins = ScoringEngine.getTaskWeightMinutes(t);
             totalMins += weightMins;
-            const target = (effProps.target !== undefined && effProps.target !== null) ? effProps.target : (t.target || 1);
+            const target = t.target || 1;
+            const unit = ScoringEngine.getTaskUnit(t);
 
             taskList.push({
-                name: effProps.name || t.name,
+                name: t.name,
                 category: cat,
-                subcategory: effProps.subcategory || t.subcategory,
+                subcategory: t.subcategory,
                 target: target,
-                unit: effProps.type || t.type,
+                unit: unit,
                 schedule: sched,
                 isEveryday: isEveryday,
                 isOneTime: isOneTime,
@@ -98,13 +86,13 @@ function getTasksSummaryByDay(options = null) {
             });
         });
 
-        const dayDisplayName = day.dayNameAr || day.name || "يوم";
+        const dayDisplayName = day.dayNameAr;
         result[dayDisplayName] = {
             dayName: dayDisplayName,
-            dayKey: day.dayNameEn || day.key || "",
+            dayKey: day.dayNameEn,
             totalMinutes: totalMins,
             totalHours: (totalMins / 60).toFixed(2),
-            formattedTime: typeof formatTimeHM === "function" ? formatTimeHM(totalMins) : `${totalMins} دقيقة`,
+            formattedTime: formatTimeHM(totalMins),
             tasks: taskList
         };
     });
@@ -113,7 +101,7 @@ function getTasksSummaryByDay(options = null) {
 }
 
 function showWeeklyHoursModal(forceCurrentDate = false) {
-    const realTodayStr = typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().split("T")[0];
+    const realTodayStr = getLocalTodayString();
     const curDateStr = typeof currentDateStr !== "undefined" ? currentDateStr : realTodayStr;
     
     if (forceCurrentDate || !weeklyModalRefDateStr) {
@@ -121,12 +109,12 @@ function showWeeklyHoursModal(forceCurrentDate = false) {
     }
 
     const summary = getTasksSummaryByDay(weeklyModalOptions);
-    const days = typeof getDatesForCurrentWeek === "function" ? getDatesForCurrentWeek(weeklyModalRefDateStr) : [];
-    const startDateFormatted = days[0] ? (days[0].dateStr || days[0].mockDate) : "";
-    const endDateFormatted = days[6] ? (days[6].dateStr || days[6].mockDate) : "";
+    const days = getDatesForCurrentWeek(weeklyModalRefDateStr);
+    const startDateFormatted = days[0]?.dateStr || "";
+    const endDateFormatted = days[6]?.dateStr || "";
 
-    const realTodayDays = typeof getDatesForCurrentWeek === "function" ? getDatesForCurrentWeek(realTodayStr) : [];
-    const realTodayStart = realTodayDays[0] ? (realTodayDays[0].dateStr || realTodayDays[0].mockDate) : "";
+    const realTodayDays = getDatesForCurrentWeek(realTodayStr);
+    const realTodayStart = realTodayDays[0]?.dateStr || "";
     const isDifferentWeekFromRealToday = startDateFormatted !== realTodayStart;
 
     let modal = document.getElementById("weekly-hours-modal");
