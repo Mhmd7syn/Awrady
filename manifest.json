@@ -1,7 +1,7 @@
 {
-  "name": "أورادي - لوحة المتابعة الذكية",
+  "name": "Awrady - Daily Habits, Wird & Routine Tracker",
   "short_name": "Awrady",
-  "description": "لوحة تحكم ذكية لمتابعة الأوراد والصلوات والمهام اليومية مع التقييم والمزامنة السحابية 24/7",
+  "description": "لوحة ذكية لمتابعة أوراد العبادات والصلوات وروتين الحياة اليومي مع مؤقت بومودورو ومزامنة سحابية",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0f172a",

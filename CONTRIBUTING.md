@@ -11,8 +11,8 @@ Awrady does **not** use Node build tools, bundlers, or `npm install`. To get sta
 
 1. **Fork and clone the repository:**
    ```bash
-   git clone https://github.com/<your-username>/awrady.git
-   cd awrady
+   git clone https://github.com/<your-username>/Awrady.git
+   cd Awrady
    ```
 
 2. **Start a local HTTP server:**
@@ -34,8 +34,8 @@ Awrady does **not** use Node build tools, bundlers, or `npm install`. To get sta
 
 ## 🎯 Finding an Issue
 
-- Look for issues labeled **[`good first issue`](https://github.com/Mhmd7syn/awrady/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)** — these are bite-sized, self-contained tasks designed for first-time contributors.
-- If you have an idea or found a bug not yet listed, please [open an issue](https://github.com/Mhmd7syn/awrady/issues/new/choose) first so we can discuss the approach before you write code.
+- Look for issues labeled **[`good first issue`](https://github.com/Mhmd7syn/Awrady/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)** — these are bite-sized, self-contained tasks designed for first-time contributors.
+- If you have an idea or found a bug not yet listed, please [open an issue](https://github.com/Mhmd7syn/Awrady/issues/new/choose) first so we can discuss the approach before you write code.
 - Drop a quick comment on the issue you'd like to tackle (e.g. *"I'd like to work on this!"*) so we can assign it to you.
 
 ---

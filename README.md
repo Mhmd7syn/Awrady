@@ -6,8 +6,9 @@
 [![Zero Dependencies](https://img.shields.io/badge/dependencies-0-success.svg)](#)
 [![PWA Ready](https://img.shields.io/badge/PWA-offline--first-orange.svg)](#)
 
-> **An offline-first, privacy-focused daily habit, wird, and routine tracker with Pomodoro focus timers, prayer tracking, zero dependencies, and cloud sync.**  
-> تطبيق ويب تقدمي (PWA) لتتبع الإنجاز اليومي، الأوراد، والصلوات مع مؤقت بومودورو ودعم العمل دون اتصال بالإنترنت.
+> **Daily Habits, Wird & Routine Tracker**  
+> An offline-first dashboard for tracking religious routines (prayers, Quran wird, azkar) and daily life habits (focus, study, tasks) with Pomodoro timers, zero dependencies, and cloud sync.  
+> تطبيق ويب تقدمي (PWA) يجمع بين تتبع أوراد العبادات اليومية وروتين الحياة والإنتاجية مع مؤقت بومودورو ودعم العمل أوفلاين.
 
 🌐 **Live Application**: [https://awrady.vercel.app/](https://awrady.vercel.app/)
 
@@ -19,8 +20,8 @@ Awrady is built with **pure modern Vanilla JavaScript** — **no `npm install`**
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/Mhmd7syn/awrady.git
-cd awrady
+git clone https://github.com/Mhmd7syn/Awrady.git
+cd Awrady
 
 # 2. Run local server
 python -m http.server 8080
@@ -92,7 +93,7 @@ We welcome contributions from developers of all skill levels!
 Whether you want to fix a bug, improve Arabic/English translations, polish the UI, or add a new feature:
 
 1. Read our **[Contributing Guidelines](CONTRIBUTING.md)** for branch conventions and testing instructions.
-2. Check out open issues labeled **[`good first issue`](https://github.com/Mhmd7syn/awrady/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)** for bite-sized, beginner-friendly tasks.
+2. Check out open issues labeled **[`good first issue`](https://github.com/Mhmd7syn/Awrady/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)** for bite-sized, beginner-friendly tasks.
 3. Submit a Pull Request — we review and merge quickly!
 
 ---
