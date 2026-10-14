@@ -187,8 +187,8 @@ function saveTaskFromModal() {
 
     closeTaskModal();
     saveData(true);
-    if (window.enjazAPI?.client && savedTask) {
-        window.enjazAPI.saveTask(savedTask).catch(e => console.warn("[EnjazAPI] saveTask:", e.message));
+    if (window.awradyAPI?.client && savedTask) {
+        window.awradyAPI.saveTask(savedTask).catch(e => console.warn("[AwradyAPI] saveTask:", e.message));
     }
     renderDailyView();
     renderTaskManager();

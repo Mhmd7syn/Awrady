@@ -1,0 +1,38 @@
+name: ✨ Feature Request
+description: Propose an idea or enhancement for Awrady
+title: "[Feat]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea to make Awrady even better? We'd love to hear it!
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or Motivation
+      description: Is your feature request related to a problem or missing workflow?
+      placeholder: I'm always frustrated when I finish a Pomodoro session and don't hear a sound...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe what you would like to see happen and how it should look or behave.
+      placeholder: Add an audio chime toggle in the Pomodoro widget that plays a soft ding upon interval completion.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative solutions or workarounds you've considered.
+    validations:
+      required: false
+  - type: checkboxes
+    id: contribution_interest
+    attributes:
+      label: Would you like to contribute this yourself?
+      options:
+        - label: I am willing to submit a pull request implementing this feature!

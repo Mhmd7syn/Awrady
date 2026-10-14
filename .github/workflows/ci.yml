@@ -1,0 +1,27 @@
+name: CI & Syntax Check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Verify JavaScript Syntax
+      run: |
+        echo "Validating JavaScript syntax across codebase..."
+        find js -name "*.js" -exec node --check {} +
+        node --check sw.js
+        echo "All JavaScript files passed syntax verification!"

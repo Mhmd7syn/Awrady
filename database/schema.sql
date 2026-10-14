@@ -1,5 +1,5 @@
 -- ============================================================================
--- Enjaz (Awrady) - PostgreSQL Database Schema for Supabase
+-- Awrady (أورادي) - PostgreSQL Database Schema for Supabase
 -- Fully idempotent: safe to run multiple times without errors
 -- ============================================================================
 

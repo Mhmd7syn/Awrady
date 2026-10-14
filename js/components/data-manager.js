@@ -117,13 +117,13 @@ function setupDataManagement() {
                         }
                         window.appData = appData;
                         saveData(true);
-                        if (window.enjazAPI?.client) {
+                        if (window.awradyAPI?.client) {
                             try {
                                 for (const t of (appData.tasks || [])) {
-                                    await window.enjazAPI.saveTask(t);
+                                    await window.awradyAPI.saveTask(t);
                                 }
                             } catch (e) {
-                                console.warn("[EnjazAPI] Import tasks sync error:", e);
+                                console.warn("[AwradyAPI] Import tasks sync error:", e);
                             }
                         }
                         
@@ -149,11 +149,11 @@ function setupDataManagement() {
             if (confirm("هل أنت متأكد من مسح جميع السجلات ونقاط الإنجاز التاريخية؟ (ستبقى المهام والتصنيفات كما هي)")) {
                 appData.logs = {};
                 saveData(true);
-                if (window.enjazAPI?.client) {
+                if (window.awradyAPI?.client) {
                     try {
-                        await window.enjazAPI.client.from(APP_CONSTANTS.DB.TABLES.PROGRESS).delete().eq("username", window.enjazAPI.currentUser);
+                        await window.awradyAPI.client.from(APP_CONSTANTS.DB.TABLES.PROGRESS).delete().eq("username", window.awradyAPI.currentUser);
                     } catch (e) {
-                        console.warn("[EnjazAPI] Reset progress sync error:", e);
+                        console.warn("[AwradyAPI] Reset progress sync error:", e);
                     }
                 }
                 alert("🧹 تم مسح سجلات الإنجاز بنجاح!");
@@ -168,13 +168,13 @@ function setupDataManagement() {
             if (confirm("هل أنت متأكد من إعادة ضبط التعديلات واستعادة البيانات والمهام الافتراضية للنظام؟")) {
                 loadDefaultAppData();
                 saveData(true);
-                if (window.enjazAPI?.client) {
+                if (window.awradyAPI?.client) {
                     try {
                         for (const task of appData.tasks) {
-                            await window.enjazAPI.saveTask(task);
+                            await window.awradyAPI.saveTask(task);
                         }
                     } catch (e) {
-                        console.warn("[EnjazAPI] Reset tasks sync error:", e);
+                        console.warn("[AwradyAPI] Reset tasks sync error:", e);
                     }
                 }
                 alert("🔄 تم إعادة ضبط التطبيق بنجاح على البيانات الافتراضية!");
@@ -189,7 +189,7 @@ function setupDataManagement() {
     const headerCloudPill = document.getElementById("header-cloud-pill");
 
     const refreshCloudStatus = () => {
-        if (window.enjazAPI && window.enjazAPI.client) {
+        if (window.awradyAPI && window.awradyAPI.client) {
             updateCloudSyncUI({
                 state: navigator.onLine ? "synced" : "offline",
                 message: navigator.onLine ? "متزامن سحابياً مع Supabase 24/7" : "وضع عدم الاتصال (محفوظ محلياً)"
@@ -213,11 +213,11 @@ function setupDataManagement() {
             }
             updateCloudSyncUI({ state: "syncing", message: "جارِ التحقق من المزامنة السحابية..." });
             try {
-                if (window.enjazAPI && window.enjazAPI.client) {
-                    const { error } = await window.enjazAPI.client.from(APP_CONSTANTS.DB.TABLES.TASKS).select("task_id").limit(1);
+                if (window.awradyAPI && window.awradyAPI.client) {
+                    const { error } = await window.awradyAPI.client.from(APP_CONSTANTS.DB.TABLES.TASKS).select("task_id").limit(1);
                     if (error) throw error;
                     updateCloudSyncUI({ state: "synced", message: "متزامن سحابياً مع Supabase 24/7" });
-                } else if (window.enjazAPI && window.enjazAPI.init()) {
+                } else if (window.awradyAPI && window.awradyAPI.init()) {
                     updateCloudSyncUI({ state: "synced", message: "متزامن سحابياً مع Supabase 24/7" });
                 }
             } catch (err) {

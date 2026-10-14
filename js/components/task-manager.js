@@ -300,8 +300,8 @@ function archiveTask(id, isArchive) {
             }
         }
         saveData(true);
-        if (window.enjazAPI?.client) {
-            window.enjazAPI.saveTask(t).catch(e => console.warn("[EnjazAPI] archiveTask:", e.message));
+        if (window.awradyAPI?.client) {
+            window.awradyAPI.saveTask(t).catch(e => console.warn("[AwradyAPI] archiveTask:", e.message));
         }
         renderDailyView();
         renderTaskManager();
@@ -337,8 +337,8 @@ function deleteForever(id) {
         }
 
         saveData();
-        if (window.enjazAPI?.client) {
-            window.enjazAPI.purgeTask(id).catch(e => console.warn("[EnjazAPI] purgeTask:", e.message));
+        if (window.awradyAPI?.client) {
+            window.awradyAPI.purgeTask(id).catch(e => console.warn("[AwradyAPI] purgeTask:", e.message));
         }
         renderDailyView();
         renderTaskManager();

@@ -1,4 +1,4 @@
-# Enjaz Cleanup Plan
+# Awrady Cleanup Plan
 
 Make the code as small and direct as possible without changing what the user sees:
 remove dead code, remove defensive checks and fallbacks that can never trigger, put every

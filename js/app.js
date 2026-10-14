@@ -31,7 +31,7 @@ let chartInstance = null;
 let editingTaskId = null;
 
 function getUserStorageKey() {
-    const u = (window.enjazAPI?.currentUser || (window.authManager && window.authManager.getCurrentUser()) || APP_CONSTANTS.GUEST_USER).toLowerCase();
+    const u = (window.awradyAPI?.currentUser || (window.authManager && window.authManager.getCurrentUser()) || APP_CONSTANTS.GUEST_USER).toLowerCase();
     return `${STORAGE_KEY}_${u}`;
 }
 
@@ -51,8 +51,8 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 window.startApp = async function(username) {
-    if (window.enjazAPI) {
-        window.enjazAPI.currentUser = username;
+    if (window.awradyAPI) {
+        window.awradyAPI.currentUser = username;
     }
     if (window.securityLock) {
         window.securityLock.init();
@@ -95,11 +95,11 @@ async function initData() {
     let loaded = false;
 
     // 1. Attempt initialization via direct Supabase API for tasks and daily progress
-    if (window.enjazAPI && window.enjazAPI.init()) {
+    if (window.awradyAPI && window.awradyAPI.init()) {
         try {
             const results = await Promise.allSettled([
-                window.enjazAPI.getTasks(true),
-                window.enjazAPI.getAllProgress()
+                window.awradyAPI.getTasks(true),
+                window.awradyAPI.getAllProgress()
             ]);
 
             const tasks = results[0].status === "fulfilled" ? results[0].value : null;
@@ -121,12 +121,12 @@ async function initData() {
             if ((!appData.tasks || appData.tasks.length === 0) && DEFAULT_TASKS.length > 0) {
                 appData.tasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
                 for (const t of appData.tasks) {
-                    await window.enjazAPI.createTask(t).catch(e => console.warn("[initData] Seed task error:", e.message));
+                    await window.awradyAPI.createTask(t).catch(e => console.warn("[initData] Seed task error:", e.message));
                 }
             }
 
             // Realtime WebSocket subscription
-            window.enjazAPI.onUpdate((table, payload) => {
+            window.awradyAPI.onUpdate((table, payload) => {
                 if (table === APP_CONSTANTS.DB.TABLES.PROGRESS && payload.new?.date === currentDateStr) {
                     const row = payload.new;
                     if (!appData.logs) appData.logs = {};
@@ -215,13 +215,13 @@ function saveData(immediate = false) {
     // 1. Offline resilient local backup
     try {
         localStorage.setItem(getUserStorageKey(), JSON.stringify(appData));
-        if ((window.enjazAPI?.currentUser || "").toLowerCase() === APP_CONSTANTS.GUEST_USER) {
+        if ((window.awradyAPI?.currentUser || "").toLowerCase() === APP_CONSTANTS.GUEST_USER) {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
         }
     } catch (_) {}
 
-    // 2. Direct database persistence via EnjazAPI
-    if (window.enjazAPI?.client) {
+    // 2. Direct database persistence via AwradyAPI
+    if (window.awradyAPI?.client) {
         const curDate = currentDateStr;
         const log = (appData.logs && appData.logs[curDate]) || { entries: {} };
         const prayerExtras = log.prayerExtras || {};
@@ -242,8 +242,8 @@ function saveData(immediate = false) {
         });
 
         const executeDbSave = () => {
-            window.enjazAPI.saveDayProgress(curDate, taskProgress, prayerExtras, { totalScore, totalHours })
-                .catch(e => console.warn("[EnjazAPI] Save progress error:", e.message));
+            window.awradyAPI.saveDayProgress(curDate, taskProgress, prayerExtras, { totalScore, totalHours })
+                .catch(e => console.warn("[AwradyAPI] Save progress error:", e.message));
         };
 
         if (immediate) {
@@ -308,9 +308,9 @@ async function switchActiveDate(newDate) {
     const datePicker = document.getElementById("date-picker-input");
     if (datePicker) datePicker.value = currentDateStr;
 
-    if (window.enjazAPI?.client && (!appData.logs[currentDateStr] || !appData.logs[currentDateStr]._loadedFromDB)) {
+    if (window.awradyAPI?.client && (!appData.logs[currentDateStr] || !appData.logs[currentDateStr]._loadedFromDB)) {
         try {
-            const dayProgress = await window.enjazAPI.getDayProgress(currentDateStr);
+            const dayProgress = await window.awradyAPI.getDayProgress(currentDateStr);
             if (dayProgress) {
                 if (!appData.logs) appData.logs = {};
                 appData.logs[currentDateStr] = rowToLog(dayProgress);

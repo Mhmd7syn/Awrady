@@ -20,7 +20,7 @@ var APP_CONSTANTS = {
             TASKS: "tasks",
             PROGRESS: "daily_progress"
         },
-        CHANNEL: "enjaz_live_sync"
+        CHANNEL: "awrady_live_sync"
     },
     GUEST_USER: "primary_user",
     SUPABASE: {

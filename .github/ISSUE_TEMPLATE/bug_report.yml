@@ -1,0 +1,64 @@
+name: 🐛 Bug Report
+description: Report a bug, crash, or unexpected behavior in Awrady
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug! Please fill out the sections below to help us understand and fix the issue quickly.
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: When clicking the "+" button on prayer tasks...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can someone reproduce this bug from scratch?
+      placeholder: |
+        1. Open the dashboard at http://localhost:8080 or https://awrady.vercel.app/
+        2. Log in as Guest
+        3. Click on ...
+        4. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: The task counter should increment by 1.
+    validations:
+      required: true
+  - type: dropdown
+    id: environment_mode
+    attributes:
+      label: Storage Mode
+      description: Were you using Guest Mode or connected to Supabase?
+      options:
+        - Guest Mode (Offline / LocalStorage)
+        - Supabase Cloud Sync
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: device_browser
+    attributes:
+      label: Browser & OS
+      description: Which browser and operating system were you using?
+      placeholder: Chrome 128 on Windows 11 / Safari on iOS 18
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Browser Console Logs
+      description: Please paste any error messages or stack traces from the browser DevTools Console (F12).
+      render: shell
+    validations:
+      required: false

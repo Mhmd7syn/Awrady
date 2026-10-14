@@ -38,8 +38,8 @@ class AuthManager {
     }
 
     init() {
-        if (window.enjazAPI && !window.enjazAPI.client) {
-            window.enjazAPI.init();
+        if (window.awradyAPI && !window.awradyAPI.client) {
+            window.awradyAPI.init();
         }
         this.currentUser = this.getCurrentUser();
         this._bindEvents();
@@ -147,10 +147,10 @@ class AuthManager {
         }
 
         const hash = await this.hashPassword(password);
-        if (window.enjazAPI && !window.enjazAPI.client) {
-            window.enjazAPI.init();
+        if (window.awradyAPI && !window.awradyAPI.client) {
+            window.awradyAPI.init();
         }
-        const client = window.enjazAPI?.client;
+        const client = window.awradyAPI?.client;
 
         if (this.mode === "register") {
             const confirmPwd = confirmInput?.value || "";

@@ -1,9 +1,9 @@
 /**
- * Enjaz (Awrady) - Supabase Direct Client & Database Service API
+ * Awrady - Supabase Direct Client & Database Service API
  * Direct PostgREST queries with Row-Level Security (RLS) and Realtime sync.
  */
 
-class EnjazAPI {
+class AwradyAPI {
     constructor() {
         this.client = null;
         this.currentUser = APP_CONSTANTS.GUEST_USER;
@@ -16,7 +16,7 @@ class EnjazAPI {
         this.currentUser = (window.authManager && window.authManager.getCurrentUser()) || APP_CONSTANTS.GUEST_USER;
 
         if (!url || !key || !window.supabase?.createClient) {
-            console.error("[EnjazAPI] Supabase client credentials missing.");
+            console.error("[AwradyAPI] Supabase client credentials missing.");
             return false;
         }
 
@@ -26,7 +26,7 @@ class EnjazAPI {
             this._setupRealtimeSync();
             return true;
         } catch (e) {
-            console.error("[EnjazAPI] Init failed:", e);
+            console.error("[AwradyAPI] Init failed:", e);
             return false;
         }
     }
@@ -143,6 +143,9 @@ class EnjazAPI {
     }
 }
 
+const EnjazAPI = AwradyAPI; // backward compatibility
+
 if (typeof window !== "undefined") {
-    window.enjazAPI = new EnjazAPI();
+    window.awradyAPI = new AwradyAPI();
+    window.enjazAPI = window.awradyAPI; // backward compatibility alias
 }

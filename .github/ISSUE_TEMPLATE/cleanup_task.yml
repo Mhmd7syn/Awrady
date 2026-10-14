@@ -1,0 +1,32 @@
+name: 🧹 Cleanup & Refactoring Task
+description: Propose a targeted code cleanup, modularization, or dead code removal
+title: "[Refactor]: "
+labels: ["refactor", "help wanted"]
+body:
+  - type: textarea
+    id: target_area
+    attributes:
+      label: Target Module / Files
+      description: Which files or functions are being addressed?
+      placeholder: js/core/schedule-engine.js or js/components/data-manager.js
+    validations:
+      required: true
+  - type: textarea
+    id: task_details
+    attributes:
+      label: Description of Changes
+      description: What needs to be cleaned up, simplified, or modularized?
+      placeholder: Standardize time-task checks into a single shared helper.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria (What "Done" Looks Like)
+      description: How do we verify this cleanup did not introduce regressions?
+      placeholder: |
+        - All tests / smoke checklist items pass
+        - No visual changes to the UI
+        - Redundant checks eliminated
+    validations:
+      required: true
