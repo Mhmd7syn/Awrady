@@ -372,6 +372,9 @@ function attachTaskControlListeners(grid) {
         const prevTotal = (appData.logs[currentDateStr] && appData.logs[currentDateStr].entries) ? (appData.logs[currentDateStr].entries[taskId] || 0) : 0;
         if (!appData.logs[currentDateStr]) appData.logs[currentDateStr] = { entries: {} };
         if (!appData.logs[currentDateStr].entries) appData.logs[currentDateStr].entries = {};
+        if (!appData.logs[currentDateStr]._dirtyTasks) appData.logs[currentDateStr]._dirtyTasks = {};
+        appData.logs[currentDateStr]._dirtyTasks[taskId] = true;
+        appData.logs[currentDateStr]._dirty = true;
         appData.logs[currentDateStr].entries[taskId] = newTotal;
 
         saveData();
@@ -470,6 +473,7 @@ function toggleDeactivateTaskForDate(taskId, dateStr) {
     const idx = log.disabledTaskIds.indexOf(taskId);
     if (idx >= 0) log.disabledTaskIds.splice(idx, 1);
     else log.disabledTaskIds.push(taskId);
+    log._dirty = true;
     saveData();
     renderDailyView();
     updateDailyScoreSummary();
@@ -576,6 +580,11 @@ function setTaskVal(taskId, val) {
     if (!appData.logs[currentDateStr].entries) {
         appData.logs[currentDateStr].entries = {};
     }
+    if (!appData.logs[currentDateStr]._dirtyTasks) {
+        appData.logs[currentDateStr]._dirtyTasks = {};
+    }
+    appData.logs[currentDateStr]._dirtyTasks[taskId] = true;
+    appData.logs[currentDateStr]._dirty = true;
 
     const prevVal = appData.logs[currentDateStr].entries[taskId] || 0;
     appData.logs[currentDateStr].entries[taskId] = val;

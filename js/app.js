@@ -91,10 +91,127 @@ window.logoutApp = function() {
 
 let _dbSaveTimer = null;
 
+function loadLocalState() {
+    try {
+        const localSaved = localStorage.getItem(getUserStorageKey()) || localStorage.getItem(STORAGE_KEY);
+        if (localSaved) {
+            const parsed = JSON.parse(localSaved);
+            if (parsed) {
+                if (parsed.tasks && parsed.tasks.length > 0) appData.tasks = parsed.tasks;
+                if (parsed.logs) appData.logs = parsed.logs;
+            }
+        }
+    } catch (e) {
+        console.error("[initData] LocalStorage error:", e);
+    }
+}
+
+function mergeDayLog(localLog, cloudRow) {
+    const cloudLog = rowToLog(cloudRow);
+    if (!localLog) return cloudLog;
+    if (!localLog._dirty && (!localLog._dirtyTasks || Object.keys(localLog._dirtyTasks).length === 0)) {
+        return cloudLog;
+    }
+
+    const mergedEntries = { ...(cloudLog.entries || {}) };
+    const dirtyTasks = localLog._dirtyTasks || {};
+
+    if (Object.keys(dirtyTasks).length > 0) {
+        for (const taskId in dirtyTasks) {
+            if (dirtyTasks[taskId] && localLog.entries?.[taskId] !== undefined) {
+                mergedEntries[taskId] = localLog.entries[taskId];
+            }
+        }
+    } else if (localLog.entries) {
+        Object.assign(mergedEntries, localLog.entries);
+    }
+
+    const mergedPrayerExtras = {
+        ...(cloudLog.prayerExtras || {}),
+        ...(localLog.prayerExtras || {})
+    };
+
+    const disabledSet = new Set([...(cloudLog.disabledTaskIds || []), ...(localLog.disabledTaskIds || [])]);
+    const bonusSet = new Set([...(cloudLog.bonusTaskIds || []), ...(localLog.bonusTaskIds || [])]);
+
+    return {
+        ...cloudLog,
+        entries: mergedEntries,
+        prayerExtras: mergedPrayerExtras,
+        disabledTaskIds: Array.from(disabledSet),
+        bonusTaskIds: Array.from(bonusSet),
+        _dirty: true,
+        _dirtyTasks: { ...dirtyTasks },
+        _loadedFromDB: true
+    };
+}
+
+async function pushDayToCloud(dateStr) {
+    if (!window.awradyAPI?.client) return;
+    const log = appData.logs?.[dateStr];
+    if (!log) return;
+
+    const prayerExtras = { ...(log.prayerExtras || {}) };
+    prayerExtras._meta = {
+        disabledTaskIds: log.disabledTaskIds || [],
+        bonusTaskIds: log.bonusTaskIds || []
+    };
+
+    const totalScore = calculateDayScore(dateStr, appData, false);
+    const totalHours = calculateDayScore(dateStr, appData, true);
+
+    const taskProgress = {};
+    (appData.tasks || []).forEach(t => {
+        const val = (log.entries && log.entries[t.id]) || 0;
+        const target = getTaskNormalizedTarget(t, dateStr);
+        taskProgress[t.id] = {
+            target,
+            achieved: val,
+            hours: t.type === "ساعة" ? (val / 60) : 0,
+            score: target > 0 ? (val / target) : 0
+        };
+    });
+
+    try {
+        await window.awradyAPI.saveDayProgress(dateStr, taskProgress, prayerExtras, { totalScore, totalHours });
+        if (appData.logs?.[dateStr]) {
+            delete appData.logs[dateStr]._dirty;
+            delete appData.logs[dateStr]._dirtyTasks;
+            try {
+                localStorage.setItem(getUserStorageKey(), JSON.stringify(appData));
+                if ((window.awradyAPI?.currentUser || "").toLowerCase() === APP_CONSTANTS.GUEST_USER) {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+                }
+            } catch (_) {}
+        }
+        updateCloudSyncUI({
+            state: "synced",
+            message: "متزامن سحابياً مع Supabase 24/7"
+        });
+    } catch (e) {
+        console.warn("[AwradyAPI] Save progress error for", dateStr, e.message);
+        updateCloudSyncUI({
+            state: "offline",
+            message: "وضع عدم الاتصال (محفوظ محلياً)"
+        });
+    }
+}
+
+async function syncAllDirtyDays() {
+    if (!window.awradyAPI?.client || !navigator.onLine || !appData.logs) return;
+    const dirtyDates = Object.keys(appData.logs).filter(d => appData.logs[d]?._dirty || (appData.logs[d]?._dirtyTasks && Object.keys(appData.logs[d]._dirtyTasks).length > 0));
+    for (const d of dirtyDates) {
+        await pushDayToCloud(d);
+    }
+}
+
 async function initData() {
     let loaded = false;
 
-    // 1. Attempt initialization via direct Supabase API for tasks and daily progress
+    // 1. ALWAYS load local storage first (instant UI + preserve offline changes)
+    loadLocalState();
+
+    // 2. Attempt cloud fetch & merge via direct Supabase API
     if (window.awradyAPI && window.awradyAPI.init()) {
         try {
             const results = await Promise.allSettled([
@@ -106,22 +223,35 @@ async function initData() {
             const allProgress = results[1].status === "fulfilled" ? results[1].value : null;
 
             if (tasks && tasks.length > 0) {
-                appData.tasks = tasks;
+                const serverTaskIds = new Set(tasks.map(t => t.id));
+                const localNewTasks = (appData.tasks || []).filter(t => !serverTaskIds.has(t.id));
+                appData.tasks = [...tasks, ...localNewTasks];
+                if (localNewTasks.length > 0) {
+                    localNewTasks.forEach(t => window.awradyAPI.saveTask(t).catch(() => {}));
+                }
             }
 
             if (!appData.logs) appData.logs = {};
 
             if (allProgress && allProgress.length > 0) {
                 allProgress.forEach(row => {
-                    appData.logs[row.date] = rowToLog(row);
+                    const localLog = appData.logs[row.date];
+                    if (localLog) {
+                        appData.logs[row.date] = mergeDayLog(localLog, row);
+                    } else {
+                        appData.logs[row.date] = rowToLog(row);
+                    }
                 });
             }
+
+            // Sync all dirty/pending offline days up to Supabase now that we are connected
+            syncAllDirtyDays().catch(() => {});
 
             // Seed default tasks to Supabase if database has 0 tasks (B12 fix)
             if ((!appData.tasks || appData.tasks.length === 0) && DEFAULT_TASKS.length > 0) {
                 appData.tasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
                 for (const t of appData.tasks) {
-                    await window.awradyAPI.createTask(t).catch(e => console.warn("[initData] Seed task error:", e.message));
+                    await window.awradyAPI.saveTask(t).catch(e => console.warn("[initData] Seed task error:", e.message));
                 }
             }
 
@@ -130,10 +260,12 @@ async function initData() {
                 if (table === APP_CONSTANTS.DB.TABLES.PROGRESS && payload.new?.date === currentDateStr) {
                     const row = payload.new;
                     if (!appData.logs) appData.logs = {};
-                    appData.logs[currentDateStr] = {
-                        ...appData.logs[currentDateStr],
-                        ...rowToLog(row)
-                    };
+                    const currentLog = appData.logs[currentDateStr];
+                    if (currentLog && (currentLog._dirty || currentLog._dirtyTasks)) {
+                        appData.logs[currentDateStr] = mergeDayLog(currentLog, row);
+                    } else {
+                        appData.logs[currentDateStr] = rowToLog(row);
+                    }
                     renderDailyView();
                     updateHeaderTodayScore();
                 } else if (table === APP_CONSTANTS.DB.TABLES.TASKS) {
@@ -174,23 +306,6 @@ async function initData() {
         }
     }
 
-    // 2. Fallback to localStorage if Supabase is offline/unconfigured
-    if (!loaded) {
-        try {
-            const localSaved = localStorage.getItem(getUserStorageKey()) || localStorage.getItem(STORAGE_KEY);
-            if (localSaved) {
-                const parsed = JSON.parse(localSaved);
-                if (parsed) {
-                    if (parsed.categories) appData.categories = parsed.categories;
-                    if (parsed.tasks) appData.tasks = parsed.tasks;
-                    if (parsed.logs) appData.logs = parsed.logs;
-                }
-            }
-        } catch (e) {
-            console.error("[initData] LocalStorage error:", e);
-        }
-    }
-
     // 3. Fallback defaults if still empty
     if (!appData.tasks || appData.tasks.length === 0) {
         appData.tasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
@@ -212,6 +327,12 @@ function loadDefaultAppData() {
 }
 
 function saveData(immediate = false) {
+    const curDate = currentDateStr;
+    if (!appData.logs) appData.logs = {};
+    if (!appData.logs[curDate]) appData.logs[curDate] = { entries: {} };
+
+    appData.logs[curDate]._dirty = true;
+
     // 1. Offline resilient local backup
     try {
         localStorage.setItem(getUserStorageKey(), JSON.stringify(appData));
@@ -222,28 +343,8 @@ function saveData(immediate = false) {
 
     // 2. Direct database persistence via AwradyAPI
     if (window.awradyAPI?.client) {
-        const curDate = currentDateStr;
-        const log = (appData.logs && appData.logs[curDate]) || { entries: {} };
-        const prayerExtras = log.prayerExtras || {};
-
-        const totalScore = calculateDayScore(curDate, appData, false);
-        const totalHours = calculateDayScore(curDate, appData, true);
-
-        const taskProgress = {};
-        (appData.tasks || []).forEach(t => {
-            const val = (log.entries && log.entries[t.id]) || 0;
-            const target = getTaskNormalizedTarget(t, curDate);
-            taskProgress[t.id] = {
-                target,
-                achieved: val,
-                hours: t.type === "ساعة" ? (val / 60) : 0,
-                score: target > 0 ? (val / target) : 0
-            };
-        });
-
         const executeDbSave = () => {
-            window.awradyAPI.saveDayProgress(curDate, taskProgress, prayerExtras, { totalScore, totalHours })
-                .catch(e => console.warn("[AwradyAPI] Save progress error:", e.message));
+            pushDayToCloud(curDate);
         };
 
         if (immediate) {
@@ -313,7 +414,12 @@ async function switchActiveDate(newDate) {
             const dayProgress = await window.awradyAPI.getDayProgress(currentDateStr);
             if (dayProgress) {
                 if (!appData.logs) appData.logs = {};
-                appData.logs[currentDateStr] = rowToLog(dayProgress);
+                const localLog = appData.logs[currentDateStr];
+                if (localLog && (localLog._dirty || localLog._dirtyTasks)) {
+                    appData.logs[currentDateStr] = mergeDayLog(localLog, dayProgress);
+                } else {
+                    appData.logs[currentDateStr] = rowToLog(dayProgress);
+                }
             }
         } catch (_) {}
     }
@@ -363,4 +469,22 @@ if (typeof window !== "undefined") {
     window.updateDailyScoreSummary = updateDailyScoreSummary;
     window.updateHeaderTodayScore = updateHeaderTodayScore;
     window.updateTaskCardInPlace = updateTaskCardInPlace;
+
+    window.addEventListener("online", () => {
+        syncAllDirtyDays();
+    });
+
+    window.addEventListener("beforeunload", () => {
+        if (_dbSaveTimer) {
+            clearTimeout(_dbSaveTimer);
+            saveData(true);
+        }
+    });
+
+    window.addEventListener("pagehide", () => {
+        if (_dbSaveTimer) {
+            clearTimeout(_dbSaveTimer);
+            saveData(true);
+        }
+    });
 }

@@ -153,11 +153,19 @@ function rowToLog(row) {
             entries[tid] = (typeof info === "object" && info !== null) ? (info.achieved ?? 0) : Number(info) || 0;
         }
     }
+    const rawExtras = row.prayer_extras || {};
+    const meta = rawExtras._meta || {};
+    const prayerExtras = { ...rawExtras };
+    delete prayerExtras._meta;
+
     return {
         entries,
-        prayerExtras: row.prayer_extras || {},
+        prayerExtras,
+        disabledTaskIds: Array.isArray(meta.disabledTaskIds) ? meta.disabledTaskIds : [],
+        bonusTaskIds: Array.isArray(meta.bonusTaskIds) ? meta.bonusTaskIds : [],
         precomputedScore: Number(row.total_score) || 0,
         totalHours: Number(row.total_hours) || 0,
+        updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : 0,
         _loadedFromDB: true
     };
 }
