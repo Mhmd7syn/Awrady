@@ -1,6 +1,6 @@
 # Awrady Project Backlog & Feature Roadmap
 
-A prioritized inventory of 30 planned features, UX enhancements, scoring fixes, and architectural refinements for **Awrady**, sorted by implementation priority and difficulty.
+A prioritized inventory of 31 planned features, UX enhancements, scoring fixes, and architectural refinements for **Awrady**, sorted by implementation priority and difficulty.
 
 ---
 
@@ -19,30 +19,31 @@ A prioritized inventory of 30 planned features, UX enhancements, scoring fixes, 
 | **4** | **#13** | Prevent retroactive bonus reclassification on past days when task settings change | **P1 (High)** | **Medium (3.0/5)** | `js/core/schedule-engine.js`, `js/core/scoring-engine.js` |
 | **5** | **#12** | Fix bonus entries acting as required targets that decrease task/day progress | **P1 (High)** | **Low (2.0/5)** | `js/components/analytics-breakdown.js`, `js/core/scoring-engine.js` |
 | **6** | **#11** | Exclude stopped/deactivated tasks from scheduled days count in stats | **P1 (High)** | **Low (1.5/5)** | `js/components/analytics-breakdown.js` |
-| **7** | **#26** | Split midnight-spanning Pomodoro time accurately across both consecutive days | **P1 (High)** | **Medium (2.5/5)** | `js/components/pomodoro.js`, `js/app.js` |
-| **8** | **#27** | Open interactive calendar datepicker upon clicking header date on home page | **P2 (Med)** | **Low (1.5/5)** | `js/components/daily-view.js`, `index.html` |
-| **9** | **#28** | Clicking a day point on the chart navigates to home page to inspect that day | **P2 (Med)** | **Low (1.5/5)** | `js/components/analytics-view.js` |
-| **10** | **#22** | Show explicit percentage progress and total time on task cards | **P2 (Med)** | **Low (1.5/5)** | `js/components/daily-view.js`, `css/style.css` |
-| **11** | **#4** | Daily view counters: time (done & rem.) + tasks (done, running, rem.) | **P2 (Med)** | **Low (2.0/5)** | `js/components/day-summary.js`, `index.html` |
-| **12** | **#25** | Change Pomodoro modal "✕" close button to "إخفاء" (Hide) | **P2 (Med)** | **Very Low (1.0/5)** | `js/components/pomodoro.js`, `index.html` |
-| **13** | **#29** | Add self-encouragement motivational note widget on the home page | **P2 (Med)** | **Low (1.5/5)** | `js/components/daily-view.js`, `index.html` |
-| **14** | **#14** | Remove redundant Save/Cancel buttons from Sunan & Azkar prayer toast | **P2 (Med)** | **Very Low (1.0/5)** | `js/components/nawafel-toast.js`, `index.html` |
-| **15** | **#24** | Remove Chart.js zoom plugin and all related gesture/zoom logic | **P2 (Med)** | **Very Low (1.0/5)** | `js/components/analytics-view.js`, `index.html` |
-| **16** | **#19** | Remove the PIN GateKeeper screen, hashing logic, and modals | **P2 (Med)** | **Low (1.5/5)** | `js/components/security-lock.js`, `index.html` |
-| **17** | **#17** | Add gender and religion selection fields to account registration | **P2 (Med)** | **Low (2.0/5)** | `js/components/auth-manager.js`, `database/schema.sql` |
-| **18** | **#18** | Personalize tasks by demographic (omit Islamic tasks for non-Muslims; binary prayer toggle for females) | **P2 (Med)** | **Medium (2.5/5)** | `js/core/task-rules.js`, `js/app.js` |
-| **19** | **#20** | Allow users to edit their profile metadata (gender, religion) and change password | **P2 (Med)** | **Low (2.0/5)** | `js/components/auth-manager.js`, `js/components/data-manager.js` |
-| **20** | **#21** | Add metric selector to statistics chart (toggle between Hours and Percentage) | **P2 (Med)** | **Low (2.0/5)** | `js/components/analytics-view.js`, `index.html` |
-| **21** | **#30** | Add circular doughnut chart in statistics showing share of top 4 tasks + "others" | **P2 (Med)** | **Low (2.0/5)** | `js/components/analytics-view.js`, `index.html` |
-| **22** | **#10** | Unify statistics page filters to centrally control all dashboard data | **P2 (Med)** | **Medium (3.0/5)** | `js/components/analytics-view.js`, `js/components/analytics-breakdown.js` |
-| **23** | **#9** | Allow excluding specific categories from chart & statistics calculations | **P2 (Med)** | **Medium (3.0/5)** | `js/components/analytics-view.js`, `index.html` |
-| **24** | **#1** | Add highest and lowest progress cards to the statistics page | **P2 (Med)** | **Low (2.0/5)** | `js/components/analytics-view.js`, `index.html` |
-| **25** | **#16** | Remove Guest Mode and enforce authenticated user sessions | **P2 (Med)** | **Low (2.0/5)** | `js/components/auth-manager.js`, `js/app.js` |
-| **26** | **#8** | Add "أعمال منزلية" (Housework) and "أخرى" (Others) to categories | **P2 (Med)** | **Very Low (1.0/5)** | `js/config/constants.js` |
-| **27** | **#23** | Persist user default timer settings to `public.users` table | **P3 (Low)** | **Low (1.5/5)** | `database/schema.sql`, `js/components/pomodoro.js` |
-| **28** | **#7** | Configure Pomodoro duration using both hours and minutes | **P3 (Low)** | **Low (1.5/5)** | `js/components/pomodoro.js`, `index.html` |
-| **29** | **#6** | Cross-device Pomodoro sync + remove 180-minute ceiling | **P3 (Low)** | **High (4.0/5)** | `js/components/pomodoro.js`, `js/api.js` |
-| **30** | **#3** | Task merge button to consolidate multiple tasks into one | **P3 (Low)** | **High (4.5/5)** | `js/components/task-manager.js`, `js/app.js` |
+| **7** | **#31** | Consolidate overlapping fasting tasks into a single task (Ramadan > White Days > Mon/Thu) | **P1 (High)** | **Low (2.0/5)** | `js/core/schedule-engine.js`, `js/components/daily-view.js` |
+| **8** | **#26** | Split midnight-spanning Pomodoro time accurately across both consecutive days | **P1 (High)** | **Medium (2.5/5)** | `js/components/pomodoro.js`, `js/app.js` |
+| **9** | **#27** | Open interactive calendar datepicker upon clicking header date on home page | **P2 (Med)** | **Low (1.5/5)** | `js/components/daily-view.js`, `index.html` |
+| **10** | **#28** | Clicking a day point on the chart navigates to home page to inspect that day | **P2 (Med)** | **Low (1.5/5)** | `js/components/analytics-view.js` |
+| **11** | **#22** | Show explicit percentage progress and total time on task cards | **P2 (Med)** | **Low (1.5/5)** | `js/components/daily-view.js`, `css/style.css` |
+| **12** | **#4** | Daily view counters: time (done & rem.) + tasks (done, running, rem.) | **P2 (Med)** | **Low (2.0/5)** | `js/components/day-summary.js`, `index.html` |
+| **13** | **#25** | Change Pomodoro modal "✕" close button to "إخفاء" (Hide) | **P2 (Med)** | **Very Low (1.0/5)** | `js/components/pomodoro.js`, `index.html` |
+| **14** | **#29** | Add self-encouragement motivational note widget on the home page | **P2 (Med)** | **Low (1.5/5)** | `js/components/daily-view.js`, `index.html` |
+| **15** | **#14** | Remove redundant Save/Cancel buttons from Sunan & Azkar prayer toast | **P2 (Med)** | **Very Low (1.0/5)** | `js/components/nawafel-toast.js`, `index.html` |
+| **16** | **#24** | Remove Chart.js zoom plugin and all related gesture/zoom logic | **P2 (Med)** | **Very Low (1.0/5)** | `js/components/analytics-view.js`, `index.html` |
+| **17** | **#19** | Remove the PIN GateKeeper screen, hashing logic, and modals | **P2 (Med)** | **Low (1.5/5)** | `js/components/security-lock.js`, `index.html` |
+| **18** | **#17** | Add gender and religion selection fields to account registration | **P2 (Med)** | **Low (2.0/5)** | `js/components/auth-manager.js`, `database/schema.sql` |
+| **19** | **#18** | Personalize tasks by demographic (omit Islamic tasks for non-Muslims; binary prayer toggle for females) | **P2 (Med)** | **Medium (2.5/5)** | `js/core/task-rules.js`, `js/app.js` |
+| **20** | **#20** | Allow users to edit their profile metadata (gender, religion) and change password | **P2 (Med)** | **Low (2.0/5)** | `js/components/auth-manager.js`, `js/components/data-manager.js` |
+| **21** | **#21** | Add metric selector to statistics chart (toggle between Hours and Percentage) | **P2 (Med)** | **Low (2.0/5)** | `js/components/analytics-view.js`, `index.html` |
+| **22** | **#30** | Add circular doughnut chart in statistics showing share of top 4 tasks + "others" | **P2 (Med)** | **Low (2.0/5)** | `js/components/analytics-view.js`, `index.html` |
+| **23** | **#10** | Unify statistics page filters to centrally control all dashboard data | **P2 (Med)** | **Medium (3.0/5)** | `js/components/analytics-view.js`, `js/components/analytics-breakdown.js` |
+| **24** | **#9** | Allow excluding specific categories from chart & statistics calculations | **P2 (Med)** | **Medium (3.0/5)** | `js/components/analytics-view.js`, `index.html` |
+| **25** | **#1** | Add highest and lowest progress cards to the statistics page | **P2 (Med)** | **Low (2.0/5)** | `js/components/analytics-view.js`, `index.html` |
+| **26** | **#16** | Remove Guest Mode and enforce authenticated user sessions | **P2 (Med)** | **Low (2.0/5)** | `js/components/auth-manager.js`, `js/app.js` |
+| **27** | **#8** | Add "أعمال منزلية" (Housework) and "أخرى" (Others) to categories | **P2 (Med)** | **Very Low (1.0/5)** | `js/config/constants.js` |
+| **28** | **#23** | Persist user default timer settings to `public.users` table | **P3 (Low)** | **Low (1.5/5)** | `database/schema.sql`, `js/components/pomodoro.js` |
+| **29** | **#7** | Configure Pomodoro duration using both hours and minutes | **P3 (Low)** | **Low (1.5/5)** | `js/components/pomodoro.js`, `index.html` |
+| **30** | **#6** | Cross-device Pomodoro sync + remove 180-minute ceiling | **P3 (Low)** | **High (4.0/5)** | `js/components/pomodoro.js`, `js/api.js` |
+| **31** | **#3** | Task merge button to consolidate multiple tasks into one | **P3 (Low)** | **High (4.5/5)** | `js/components/task-manager.js`, `js/app.js` |
 
 ---
 
@@ -72,6 +73,7 @@ A prioritized inventory of 30 planned features, UX enhancements, scoring fixes, 
    - **#28**: Chart data point click switches view and jumps to that day.
    - **#29**: Self-encouragement / motivational note widget on home page.
    - **#30**: Top-4 tasks + "others" circular doughnut chart.
+   - **#31**: Consolidate overlapping fasting schedules into a single task.
 
 3. **Medium (2.5 - 3.5/5)**:
    - **#18**: Demographic task presets & female binary prayer controls.
@@ -115,6 +117,14 @@ A prioritized inventory of 30 planned features, UX enhancements, scoring fixes, 
 #### Issue #11: Exclude stopped/deactivated tasks from scheduled days count in stats
 - **Files**: `js/components/analytics-breakdown.js`
 - **Scope**: In `renderTaskBreakdown()`, verify whether `log.disabledTaskIds` includes the task ID on that date. Days where the task was deactivated/paused must not increment `scheduledDaysCount` if no value was recorded.
+
+#### Issue #31: Consolidate overlapping fasting tasks into a single task with priority resolution
+- **Files**: `js/core/schedule-engine.js`, `js/components/daily-view.js`
+- **Scope**: When Monday/Thursday fasting coincides with the White Days (13, 14, 15 Hijri) or Ramadan, prevent rendering multiple duplicate fasting tasks on the daily dashboard. Apply the Islamic hierarchical priority:
+  1. **Ramadan (رمضان)**: Suppresses all voluntary fasting tasks.
+  2. **White Days (الأيام البيض)**: Suppresses regular Monday/Thursday fasting ("صيام الإثنين والخميس") when they occur on the same date, displaying only the White Days task (or unified label).
+  3. **Monday/Thursday (صيام الإثنين والخميس)**: Displayed on regular non-White Mondays and Thursdays.
+- **Acceptance Criteria**: A user is never required to log two separate fasts on a single day, eliminating false incomplete penalties in day scores and streaks.
 
 #### Issue #26: Split midnight-spanning Pomodoro time accurately across both consecutive days
 - **Files**: `js/components/pomodoro.js`, `js/app.js`
