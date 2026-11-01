@@ -13,7 +13,7 @@ A prioritized inventory of 31 planned features, UX enhancements, scoring fixes, 
 
 | Rank | Issue # | Issue Title | Priority | Difficulty | Primary Files |
 | :---: | :---: | :--- | :---: | :---: | :--- |
-| **1** | **#15** | Count prayer as 100% complete whether prayed alone or in congregation | **P1 (High)** | **Low (1.5/5)** | `js/config/constants.js`, `js/core/task-rules.js` |
+| **1** | **#15** | Show prayer as completed in UI when prayed alone while retaining 50% score | **P1 (High)** | **Low (1.5/5)** | `js/core/task-rules.js`, `js/components/daily-view.js` |
 | **2** | **#2** | Restrict time-based conflict resolution strictly to dirty fields | **P1 (High)** | **Medium (3.5/5)** | `js/app.js`, `js/api.js` |
 | **3** | **#5** | Freeze historical days' score/values from DB without dynamic recalculation | **P1 (High)** | **Medium (2.5/5)** | `js/core/scoring-engine.js`, `js/app.js` |
 | **4** | **#13** | Prevent retroactive bonus reclassification on past days when task settings change | **P1 (High)** | **Medium (3.0/5)** | `js/core/schedule-engine.js`, `js/core/scoring-engine.js` |
@@ -94,9 +94,9 @@ A prioritized inventory of 31 planned features, UX enhancements, scoring fixes, 
 
 ### 1. High Priority (P1) — Data & Scoring Correctness
 
-#### Issue #15: Count prayer as 100% complete whether prayed alone or in congregation
-- **Files**: `js/config/constants.js`, `js/core/task-rules.js`, `js/core/scoring-engine.js`
-- **Scope**: In `APP_CONSTANTS.PRAYER_VALUES`, `ALONE` is currently set to `0.5`, causing `isTaskCompleted()` to evaluate to `false` when a user prays alone. Update prayer rules so performing the obligatory prayer alone fulfills 100% of the target requirement, while treating congregation as an optional quality badge rather than a 50% penalty on the obligation itself.
+#### Issue #15: Show prayer as completed in UI when prayed alone while retaining 50% score [Completed]
+- **Files**: `js/core/task-rules.js`, `js/components/daily-view.js`, `js/components/day-summary.js`
+- **Scope**: In `APP_CONSTANTS.PRAYER_VALUES`, `ALONE` is `0.5` and `CONGREGATION` is `1.0`. The scoring engine retains this 50% vs 100% score weighting, but in the UI, `isTaskCompleted()` now evaluates to `true` for any obligatory prayer with `val > 0`. This marks the task completed, moves it down into the completed tasks section, updates completed counters, removes remaining estimated minutes, and renders clear `منفرد (50%)` or `جماعة (100%)` status labels.
 
 #### Issue #2: Restrict time-based conflict resolution strictly to dirty fields
 - **Files**: `js/app.js`, `js/api.js`

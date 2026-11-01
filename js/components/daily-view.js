@@ -243,8 +243,15 @@ function renderDailyView() {
                 const iconHtml = getCategoryIconHtml(task);
                 const overTarget = target > 0 && val > target;
                 const rawTarget = task.target || 0;
-                const unitLabel = isTimeTask(task) ? "دقيقة" : getTaskUnit(task);
-                const targetStr = rawTarget > 0 ? `${val}/${target} ${unitLabel}` : `${val}`;
+                const isTime = isTimeTask(task);
+                const isPrayer = isPrayerSelector(task);
+                const unitLabel = isTime ? "دقيقة" : getTaskUnit(task);
+                let targetStr;
+                if (isPrayer) {
+                    targetStr = val === APP_CONSTANTS.PRAYER_VALUES.CONGREGATION ? "جماعة (100%)" : "منفرد (50%)";
+                } else {
+                    targetStr = rawTarget > 0 ? `${val}/${target} ${unitLabel}` : `${val}`;
+                }
                 const progressPct = target > 0 ? Math.min(100, Math.round((val / target) * 100)) : (val > 0 ? 100 : 0);
                 const barColor = overTarget ? "#f59e0b" : "#10b981";
                 const minControlsHtml = renderTaskControls(task, val, { compact: true });
@@ -555,9 +562,15 @@ function updateTaskCardInPlace(taskId, val, task = null) {
     if (targetStrEl) {
         const rawTarget = task.target || 0;
         const isTime = isTimeTask(task);
+        const isPrayer = isPrayerSelector(task);
         const catObj = APP_CONSTANTS.CATEGORIES.find(c => c.name === task.category);
         const unitLabel = isTime ? "دقيقة" : (task.type || (catObj && catObj.defaultUnit) || "");
-        const targetStr = rawTarget > 0 ? `${val}/${target} ${unitLabel}` : `${val}`;
+        let targetStr;
+        if (isPrayer) {
+            targetStr = val === APP_CONSTANTS.PRAYER_VALUES.CONGREGATION ? "جماعة (100%)" : "منفرد (50%)";
+        } else {
+            targetStr = rawTarget > 0 ? `${val}/${target} ${unitLabel}` : `${val}`;
+        }
         targetStrEl.textContent = `— ${targetStr}`;
     }
 

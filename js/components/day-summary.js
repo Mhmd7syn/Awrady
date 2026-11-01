@@ -46,7 +46,11 @@ function updateDailyScoreSummary() {
         const val = getTaskVal(t.id);
         const target = t.target || 0;
 
-        if (isTimeTask(t)) {
+        if (isPrayerSelector(t)) {
+            if (val === 0) {
+                totalRemainingMinutes += ScoringEngine.getTaskWeightMinutes(t, currentDateStr, appData);
+            }
+        } else if (isTimeTask(t)) {
             const normTarget = getTaskNormalizedTarget(t, currentDateStr);
             if (normTarget > 0 && val < normTarget) {
                 totalRemainingMinutes += (normTarget - val);

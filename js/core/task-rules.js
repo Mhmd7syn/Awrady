@@ -56,6 +56,9 @@ function getTaskNormalizedTarget(task, dateStr = null) {
  * @returns {boolean}
  */
 function isTaskCompleted(task, val, dateStr = null) {
+    if (isPrayerSelector(task)) {
+        return val > 0;
+    }
     const normTarget = getTaskNormalizedTarget(task, dateStr);
     if (normTarget > 0) {
         return val >= normTarget;
