@@ -86,6 +86,12 @@ awrady/
 
 ---
 
+## 📋 Roadmap & Backlog
+
+Explore our **[Feature Roadmap & Issue Backlog](BACKLOG.md)** for a prioritized inventory of 30 planned enhancements, scoring fixes, demographic personalization, and analytics tools sorted by priority and difficulty.
+
+---
+
 ## 🤝 Contributing
 
 We welcome contributions from developers of all skill levels! 
