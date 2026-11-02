@@ -586,6 +586,9 @@ function commitWorkMinutesToDisk(minutes, showAlert = false) {
 
         const currentVal = appData.logs[realTodayStr].entries[PomodoroTimer.taskId] || 0;
         appData.logs[realTodayStr].entries[PomodoroTimer.taskId] = currentVal + minutes;
+        if (!appData.logs[realTodayStr]._dirtyTasks) appData.logs[realTodayStr]._dirtyTasks = {};
+        appData.logs[realTodayStr]._dirtyTasks[PomodoroTimer.taskId] = Date.now();
+        appData.logs[realTodayStr]._dirty = true;
 
         // Persist data immediately
         saveData(true);

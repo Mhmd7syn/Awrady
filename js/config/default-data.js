@@ -28,7 +28,7 @@ var DEFAULT_TASKS = [
     // صوم
     { id: "task_fasting", name: "صيام الإثنين والخميس", schedule: "Mon, Thu", target: 1, isArchived: false, category: "صوم", subcategory: "", createdAt: "2000-01-01" },
     { id: "task_fasting_white_days", name: "صيام الأيام البيض", schedule: "WhiteDays", target: 1, isArchived: false, category: "صوم", subcategory: "", createdAt: "2000-01-01" },
-    { id: "task_fasting_voluntary", name: "صيام تطوع عام", schedule: "Optional", target: 1, isArchived: false, category: "صوم", subcategory: "", createdAt: "2000-01-01" },
+    { id: "task_fasting_voluntary", name: "صيام تطوع عام", schedule: "OneTime", target: 1, isArchived: false, category: "صوم", subcategory: "", createdAt: "2000-01-01" },
     // قراءة
     { id: "task_reading", name: "قراءة كتاب", schedule: "Everyday", target: 10, isArchived: false, category: "قراءة", subcategory: "", createdAt: "2000-01-01" },
     // استماع

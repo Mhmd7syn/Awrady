@@ -14,9 +14,9 @@ A prioritized inventory of 31 planned features, UX enhancements, scoring fixes, 
 | Rank | Issue # | Issue Title | Priority | Difficulty | Primary Files |
 | :---: | :---: | :--- | :---: | :---: | :--- |
 | **1** | **#15** | Show prayer as completed in UI when prayed alone while retaining 50% score | **P1 (High)** | **Low (1.5/5)** | `js/core/task-rules.js`, `js/components/daily-view.js` |
-| **2** | **#2** | Restrict time-based conflict resolution strictly to dirty fields | **P1 (High)** | **Medium (3.5/5)** | `js/app.js`, `js/api.js` |
-| **3** | **#5** | Freeze historical days' score/values from DB without dynamic recalculation | **P1 (High)** | **Medium (2.5/5)** | `js/core/scoring-engine.js`, `js/app.js` |
-| **4** | **#13** | Prevent retroactive bonus reclassification on past days when task settings change | **P1 (High)** | **Medium (3.0/5)** | `js/core/schedule-engine.js`, `js/core/scoring-engine.js` |
+| **2** | **#2** | Restrict time-based conflict resolution strictly to dirty fields [Completed] | **P1 (High)** | **Medium (3.5/5)** | `js/app.js`, `js/api.js` |
+| **3** | **#5** | Freeze historical days' score/values from DB without dynamic recalculation [Completed] | **P1 (High)** | **Medium (2.5/5)** | `js/core/scoring-engine.js`, `js/app.js` |
+| **4** | **#13** | Prevent retroactive bonus reclassification on past days when task settings change [Completed] | **P1 (High)** | **Medium (3.0/5)** | `js/core/schedule-engine.js`, `js/core/scoring-engine.js` |
 | **5** | **#12** | Fix bonus entries acting as required targets that decrease task/day progress | **P1 (High)** | **Low (2.0/5)** | `js/components/analytics-breakdown.js`, `js/core/scoring-engine.js` |
 | **6** | **#11** | Exclude stopped/deactivated tasks from scheduled days count in stats | **P1 (High)** | **Low (1.5/5)** | `js/components/analytics-breakdown.js` |
 | **7** | **#31** | Consolidate overlapping fasting tasks into a single task (Ramadan > White Days > Mon/Thu) | **P1 (High)** | **Low (2.0/5)** | `js/core/schedule-engine.js`, `js/components/daily-view.js` |
@@ -98,15 +98,15 @@ A prioritized inventory of 31 planned features, UX enhancements, scoring fixes, 
 - **Files**: `js/core/task-rules.js`, `js/components/daily-view.js`, `js/components/day-summary.js`
 - **Scope**: In `APP_CONSTANTS.PRAYER_VALUES`, `ALONE` is `0.5` and `CONGREGATION` is `1.0`. The scoring engine retains this 50% vs 100% score weighting, but in the UI, `isTaskCompleted()` now evaluates to `true` for any obligatory prayer with `val > 0`. This marks the task completed, moves it down into the completed tasks section, updates completed counters, removes remaining estimated minutes, and renders clear `منفرد (50%)` or `جماعة (100%)` status labels.
 
-#### Issue #2: Restrict time-based conflict resolution strictly to dirty fields
+#### Issue #2: Restrict time-based conflict resolution strictly to dirty fields [Completed]
 - **Files**: `js/app.js`, `js/api.js`
 - **Scope**: When syncing offline changes with Supabase via `mergeDayLog()`, timestamp-based conflict resolution (LWW) must only evaluate fields and tasks locally flagged as dirty (`_dirtyTasks` / `_dirtyFields`). Untouched remote fields must always take precedence over stale local cache values.
 
-#### Issue #5: Freeze historical days' score and values from DB without dynamic recalculation
+#### Issue #5: Freeze historical days' score and values from DB without dynamic recalculation [Completed]
 - **Files**: `js/core/scoring-engine.js`, `js/app.js`
 - **Scope**: Historical days loaded from the database must use their stored `total_score` and `total_hours`. Bypasses dynamic re-weighting against current `appData.tasks` so that modifying or deleting a task today does not distort previous months' scores.
 
-#### Issue #13: Prevent retroactive bonus reclassification on past days when task settings change
+#### Issue #13: Prevent retroactive bonus reclassification on past days when task settings change [Completed]
 - **Files**: `js/core/schedule-engine.js`, `js/core/scoring-engine.js`
 - **Scope**: Changing a task's schedule type (e.g. to "Optional" or "OneTime") must not alter how past days are interpreted. Historical logs must derive their scheduled vs. bonus status from the database record rather than the current live task definition.
 

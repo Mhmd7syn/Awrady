@@ -45,18 +45,17 @@ function getTasksSummaryByDay(options = null) {
 
             const logEntry = dataStore.logs?.[dateStr];
             const val = logEntry?.entries?.[t.id] || 0;
-            const isExplicitBonus = logEntry?.bonusTaskIds?.includes(t.id);
+            const isBonus = ScheduleEngine.isBonusTaskForDate(t, dateStr, dataStore, val);
 
             const cat = t.category || "";
             const sched = (t.schedule || "").trim();
             const isOneTime = sched === "OneTime";
             const isEveryday = sched === "Everyday" || sched === "";
-            const isBonus = Boolean(isExplicitBonus);
 
             const isScheduled = ScheduleEngine.isTaskScheduledForDate(t, dateStr, dataStore, val);
 
             if (isBonus) {
-                if (!(val > 0) && !isExplicitBonus) return;
+                if (!(val > 0)) return;
                 if (!opts.includeBonusAndOneTime) return;
             } else if (isOneTime) {
                 if (!isScheduled && !(val > 0)) return;

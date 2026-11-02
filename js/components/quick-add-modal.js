@@ -98,8 +98,7 @@ function populateQuickAddExistingList() {
 
     function renderList() {
         const curDate = currentDateStr;
-        const log = (appData.logs && appData.logs[curDate]) || { entries: {}, bonusTaskIds: [] };
-        const todayBonusIds = Array.isArray(log.bonusTaskIds) ? log.bonusTaskIds : [];
+        const log = (appData.logs && appData.logs[curDate]) || { entries: {} };
         const term = (document.getElementById("quick-add-search-input")?.value || "").trim().toLowerCase();
 
         list.innerHTML = "";
@@ -139,12 +138,12 @@ function populateQuickAddExistingList() {
                 typeBadgeHtml = `<span style="font-size:0.72rem; padding:2px 8px; border-radius:10px; background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3);">مرة واحدة</span>`;
             }
 
-            const isAlreadyBonus = todayBonusIds.includes(task.id);
+            const isAlreadyActive = log?.entries && log.entries[task.id] !== undefined;
             const iconHtml = getCategoryIconHtml(task);
             const catInfo = `${task.category || 'عام'}${task.subcategory ? ' - ' + task.subcategory : ''}`;
 
             const row = document.createElement("div");
-            row.style.cssText = `display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:rgba(255,255,255,0.04); border-radius:10px; border:1px solid rgba(255,255,255,0.08); transition:all 0.2s ease; ${isAlreadyBonus ? 'opacity:0.6;' : ''}`;
+            row.style.cssText = `display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:rgba(255,255,255,0.04); border-radius:10px; border:1px solid rgba(255,255,255,0.08); transition:all 0.2s ease; ${isAlreadyActive ? 'opacity:0.6;' : ''}`;
 
             row.innerHTML = `
                 <div style="display:flex; align-items:center; gap:10px; min-width:0; flex:1;">
@@ -158,7 +157,7 @@ function populateQuickAddExistingList() {
                     </div>
                 </div>
                 <div style="flex-shrink:0; margin-right:8px;">
-                    ${isAlreadyBonus 
+                    ${isAlreadyActive 
                         ? `<button class="btn-sm" disabled style="background:rgba(16,185,129,0.12); color:#10b981; border:1px solid rgba(16,185,129,0.25); font-size:0.78rem; padding:5px 10px; border-radius:8px; cursor:default;"><i class="fa-solid fa-check"></i> مضاف كـ بونص</button>`
                         : `<button class="btn-primary btn-sm btn-qa-pick" data-task-id="${task.id}" style="font-size:0.78rem; padding:5px 12px; border-radius:8px;"><i class="fa-solid fa-plus"></i> إضافة كـ بونص</button>`
                     }

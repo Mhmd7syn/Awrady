@@ -171,7 +171,6 @@ function formatScheduleDisplay(sched) {
     if (!sched || sched === "Everyday") return "يومياً";
     if (sched === "Ramadan") return "شهر رمضان";
     if (sched === "WhiteDays") return "الأيام البيض (13، 14، 15)";
-    if (sched === "Optional") return "اختياري / عند التنفيذ";
     if (sched === "OneTime") return "لمرة واحدة فقط";
 
     const dayNameMap = Object.fromEntries(APP_CONSTANTS.WEEKDAYS.map(w => [w.key, w.ar]));
@@ -323,9 +322,6 @@ function deleteForever(id) {
                     if (log.entries && log.entries[id] !== undefined) {
                         delete log.entries[id];
                     }
-                    if (Array.isArray(log.bonusTaskIds)) {
-                        log.bonusTaskIds = log.bonusTaskIds.filter(x => x !== id);
-                    }
                     if (Array.isArray(log.disabledTaskIds)) {
                         log.disabledTaskIds = log.disabledTaskIds.filter(x => x !== id);
                     }
@@ -349,14 +345,17 @@ function deleteForever(id) {
 }
 
 function addBonusTaskToDate(taskId, dateStr) {
-    if (!appData.logs[dateStr]) appData.logs[dateStr] = { entries: {}, bonusTaskIds: [] };
-    if (!appData.logs[dateStr].bonusTaskIds) appData.logs[dateStr].bonusTaskIds = [];
-    if (!appData.logs[dateStr].bonusTaskIds.includes(taskId)) {
-        appData.logs[dateStr].bonusTaskIds.push(taskId);
+    if (!appData.logs[dateStr]) appData.logs[dateStr] = { entries: {} };
+    if (!appData.logs[dateStr].entries) appData.logs[dateStr].entries = {};
+    if (appData.logs[dateStr].entries[taskId] === undefined) {
+        appData.logs[dateStr].entries[taskId] = 0;
     }
     if (appData.logs[dateStr].disabledTaskIds && appData.logs[dateStr].disabledTaskIds.includes(taskId)) {
         appData.logs[dateStr].disabledTaskIds = appData.logs[dateStr].disabledTaskIds.filter(id => id !== taskId);
     }
+    if (!appData.logs[dateStr]._dirtyTasks) appData.logs[dateStr]._dirtyTasks = {};
+    appData.logs[dateStr]._dirtyTasks[taskId] = Date.now();
+    appData.logs[dateStr]._dirty = true;
     saveData();
     renderDailyView();
     updateDailyScoreSummary();

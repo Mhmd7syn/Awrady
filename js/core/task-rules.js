@@ -41,6 +41,14 @@ function isTimeTask(task) {
  */
 function getTaskNormalizedTarget(task, dateStr = null) {
     if (!task) return 0;
+    if (dateStr && typeof window !== "undefined" && window.appData?.logs?.[dateStr]) {
+        const log = window.appData.logs[dateStr];
+        if (log._loadedFromDB && log.taskProgress && log.taskProgress[task.id] !== undefined) {
+            const tp = log.taskProgress[task.id];
+            const savedTarget = typeof tp === "object" && tp !== null ? Number(tp.target) : Number(tp);
+            if (!isNaN(savedTarget)) return savedTarget;
+        }
+    }
     const target = task.target || 0;
     if (isTimeTask(task)) {
         return target * 60;
@@ -163,9 +171,9 @@ function rowToLog(row) {
 
     return {
         entries,
+        taskProgress: row.task_progress || {},
         prayerExtras,
         disabledTaskIds: Array.isArray(meta.disabledTaskIds) ? meta.disabledTaskIds : [],
-        bonusTaskIds: Array.isArray(meta.bonusTaskIds) ? meta.bonusTaskIds : [],
         precomputedScore: Number(row.total_score) || 0,
         totalHours: Number(row.total_hours) || 0,
         updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : 0,

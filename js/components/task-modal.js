@@ -73,7 +73,7 @@ function openTaskModal(id, options = {}) {
 
             const isOt = task.schedule === "OneTime";
             const sched = task.schedule || "Everyday";
-            if (sched === "Everyday" || sched === "Ramadan" || sched === "WhiteDays" || sched === "Optional" || sched === "OneTime") {
+            if (sched === "Everyday" || sched === "Ramadan" || sched === "WhiteDays" || sched === "OneTime") {
                 const radio = document.querySelector(`input[name="schedule_type"][value="${sched}"]`);
                 if (radio) radio.checked = true;
                 if (weekdaysBox) weekdaysBox.classList.add("hidden");

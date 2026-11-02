@@ -101,6 +101,11 @@ function savePrayerExtras() {
                 azkar: tempAzkarChecked
             };
 
+            const curLog = window.appData.logs[curDateStr];
+            if (!curLog._dirtyFields) curLog._dirtyFields = {};
+            curLog._dirtyFields["prayerExtras." + prayerId] = Date.now();
+            curLog._dirty = true;
+
             const sunnahId = APP_CONSTANTS.TASK_IDS.SUNNAH;
             const azkarId = APP_CONSTANTS.TASK_IDS.PRAYER_AZKAR;
 
@@ -151,6 +156,9 @@ function removePrayerExtras(prayerTaskId) {
         }
     }
     delete log.prayerExtras[prayerTaskId];
+    if (!log._dirtyFields) log._dirtyFields = {};
+    log._dirtyFields["prayerExtras." + prayerTaskId] = Date.now();
+    log._dirty = true;
     saveData();
     renderDailyView();
 }

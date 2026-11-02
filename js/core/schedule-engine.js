@@ -15,9 +15,19 @@ class ScheduleEngine {
      */
     static isTaskScheduledForDate(task, dateStr, appDataRef = null, loggedVal = null, dateContext = null) {
         if (!task) return false;
-        const sched = (task.schedule || "Everyday").trim();
         const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
-        const val = loggedVal !== null ? loggedVal : (appData?.logs?.[dateStr]?.entries?.[task.id] || 0);
+        const log = appData?.logs?.[dateStr];
+        const val = loggedVal !== null ? loggedVal : (log?.entries?.[task.id] || 0);
+
+        // Historical DB snapshot: preserve past scheduled status from recorded target
+        if (log?._loadedFromDB && log.taskProgress && log.taskProgress[task.id] !== undefined) {
+            const tp = log.taskProgress[task.id];
+            const target = typeof tp === "object" && tp !== null ? Number(tp.target) : Number(tp);
+            if (target === 0) return false;
+            if (target > 0) return true;
+        }
+
+        const sched = (task.schedule || "Everyday").trim();
 
         if (sched === "OneTime") {
             const taskDate = (task.createdAt || "").slice(0, 10);
@@ -36,7 +46,6 @@ class ScheduleEngine {
         if (sched.includes("WhiteDays")) return hijriInfo.isWhiteDay;
         if (sched === "Everyday" || sched === "") return true;
         if (sched === "Ramadan") return hijriInfo.isRamadan;
-        if (sched === "Optional") return val > 0;
 
         return sched.includes(dayAbbrev);
     }
@@ -54,14 +63,20 @@ class ScheduleEngine {
         if (!task) return false;
         const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
         const log = appData?.logs?.[dateStr];
-        if (log?.bonusTaskIds?.some(id => String(id) === String(task.id))) return true;
-
-        const sched = (task.schedule || "").trim();
-        if (sched === "Optional") return false;
-
         const val = loggedVal !== null ? loggedVal : (log?.entries?.[task.id] || 0);
+
+        // Historical DB snapshot: preserve past bonus status from recorded target & achievement
+        if (log?._loadedFromDB && log.taskProgress && log.taskProgress[task.id] !== undefined) {
+            const tp = log.taskProgress[task.id];
+            const target = typeof tp === "object" && tp !== null ? Number(tp.target) : Number(tp);
+            const achieved = typeof tp === "object" && tp !== null ? Number(tp.achieved) : Number(val);
+            if (target === 0 && achieved > 0) return true;
+            if (target > 0) return false;
+        }
+
         if (val <= 0) return false;
 
+        const sched = (task.schedule || "").trim();
         if (sched === "OneTime") {
             const taskDate = (task.createdAt || "").slice(0, 10);
             return taskDate !== dateStr;
@@ -81,12 +96,12 @@ class ScheduleEngine {
         if (!task) return false;
         const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
         const log = appData?.logs?.[dateStr];
-        const val = log?.entries?.[task.id] || 0;
+        const hasEntry = log?.entries && log.entries[task.id] !== undefined;
+        const val = (hasEntry ? log.entries[task.id] : 0) || 0;
 
         if (task.isArchived) return val > 0;
         if (log?.disabledTaskIds?.includes(task.id)) return true;
-        if (log?.bonusTaskIds?.includes(task.id)) return true;
-        if (val > 0) return true;
+        if (hasEntry) return true;
 
         return ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val);
     }

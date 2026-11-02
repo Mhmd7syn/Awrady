@@ -82,7 +82,6 @@ function renderDailyView() {
 
     const log = appData.logs[currentDateStr] || { entries: {}, disabledTaskIds: [] };
     const disabledIds = log.disabledTaskIds || [];
-    const bonusIds = log.bonusTaskIds || [];
 
     const allScheduled = appData.tasks.filter(t => ScheduleEngine.isVisibleOn(t, currentDateStr, appData));
 
@@ -380,7 +379,7 @@ function attachTaskControlListeners(grid) {
         if (!appData.logs[currentDateStr]) appData.logs[currentDateStr] = { entries: {} };
         if (!appData.logs[currentDateStr].entries) appData.logs[currentDateStr].entries = {};
         if (!appData.logs[currentDateStr]._dirtyTasks) appData.logs[currentDateStr]._dirtyTasks = {};
-        appData.logs[currentDateStr]._dirtyTasks[taskId] = true;
+        appData.logs[currentDateStr]._dirtyTasks[taskId] = Date.now();
         appData.logs[currentDateStr]._dirty = true;
         appData.logs[currentDateStr].entries[taskId] = newTotal;
 
@@ -480,6 +479,8 @@ function toggleDeactivateTaskForDate(taskId, dateStr) {
     const idx = log.disabledTaskIds.indexOf(taskId);
     if (idx >= 0) log.disabledTaskIds.splice(idx, 1);
     else log.disabledTaskIds.push(taskId);
+    if (!log._dirtyFields) log._dirtyFields = {};
+    log._dirtyFields.disabledTaskIds = Date.now();
     log._dirty = true;
     saveData();
     renderDailyView();
@@ -596,7 +597,7 @@ function setTaskVal(taskId, val) {
     if (!appData.logs[currentDateStr]._dirtyTasks) {
         appData.logs[currentDateStr]._dirtyTasks = {};
     }
-    appData.logs[currentDateStr]._dirtyTasks[taskId] = true;
+    appData.logs[currentDateStr]._dirtyTasks[taskId] = Date.now();
     appData.logs[currentDateStr]._dirty = true;
 
     const prevVal = appData.logs[currentDateStr].entries[taskId] || 0;

@@ -68,6 +68,9 @@ class AwradyAPI {
             target: Number(r.target) || 1,
             schedule: r.schedule || "Everyday",
             isArchived: Boolean(r.is_archived),
+            totalAchieved: Number(r.total_achieved) || 0,
+            totalHours: Number(r.total_hours) || 0,
+            totalScore: Number(r.total_score) || 0,
             createdAt: r.created_at
         }));
     }
@@ -83,7 +86,10 @@ class AwradyAPI {
             subcategory: task.subcategory || null,
             target: Number(task.target) || 1,
             schedule: task.schedule || "Everyday",
-            is_archived: Boolean(task.isArchived)
+            is_archived: Boolean(task.isArchived),
+            total_achieved: Number(task.totalAchieved ?? task.total_achieved) || 0,
+            total_hours: Number(task.totalHours ?? task.total_hours) || 0,
+            total_score: Number(task.totalScore ?? task.total_score) || 0
         };
         const { data, error } = await this.client.from(tblTasks).upsert(row, { onConflict: "username, task_id" }).select();
         if (error) throw error;

@@ -33,8 +33,7 @@ var APP_CONSTANTS = {
         WEEKDAYS: "Weekdays",
         WHITE_DAYS: "WhiteDays",
         RAMADAN: "Ramadan",
-        ONE_TIME: "OneTime",
-        OPTIONAL: "Optional"
+        ONE_TIME: "OneTime"
     },
     POMODORO_DEFAULTS: {
         WORK_MINUTES: 25,

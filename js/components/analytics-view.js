@@ -12,9 +12,8 @@ function getRecordedDates() {
         if (!log) return false;
         const hasPositiveEntries = log.entries && Object.values(log.entries).some(v => v > 0);
         const hasPrecomputed = log.precomputedScore !== undefined && log.precomputedScore !== null;
-        const hasBonus = log.bonusTaskIds && log.bonusTaskIds.length > 0;
         const hasDisabled = log.disabledTaskIds && log.disabledTaskIds.length > 0;
-        return hasPositiveEntries || hasPrecomputed || hasBonus || hasDisabled;
+        return hasPositiveEntries || hasPrecomputed || hasDisabled;
     }).sort();
 }
 

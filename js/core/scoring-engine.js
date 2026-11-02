@@ -56,12 +56,17 @@ class ScoringEngine {
         const log = appData.logs[dateStr];
         if (!log) return 0;
 
-        // If historical row has no task entries, return stored totals
-        if (!log.entries || Object.keys(log.entries).length === 0) {
-            if (returnHours) {
-                return Number(log.total_hours ?? log.totalHours) || 0;
+        const isDirty = Boolean(log._dirty ||
+            (log._dirtyTasks && Object.keys(log._dirtyTasks).length > 0) ||
+            (log._dirtyFields && Object.keys(log._dirtyFields).length > 0));
+
+        // Freeze historical days: if clean and loaded from DB (or stored totals exist), return in O(1)
+        if (!isDirty && (log._loadedFromDB || (!log.entries || Object.keys(log.entries).length === 0))) {
+            const storedScore = log.total_score ?? log.precomputedScore;
+            const storedHours = log.total_hours ?? log.totalHours;
+            if (storedScore !== undefined && storedScore !== null) {
+                return returnHours ? (Number(storedHours) || 0) : (Number(storedScore) || 0);
             }
-            return Number(log.total_score ?? log.precomputedScore) || 0;
         }
 
         let reqWeightedScore = 0.0;
@@ -98,17 +103,30 @@ class ScoringEngine {
             }
         });
 
-        if (returnHours) {
-            return (reqWeightedScore + bonusWeightedScore) / 60;
-        }
-        if (reqTotalWeight === 0) {
-            return bonusWeightedScore > 0 ? 1.0 : (Number(log.total_score ?? log.precomputedScore) || 0);
-        }
-        return (reqWeightedScore + bonusWeightedScore) / reqTotalWeight;
+        const calculatedScore = reqTotalWeight === 0
+            ? (bonusWeightedScore > 0 ? 1.0 : (Number(log.total_score ?? log.precomputedScore) || 0))
+            : (reqWeightedScore + bonusWeightedScore) / reqTotalWeight;
+        const calculatedHours = (reqWeightedScore + bonusWeightedScore) / 60;
+
+        // Cache precalculated values onto the log object
+        log.precomputedScore = calculatedScore;
+        log.totalHours = calculatedHours;
+
+        return returnHours ? calculatedHours : calculatedScore;
     }
 
-    // No-op cache invalidation kept for backward compatibility
-    static invalidateScoreCache() {}
+    /**
+     * Invalidate cached day score and hours when task values change
+     * @param {string} dateStr 
+     * @param {Object} [appDataRef] 
+     */
+    static invalidateScoreCache(dateStr, appDataRef = null) {
+        const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
+        if (appData?.logs?.[dateStr]) {
+            delete appData.logs[dateStr].precomputedScore;
+            delete appData.logs[dateStr].totalHours;
+        }
+    }
 }
 
 if (typeof window !== "undefined") {
