@@ -91,6 +91,37 @@ window.logoutApp = function() {
 
 let _dbSaveTimer = null;
 
+function cleanStoredDayLog(log, dateStr) {
+    if (!log || !log.taskProgress) return false;
+    const cleanProgress = {};
+    const cleanEntries = {};
+    let hasClutter = false;
+
+    for (const [tid, info] of Object.entries(log.taskProgress)) {
+        const val = typeof info === "object" && info !== null ? (Number(info.achieved) || 0) : (Number(info) || 0);
+        const target = typeof info === "object" && info !== null ? (Number(info.target) || 0) : 0;
+        const task = (appData.tasks || []).find(t => t.id === tid);
+        const isScheduled = task ? ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val) : target > 0;
+        const isPaused = log.disabledTaskIds?.includes(tid) || (target === 0 && isScheduled);
+
+        // Keep only tasks that genuinely belong to this day
+        if (val > 0 || target > 0 || isScheduled || isPaused) {
+            cleanProgress[tid] = info;
+            cleanEntries[tid] = val;
+        } else {
+            hasClutter = true;
+        }
+    }
+
+    if (hasClutter) {
+        log.taskProgress = cleanProgress;
+        log.entries = cleanEntries;
+        log._dirty = true;
+        return true;
+    }
+    return false;
+}
+
 function loadLocalState() {
     try {
         const localSaved = localStorage.getItem(getUserStorageKey()) || localStorage.getItem(STORAGE_KEY);
@@ -98,7 +129,12 @@ function loadLocalState() {
             const parsed = JSON.parse(localSaved);
             if (parsed) {
                 if (parsed.tasks && parsed.tasks.length > 0) appData.tasks = parsed.tasks;
-                if (parsed.logs) appData.logs = parsed.logs;
+                if (parsed.logs) {
+                    appData.logs = parsed.logs;
+                    Object.keys(appData.logs).forEach(dateStr => {
+                        cleanStoredDayLog(appData.logs[dateStr], dateStr);
+                    });
+                }
             }
         }
     } catch (e) {
@@ -210,19 +246,30 @@ async function pushDayToCloud(dateStr) {
     if (!log) return;
 
     const prayerExtras = { ...(log.prayerExtras || {}) };
-    prayerExtras._meta = {
-        disabledTaskIds: log.disabledTaskIds || []
-    };
+    delete prayerExtras._meta;
 
-    const totalScore = calculateDayScore(dateStr, appData, false);
-    const totalHours = calculateDayScore(dateStr, appData, true);
+    const totalScore = (log.precomputedScore !== undefined && (!log._dirtyTasks || Object.keys(log._dirtyTasks).length === 0) && (!log._dirtyFields || Object.keys(log._dirtyFields).length === 0))
+        ? log.precomputedScore
+        : calculateDayScore(dateStr, appData, false);
+    const totalHours = (log.totalHours !== undefined && (!log._dirtyTasks || Object.keys(log._dirtyTasks).length === 0) && (!log._dirtyFields || Object.keys(log._dirtyFields).length === 0))
+        ? log.totalHours
+        : calculateDayScore(dateStr, appData, true);
 
     const taskProgress = {};
+    const disabledIds = log.disabledTaskIds || [];
+
     (appData.tasks || []).forEach(t => {
-        const val = (log.entries && log.entries[t.id]) || 0;
-        const isBonus = ScheduleEngine.isBonusTaskForDate(t, dateStr, appData, val);
+        const hasEntry = log.entries && log.entries[t.id] !== undefined;
+        const val = hasEntry ? (Number(log.entries[t.id]) || 0) : 0;
         const isScheduled = ScheduleEngine.isTaskScheduledForDate(t, dateStr, appData, val);
-        const normTarget = (isBonus || !isScheduled) ? 0 : getTaskNormalizedTarget(t, dateStr);
+        const isDisabled = disabledIds.includes(t.id);
+
+        // Clean DB persistence: only persist tasks that are scheduled, paused, or logged
+        if (!isScheduled && !isDisabled && val <= 0) {
+            return;
+        }
+
+        const normTarget = (isDisabled || !isScheduled) ? 0 : getTaskNormalizedTarget(t, dateStr);
 
         taskProgress[t.id] = {
             target: normTarget,
@@ -310,11 +357,9 @@ async function initData() {
             if (allProgress && allProgress.length > 0) {
                 allProgress.forEach(row => {
                     const localLog = appData.logs[row.date];
-                    if (localLog) {
-                        appData.logs[row.date] = mergeDayLog(localLog, row);
-                    } else {
-                        appData.logs[row.date] = rowToLog(row);
-                    }
+                    const merged = localLog ? mergeDayLog(localLog, row) : rowToLog(row);
+                    cleanStoredDayLog(merged, row.date);
+                    appData.logs[row.date] = merged;
                 });
             }
 

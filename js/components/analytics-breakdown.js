@@ -144,7 +144,7 @@ function renderTaskBreakdown(allDates) {
                 const log = (appData.logs && appData.logs[d]) ? appData.logs[d] : null;
                 const val = (log && log.entries) ? (log.entries[task.id] || 0) : 0;
 
-                const isExplicitBonus = Boolean(task.isBonus || log?.bonusTaskIds?.includes(task.id));
+                const isExplicitBonus = Boolean(task.isBonus);
                 let isScheduled = false;
 
                 if (!isExplicitBonus) {

@@ -157,23 +157,20 @@ function groupTasksByCategory(tasks) {
  * @returns {Object}
  */
 function rowToLog(row) {
-    if (!row) return { entries: {}, prayerExtras: {}, precomputedScore: 0, totalHours: 0, _loadedFromDB: false };
+    if (!row) return { entries: {}, taskProgress: {}, prayerExtras: {}, precomputedScore: 0, totalHours: 0, _loadedFromDB: false };
     const entries = {};
     if (row.task_progress) {
         for (const [tid, info] of Object.entries(row.task_progress)) {
             entries[tid] = (typeof info === "object" && info !== null) ? (info.achieved ?? 0) : Number(info) || 0;
         }
     }
-    const rawExtras = row.prayer_extras || {};
-    const meta = rawExtras._meta || {};
-    const prayerExtras = { ...rawExtras };
+    const prayerExtras = { ...(row.prayer_extras || {}) };
     delete prayerExtras._meta;
 
     return {
         entries,
         taskProgress: row.task_progress || {},
         prayerExtras,
-        disabledTaskIds: Array.isArray(meta.disabledTaskIds) ? meta.disabledTaskIds : [],
         precomputedScore: Number(row.total_score) || 0,
         totalHours: Number(row.total_hours) || 0,
         updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : 0,

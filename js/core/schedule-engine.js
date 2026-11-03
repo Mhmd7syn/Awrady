@@ -18,7 +18,6 @@ class ScheduleEngine {
         if (task.isBonus) return false;
         const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
         const log = appData?.logs?.[dateStr];
-        if (log?.bonusTaskIds?.includes(task.id)) return false;
         const val = loggedVal !== null ? loggedVal : (log?.entries?.[task.id] || 0);
 
         // Historical DB snapshot: preserve past scheduled status from recorded target
@@ -75,7 +74,7 @@ class ScheduleEngine {
             if (target > 0) return false;
         }
 
-        if (task.isBonus || log?.bonusTaskIds?.includes(task.id)) {
+        if (task.isBonus) {
             return true;
         }
 
@@ -99,12 +98,19 @@ class ScheduleEngine {
         if (!task) return false;
         const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
         const log = appData?.logs?.[dateStr];
-        const hasEntry = log?.entries && log.entries[task.id] !== undefined;
-        const val = (hasEntry ? log.entries[task.id] : 0) || 0;
+        const val = (log?.entries && log.entries[task.id] !== undefined) ? (Number(log.entries[task.id]) || 0) : 0;
 
         if (task.isArchived) return val > 0;
+        if (val > 0) return true;
+
+        // If day snapshot is loaded from DB, task is visible if and only if it exists in taskProgress for this day
+        if (log?._loadedFromDB && log.taskProgress) {
+            return log.taskProgress[task.id] !== undefined;
+        }
+
+        // Live / unsaved day:
         if (log?.disabledTaskIds?.includes(task.id)) return true;
-        if (hasEntry) return true;
+        if (log?.entries && log.entries[task.id] !== undefined && log?._dirtyTasks?.[task.id]) return true;
 
         return ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val);
     }

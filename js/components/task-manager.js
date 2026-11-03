@@ -347,9 +347,11 @@ function deleteForever(id) {
 function addBonusTaskToDate(taskId, dateStr) {
     if (!appData.logs[dateStr]) appData.logs[dateStr] = { entries: {} };
     if (!appData.logs[dateStr].entries) appData.logs[dateStr].entries = {};
-    if (appData.logs[dateStr].entries[taskId] === undefined) {
-        appData.logs[dateStr].entries[taskId] = 0;
-    }
+    if (!appData.logs[dateStr].taskProgress) appData.logs[dateStr].taskProgress = {};
+
+    appData.logs[dateStr].entries[taskId] = 0;
+    appData.logs[dateStr].taskProgress[taskId] = { target: 0, achieved: 0, hours: 0, score: 0 };
+
     if (appData.logs[dateStr].disabledTaskIds && appData.logs[dateStr].disabledTaskIds.includes(taskId)) {
         appData.logs[dateStr].disabledTaskIds = appData.logs[dateStr].disabledTaskIds.filter(id => id !== taskId);
     }

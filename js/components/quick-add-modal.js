@@ -138,7 +138,7 @@ function populateQuickAddExistingList() {
                 typeBadgeHtml = `<span style="font-size:0.72rem; padding:2px 8px; border-radius:10px; background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3);">مرة واحدة</span>`;
             }
 
-            const isAlreadyActive = log?.entries && log.entries[task.id] !== undefined;
+            const isAlreadyActive = ScheduleEngine.isVisibleOn(task, curDate, appData);
             const iconHtml = getCategoryIconHtml(task);
             const catInfo = `${task.category || 'عام'}${task.subcategory ? ' - ' + task.subcategory : ''}`;
 
@@ -158,8 +158,8 @@ function populateQuickAddExistingList() {
                 </div>
                 <div style="flex-shrink:0; margin-right:8px;">
                     ${isAlreadyActive 
-                        ? `<button class="btn-sm" disabled style="background:rgba(16,185,129,0.12); color:#10b981; border:1px solid rgba(16,185,129,0.25); font-size:0.78rem; padding:5px 10px; border-radius:8px; cursor:default;"><i class="fa-solid fa-check"></i> مضاف كـ بونص</button>`
-                        : `<button class="btn-primary btn-sm btn-qa-pick" data-task-id="${task.id}" style="font-size:0.78rem; padding:5px 12px; border-radius:8px;"><i class="fa-solid fa-plus"></i> إضافة كـ بونص</button>`
+                        ? `<button class="btn-sm" disabled style="background:rgba(16,185,129,0.12); color:#10b981; border:1px solid rgba(16,185,129,0.25); font-size:0.78rem; padding:5px 10px; border-radius:8px; cursor:default;"><i class="fa-solid fa-check"></i> مضاف لليوم</button>`
+                        : `<button class="btn-primary btn-sm btn-qa-pick" data-task-id="${task.id}" style="font-size:0.78rem; padding:5px 12px; border-radius:8px;"><i class="fa-solid fa-plus"></i> إضافة لليوم</button>`
                     }
                 </div>
             `;

@@ -86,8 +86,20 @@ function renderDailyView() {
     const allScheduled = appData.tasks.filter(t => ScheduleEngine.isVisibleOn(t, currentDateStr, appData));
 
     // Group all active tasks (pending & completed) by Category
-    const disabledTasks = allScheduled.filter(t => disabledIds.includes(t.id));
-    const activeTasks = allScheduled.filter(t => !disabledIds.includes(t.id));
+    const isTaskDisabled = (t) => {
+        if (disabledIds.includes(t.id)) return true;
+        if (log._loadedFromDB && log.taskProgress && log.taskProgress[t.id]) {
+            const tp = log.taskProgress[t.id];
+            const target = typeof tp === "object" && tp !== null ? Number(tp.target) : Number(tp);
+            if (target === 0 && ScheduleEngine.isTaskScheduledForDate(t, currentDateStr, appData, 0)) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    const disabledTasks = allScheduled.filter(isTaskDisabled);
+    const activeTasks = allScheduled.filter(t => !isTaskDisabled(t));
     const activeItems = activeTasks.map(t => {
         const val = getTaskVal(t.id);
         const normTarget = getTaskNormalizedTarget(t, currentDateStr);
@@ -185,7 +197,9 @@ function renderDailyView() {
             
             pendingInCat.forEach(({ task, val, target }) => {
                 const card = document.createElement("div");
-                const isBonus = task.isBonus || bonusIds.includes(task.id);
+                const isBonus = typeof ScheduleEngine !== "undefined"
+                    ? ScheduleEngine.isBonusTaskForDate(task, currentDateStr, appData, val)
+                    : Boolean(task.isBonus);
                 const progressPct = target > 0 ? Math.min(100, Math.round((val / target) * 100)) : (val > 0 ? 100 : 0);
                 
                 card.className = `task-card glass-card ${isBonus ? 'is-bonus-card' : ''}`;
@@ -446,6 +460,9 @@ function attachTaskControlListeners(grid) {
             e.stopPropagation();
             if (appData.logs && appData.logs[currentDateStr]) {
                 appData.logs[currentDateStr].disabledTaskIds = [];
+                if (!appData.logs[currentDateStr]._dirtyFields) appData.logs[currentDateStr]._dirtyFields = {};
+                appData.logs[currentDateStr]._dirtyFields.disabledTaskIds = Date.now();
+                appData.logs[currentDateStr]._dirty = true;
                 saveData(true);
                 renderDailyView();
             }
