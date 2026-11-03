@@ -3,7 +3,7 @@
  * Provides offline caching, lightning-fast app shell loading, and network resilience.
  */
 
-const CACHE_NAME = "awrady-pwa-v26";
+const CACHE_NAME = "awrady-pwa-v27";
 
 const PRECACHE_ASSETS = [
     "./",
@@ -67,6 +67,11 @@ self.addEventListener("activate", (event) => {
 
 // Fetch Event: Network-first for HTML & dynamic scripts, Cache-fallback for offline
 self.addEventListener("fetch", (event) => {
+    // Only intercept HTTP/HTTPS requests (ignores browser extension schemes like chrome-extension://)
+    if (!event.request.url.startsWith("http://") && !event.request.url.startsWith("https://")) {
+        return;
+    }
+
     const requestUrl = new URL(event.request.url);
 
     // Bypass cache for Cloud API / Supabase requests or non-GET requests
@@ -83,7 +88,7 @@ self.addEventListener("fetch", (event) => {
             fetch(event.request).then((networkResponse) => {
                 if (networkResponse && networkResponse.status === 200) {
                     const responseClone = networkResponse.clone();
-                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone)).catch(() => {});
                 }
                 return networkResponse;
             }).catch(() => {
@@ -110,7 +115,7 @@ self.addEventListener("fetch", (event) => {
                 }
                 const responseToCache = networkResponse.clone();
                 caches.open(CACHE_NAME).then((cache) => {
-                    cache.put(event.request, responseToCache);
+                    cache.put(event.request, responseToCache).catch(() => {});
                 });
                 return networkResponse;
             });

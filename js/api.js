@@ -21,9 +21,10 @@ class AwradyAPI {
         }
 
         try {
-            if (this.client) this.client.removeAllChannels();
-            this.client = window.supabase.createClient(url, key);
-            this._setupRealtimeSync();
+            if (!this.client) {
+                this.client = window.supabase.createClient(url, key);
+                this._setupRealtimeSync();
+            }
             return true;
         } catch (e) {
             console.error("[AwradyAPI] Init failed:", e);
