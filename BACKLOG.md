@@ -1,6 +1,9 @@
 # Awrady Project Backlog & Feature Roadmap
 
-A prioritized inventory of 31 planned features, UX enhancements, scoring fixes, and architectural refinements for **Awrady**, sorted by implementation priority and difficulty.
+> **GitHub Issues Sync**: All backlog items are actively tracked in [GitHub Issues](https://github.com/Mhmd7syn/Awrady/issues).
+> Issue numbers on GitHub directly map 1:1 to the Priority Ranks below (#1 to #31+).
+
+A prioritized inventory of planned features, UX enhancements, scoring fixes, and architectural refinements for **Awrady**, sorted by implementation priority and difficulty.
 
 ---
 
