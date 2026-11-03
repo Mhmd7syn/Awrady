@@ -17,7 +17,7 @@ A prioritized inventory of 31 planned features, UX enhancements, scoring fixes, 
 | **2** | **#2** | Restrict time-based conflict resolution strictly to dirty fields [Completed] | **P1 (High)** | **Medium (3.5/5)** | `js/app.js`, `js/api.js` |
 | **3** | **#5** | Freeze historical days' score/values from DB without dynamic recalculation [Completed] | **P1 (High)** | **Medium (2.5/5)** | `js/core/scoring-engine.js`, `js/app.js` |
 | **4** | **#13** | Prevent retroactive bonus reclassification on past days when task settings change [Completed] | **P1 (High)** | **Medium (3.0/5)** | `js/core/schedule-engine.js`, `js/core/scoring-engine.js` |
-| **5** | **#12** | Fix bonus entries acting as required targets that decrease task/day progress | **P1 (High)** | **Low (2.0/5)** | `js/components/analytics-breakdown.js`, `js/core/scoring-engine.js` |
+| **5** | **#12** | Fix bonus entries acting as required targets that decrease task/day progress [Completed] | **P1 (High)** | **Low (2.0/5)** | `js/components/analytics-breakdown.js`, `js/core/scoring-engine.js` |
 | **6** | **#11** | Exclude stopped/deactivated tasks from scheduled days count in stats | **P1 (High)** | **Low (1.5/5)** | `js/components/analytics-breakdown.js` |
 | **7** | **#31** | Consolidate overlapping fasting tasks into a single task (Ramadan > White Days > Mon/Thu) | **P1 (High)** | **Low (2.0/5)** | `js/core/schedule-engine.js`, `js/components/daily-view.js` |
 | **8** | **#26** | Split midnight-spanning Pomodoro time accurately across both consecutive days | **P1 (High)** | **Medium (2.5/5)** | `js/components/pomodoro.js`, `js/app.js` |
@@ -110,7 +110,7 @@ A prioritized inventory of 31 planned features, UX enhancements, scoring fixes, 
 - **Files**: `js/core/schedule-engine.js`, `js/core/scoring-engine.js`
 - **Scope**: Changing a task's schedule type (e.g. to "Optional" or "OneTime") must not alter how past days are interpreted. Historical logs must derive their scheduled vs. bonus status from the database record rather than the current live task definition.
 
-#### Issue #12: Fix bonus entries acting as required targets that decrease task/day progress
+#### Issue #12: Fix bonus entries acting as required targets that decrease task/day progress [Completed]
 - **Files**: `js/components/analytics-breakdown.js`, `js/core/scoring-engine.js`
 - **Scope**: Bonus activities must be strictly additive. Ensure partial or zero completion on a bonus task never increments `scheduledDaysCount` or adds to `reqTotalWeight`, preventing bonus tasks from dragging down consistency rates.
 

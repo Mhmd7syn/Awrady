@@ -84,8 +84,9 @@ class ScoringEngine {
             if (disabledIds.includes(task.id)) return;
 
             const val = Number(log.entries?.[task.id]) || 0;
-            const isBonus = ScheduleEngine.isBonusTaskForDate(task, dateStr, appData, val, dateContext);
-            const isScheduled = ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val, dateContext);
+            const isExplicitBonus = Boolean(task.isBonus || log?.bonusTaskIds?.includes(task.id));
+            const isBonus = isExplicitBonus || ScheduleEngine.isBonusTaskForDate(task, dateStr, appData, val, dateContext);
+            const isScheduled = !isBonus && ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val, dateContext);
 
             if (isScheduled || (isBonus && val > 0)) {
                 const target = (task.target && task.target > 0) ? task.target : 1;

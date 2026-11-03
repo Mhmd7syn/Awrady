@@ -15,8 +15,10 @@ class ScheduleEngine {
      */
     static isTaskScheduledForDate(task, dateStr, appDataRef = null, loggedVal = null, dateContext = null) {
         if (!task) return false;
+        if (task.isBonus) return false;
         const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
         const log = appData?.logs?.[dateStr];
+        if (log?.bonusTaskIds?.includes(task.id)) return false;
         const val = loggedVal !== null ? loggedVal : (log?.entries?.[task.id] || 0);
 
         // Historical DB snapshot: preserve past scheduled status from recorded target
@@ -30,8 +32,8 @@ class ScheduleEngine {
         const sched = (task.schedule || "Everyday").trim();
 
         if (sched === "OneTime") {
-            const taskDate = (task.createdAt || "").slice(0, 10);
-            return taskDate === dateStr || val > 0;
+            const taskDate = (task.oneTimeDate || task.createdAt || "").slice(0, 10);
+            return taskDate === dateStr;
         }
 
         const taskCreated = (task.createdAt || "2000-01-01").slice(0, 10);
@@ -69,16 +71,17 @@ class ScheduleEngine {
         if (log?._loadedFromDB && log.taskProgress && log.taskProgress[task.id] !== undefined) {
             const tp = log.taskProgress[task.id];
             const target = typeof tp === "object" && tp !== null ? Number(tp.target) : Number(tp);
-            const achieved = typeof tp === "object" && tp !== null ? Number(tp.achieved) : Number(val);
-            if (target === 0 && achieved > 0) return true;
+            if (target === 0) return true;
             if (target > 0) return false;
         }
 
-        if (val <= 0) return false;
+        if (task.isBonus || log?.bonusTaskIds?.includes(task.id)) {
+            return true;
+        }
 
         const sched = (task.schedule || "").trim();
         if (sched === "OneTime") {
-            const taskDate = (task.createdAt || "").slice(0, 10);
+            const taskDate = (task.oneTimeDate || task.createdAt || "").slice(0, 10);
             return taskDate !== dateStr;
         }
 

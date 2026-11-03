@@ -144,34 +144,45 @@ function renderTaskBreakdown(allDates) {
                 const log = (appData.logs && appData.logs[d]) ? appData.logs[d] : null;
                 const val = (log && log.entries) ? (log.entries[task.id] || 0) : 0;
 
+                const isExplicitBonus = Boolean(task.isBonus || log?.bonusTaskIds?.includes(task.id));
                 let isScheduled = false;
 
-                if (statusKey === "onetime") {
-                    if ((targetDate && d === targetDate) || val > 0) {
-                        isScheduled = true;
-                    }
-                } else if (statusKey === "archived") {
-                    if (archiveCutoff && d > archiveCutoff) {
-                        isScheduled = val > 0;
-                    } else if (!archiveCutoff && !taskHasAnyLogs) {
-                        isScheduled = false;
-                    } else if (!archiveCutoff && lastLoggedDate && d > lastLoggedDate) {
-                        isScheduled = val > 0;
+                if (!isExplicitBonus) {
+                    if (statusKey === "onetime") {
+                        if (targetDate && d === targetDate) {
+                            isScheduled = true;
+                        }
+                    } else if (statusKey === "archived") {
+                        if (archiveCutoff && d > archiveCutoff) {
+                            isScheduled = false;
+                        } else if (!archiveCutoff && !taskHasAnyLogs) {
+                            isScheduled = false;
+                        } else if (!archiveCutoff && lastLoggedDate && d > lastLoggedDate) {
+                            isScheduled = false;
+                        } else {
+                            isScheduled = ScheduleEngine.isTaskScheduledForDate(task, d, appData, val);
+                        }
                     } else {
-                        isScheduled = isTaskScheduledForDate(task, d, val);
+                        isScheduled = ScheduleEngine.isTaskScheduledForDate(task, d, appData, val);
                     }
-                } else {
-                    isScheduled = isTaskScheduledForDate(task, d, val);
                 }
 
                 if (isScheduled) {
                     scheduledDaysCount++;
                     if (val > 0) {
                         activeTimes++;
-                        const tgt = getTaskNormalizedTarget(task);
-                        const ratio = val / tgt;
-                        sumRatio += ratio;
+                        const tgt = getTaskNormalizedTarget(task, d);
+                        const baseTgt = (task.target && task.target > 0) ? (isTimeTask(task) ? task.target * 60 : task.target) : 1;
+                        const effectiveTgt = tgt > 0 ? tgt : baseTgt;
+                        sumRatio += val / effectiveTgt;
                     }
+                } else if (val > 0) {
+                    // Strictly additive bonus entry: never increments scheduledDaysCount
+                    activeTimes++;
+                    const tgt = getTaskNormalizedTarget(task, d);
+                    const baseTgt = (task.target && task.target > 0) ? (isTimeTask(task) ? task.target * 60 : task.target) : 1;
+                    const effectiveTgt = tgt > 0 ? tgt : baseTgt;
+                    sumRatio += val / effectiveTgt;
                 }
             });
 
@@ -181,13 +192,15 @@ function renderTaskBreakdown(allDates) {
                 const log = (appData.logs && appData.logs[targetDate]) ? appData.logs[targetDate] : null;
                 const val = (log && log.entries) ? (log.entries[task.id] || 0) : 0;
                 if (val > 0) {
-                    activeTimes = 1;
-                    const tgt = getTaskNormalizedTarget(task);
-                    sumRatio = (val / tgt);
+                    activeTimes = Math.max(activeTimes, 1);
+                    const tgt = getTaskNormalizedTarget(task, targetDate);
+                    const baseTgt = (task.target && task.target > 0) ? (isTimeTask(task) ? task.target * 60 : task.target) : 1;
+                    const effectiveTgt = tgt > 0 ? tgt : baseTgt;
+                    sumRatio += val / effectiveTgt;
                 }
             }
 
-            const effectiveTotalDays = scheduledDaysCount;
+            const effectiveTotalDays = scheduledDaysCount > 0 ? scheduledDaysCount : (activeTimes > 0 ? activeTimes : 0);
             const consistencyPct = effectiveTotalDays > 0 ? Math.round((sumRatio / effectiveTotalDays) * 100) : 0;
             catSumPct += consistencyPct;
             const iconHtml = getCategoryIconHtml(task);
