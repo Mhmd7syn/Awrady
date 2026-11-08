@@ -185,12 +185,30 @@ function rowToLog(row) {
  * @param {{ compact?: boolean }} [options]
  * @returns {string}
  */
+function getTaskActionBtn(task, compact = false) {
+    const isBonus = (typeof ScheduleEngine !== "undefined" && typeof currentDateStr !== "undefined")
+        ? ScheduleEngine.isBonusTaskForDate(task, currentDateStr, typeof appData !== "undefined" ? appData : null)
+        : Boolean(task?.isBonus);
+
+    if (compact) {
+        if (isBonus) {
+            return `<button class="btn-action-sm btn-task-off" data-id="${task.id}" title="حذف من هذا اليوم" style="padding:2px 6px; color:#ef4444; font-size:0.75rem;"><i class="fa-solid fa-trash"></i></button>`;
+        }
+        return `<button class="btn-action-sm" data-edit-id="${task.id}" title="تعديل الورد" style="padding:2px 6px; color:var(--gold-primary); font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>`;
+    }
+
+    if (isBonus) {
+        return `<button class="btn-action-sm btn-task-off" data-id="${task.id}" title="حذف من هذا اليوم" style="font-size:0.75rem; padding:4px 8px; opacity:0.8; color:#ef4444;"><i class="fa-solid fa-trash"></i></button>`;
+    }
+
+    return `<button class="btn-action-sm btn-task-off" data-id="${task.id}" title="إيقاف لهذا اليوم" style="font-size:0.75rem; padding:4px 8px; opacity:0.6;">⏸</button>`;
+}
+
 function renderTaskControls(task, val, { compact = false } = {}) {
+    const actionBtn = getTaskActionBtn(task, compact);
+
     if (isPrayerSelector(task)) {
         const pVals = APP_CONSTANTS.PRAYER_VALUES;
-        const actionBtn = compact
-            ? `<button class="btn-action-sm" data-edit-id="${task.id}" title="تعديل الورد" style="padding:2px 6px; color:var(--gold-primary); font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>`
-            : `<button class="btn-action-sm btn-task-off" data-id="${task.id}" title="إيقاف لهذا اليوم" style="font-size:0.75rem; padding:4px 8px; opacity:0.6;">⏸</button>`;
         const pad = compact ? "padding:3px 8px; font-size:0.75rem;" : "";
         const wrapStyle = compact ? "" : "margin-top:14px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.05);";
         return `
@@ -206,9 +224,6 @@ function renderTaskControls(task, val, { compact = false } = {}) {
     if (isTimeTask(task)) {
         const hours = Math.floor(val / 60);
         const minutes = val % 60;
-        const actionBtn = compact
-            ? `<button class="btn-action-sm" data-edit-id="${task.id}" title="تعديل الورد" style="padding:2px 6px; color:var(--gold-primary); font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>`
-            : `<button class="btn-action-sm btn-task-off" data-id="${task.id}" title="إيقاف لهذا اليوم" style="font-size:0.75rem; padding:4px 8px; opacity:0.6;">⏸</button>`;
 
         if (compact) {
             return `
@@ -252,10 +267,6 @@ function renderTaskControls(task, val, { compact = false } = {}) {
     }
 
     // Default: counter task
-    const actionBtn = compact
-        ? `<button class="btn-action-sm" data-edit-id="${task.id}" title="تعديل الورد" style="padding:2px 6px; color:var(--gold-primary); font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>`
-        : `<button class="btn-action-sm btn-task-off" data-id="${task.id}" title="إيقاف لهذا اليوم" style="font-size:0.75rem; padding:4px 8px; opacity:0.6;">⏸</button>`;
-
     if (compact) {
         return `
             <div class="task-controls" data-id="${task.id}" style="display:flex; align-items:center; gap:6px;">

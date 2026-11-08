@@ -492,6 +492,34 @@ function attachTaskControlListeners(grid) {
 function toggleDeactivateTaskForDate(taskId, dateStr) {
     if (!appData.logs[dateStr]) appData.logs[dateStr] = { entries: {}, disabledTaskIds: [] };
     const log = appData.logs[dateStr];
+    const task = (appData.tasks || []).find(t => t.id === taskId);
+    const isBonus = task ? ScheduleEngine.isBonusTaskForDate(task, dateStr, appData) : false;
+
+    if (isBonus) {
+        // Bonus tasks do not belong to this day's recurring schedule.
+        // Removing / deactivating a bonus task completely removes it from this day's log and progress.
+        if (log.entries && log.entries[taskId] !== undefined) {
+            delete log.entries[taskId];
+        }
+        if (log.taskProgress && log.taskProgress[taskId] !== undefined) {
+            delete log.taskProgress[taskId];
+        }
+        if (log._dirtyTasks && log._dirtyTasks[taskId] !== undefined) {
+            delete log._dirtyTasks[taskId];
+        }
+        if (Array.isArray(log.disabledTaskIds)) {
+            log.disabledTaskIds = log.disabledTaskIds.filter(id => id !== taskId);
+        }
+        log._dirty = true;
+        delete log.precomputedScore;
+        delete log.totalHours;
+        saveData();
+        renderDailyView();
+        updateDailyScoreSummary();
+        updateHeaderTodayScore();
+        return;
+    }
+
     if (!log.disabledTaskIds) log.disabledTaskIds = [];
     const idx = log.disabledTaskIds.indexOf(taskId);
     if (idx >= 0) log.disabledTaskIds.splice(idx, 1);

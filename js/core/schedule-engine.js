@@ -28,6 +28,8 @@ class ScheduleEngine {
             if (target > 0) return true;
         }
 
+        if (task.isArchived) return false;
+
         const sched = (task.schedule || "Everyday").trim();
 
         if (sched === "OneTime") {
@@ -66,15 +68,15 @@ class ScheduleEngine {
         const log = appData?.logs?.[dateStr];
         const val = loggedVal !== null ? loggedVal : (log?.entries?.[task.id] || 0);
 
-        // Historical DB snapshot: preserve past bonus status from recorded target & achievement
-        if (log?._loadedFromDB && log.taskProgress && log.taskProgress[task.id] !== undefined) {
+        // Day snapshot target check: recorded target === 0 means bonus task
+        if (log?.taskProgress && log.taskProgress[task.id] !== undefined) {
             const tp = log.taskProgress[task.id];
             const target = typeof tp === "object" && tp !== null ? Number(tp.target) : Number(tp);
             if (target === 0) return true;
             if (target > 0) return false;
         }
 
-        if (task.isBonus) {
+        if (task.isBonus || task.isArchived) {
             return true;
         }
 
@@ -98,19 +100,24 @@ class ScheduleEngine {
         if (!task) return false;
         const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
         const log = appData?.logs?.[dateStr];
-        const val = (log?.entries && log.entries[task.id] !== undefined) ? (Number(log.entries[task.id]) || 0) : 0;
 
-        if (task.isArchived) return val > 0;
-        if (val > 0) return true;
-
-        // If day snapshot is loaded from DB, task is visible if and only if it exists in taskProgress for this day
+        // 1. If day snapshot is loaded from DB, taskProgress is the definitive source of truth
         if (log?._loadedFromDB && log.taskProgress) {
             return log.taskProgress[task.id] !== undefined;
         }
 
-        // Live / unsaved day:
-        if (log?.disabledTaskIds?.includes(task.id)) return true;
+        // 2. Explicit day entries (dirty, in taskProgress, or logged) are visible immediately
+        if (log?.taskProgress && log.taskProgress[task.id] !== undefined) return true;
         if (log?.entries && log.entries[task.id] !== undefined && log?._dirtyTasks?.[task.id]) return true;
+
+        const val = (log?.entries && log.entries[task.id] !== undefined) ? (Number(log.entries[task.id]) || 0) : 0;
+        if (val > 0) return true;
+
+        // Archived tasks never appear on live days unless explicitly added
+        if (task.isArchived) return false;
+
+        // 3. Live / unsaved day checks:
+        if (log?.disabledTaskIds?.includes(task.id)) return true;
 
         return ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val);
     }

@@ -322,6 +322,12 @@ function deleteForever(id) {
                     if (log.entries && log.entries[id] !== undefined) {
                         delete log.entries[id];
                     }
+                    if (log.taskProgress && log.taskProgress[id] !== undefined) {
+                        delete log.taskProgress[id];
+                    }
+                    if (log._dirtyTasks && log._dirtyTasks[id] !== undefined) {
+                        delete log._dirtyTasks[id];
+                    }
                     if (Array.isArray(log.disabledTaskIds)) {
                         log.disabledTaskIds = log.disabledTaskIds.filter(x => x !== id);
                     }

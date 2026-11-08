@@ -91,37 +91,6 @@ window.logoutApp = function() {
 
 let _dbSaveTimer = null;
 
-function cleanStoredDayLog(log, dateStr) {
-    if (!log || !log.taskProgress) return false;
-    const cleanProgress = {};
-    const cleanEntries = {};
-    let hasClutter = false;
-
-    for (const [tid, info] of Object.entries(log.taskProgress)) {
-        const val = typeof info === "object" && info !== null ? (Number(info.achieved) || 0) : (Number(info) || 0);
-        const target = typeof info === "object" && info !== null ? (Number(info.target) || 0) : 0;
-        const task = (appData.tasks || []).find(t => t.id === tid);
-        const isScheduled = task ? ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val) : target > 0;
-        const isPaused = log.disabledTaskIds?.includes(tid) || (target === 0 && isScheduled);
-
-        // Keep only tasks that genuinely belong to this day
-        if (val > 0 || target > 0 || isScheduled || isPaused) {
-            cleanProgress[tid] = info;
-            cleanEntries[tid] = val;
-        } else {
-            hasClutter = true;
-        }
-    }
-
-    if (hasClutter) {
-        log.taskProgress = cleanProgress;
-        log.entries = cleanEntries;
-        log._dirty = true;
-        return true;
-    }
-    return false;
-}
-
 function loadLocalState() {
     try {
         const localSaved = localStorage.getItem(getUserStorageKey()) || localStorage.getItem(STORAGE_KEY);
@@ -129,12 +98,7 @@ function loadLocalState() {
             const parsed = JSON.parse(localSaved);
             if (parsed) {
                 if (parsed.tasks && parsed.tasks.length > 0) appData.tasks = parsed.tasks;
-                if (parsed.logs) {
-                    appData.logs = parsed.logs;
-                    Object.keys(appData.logs).forEach(dateStr => {
-                        cleanStoredDayLog(appData.logs[dateStr], dateStr);
-                    });
-                }
+                if (parsed.logs) appData.logs = parsed.logs;
             }
         }
     } catch (e) {
@@ -220,9 +184,17 @@ function mergeDayLog(localLog, cloudRow) {
 
     const isStillDirty = Object.keys(remainingDirtyTasks).length > 0 || Object.keys(remainingDirtyFields).length > 0;
 
+    const mergedTaskProgress = { ...(cloudLog.taskProgress || {}) };
+    for (const taskId in remainingDirtyTasks) {
+        if (localLog.taskProgress && localLog.taskProgress[taskId]) {
+            mergedTaskProgress[taskId] = localLog.taskProgress[taskId];
+        }
+    }
+
     const mergedLog = {
         ...cloudLog,
         entries: mergedEntries,
+        taskProgress: mergedTaskProgress,
         prayerExtras: mergedPrayerExtras,
         disabledTaskIds: Array.from(new Set(mergedDisabled)),
         _dirty: isStillDirty,
@@ -263,9 +235,11 @@ async function pushDayToCloud(dateStr) {
         const val = hasEntry ? (Number(log.entries[t.id]) || 0) : 0;
         const isScheduled = ScheduleEngine.isTaskScheduledForDate(t, dateStr, appData, val);
         const isDisabled = disabledIds.includes(t.id);
+        const hasProgress = log.taskProgress && log.taskProgress[t.id] !== undefined;
+        const isDirty = Boolean(log._dirtyTasks?.[t.id]);
 
-        // Clean DB persistence: only persist tasks that are scheduled, paused, or logged
-        if (!isScheduled && !isDisabled && val <= 0) {
+        // Clean DB persistence: only persist tasks that genuinely belong to this day
+        if (!isScheduled && !isDisabled && !hasProgress && !isDirty && val <= 0) {
             return;
         }
 
@@ -357,9 +331,7 @@ async function initData() {
             if (allProgress && allProgress.length > 0) {
                 allProgress.forEach(row => {
                     const localLog = appData.logs[row.date];
-                    const merged = localLog ? mergeDayLog(localLog, row) : rowToLog(row);
-                    cleanStoredDayLog(merged, row.date);
-                    appData.logs[row.date] = merged;
+                    appData.logs[row.date] = localLog ? mergeDayLog(localLog, row) : rowToLog(row);
                 });
             }
 
