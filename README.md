@@ -88,7 +88,7 @@ awrady/
 
 ## 📋 Roadmap & Backlog
 
-Explore our **[Feature Roadmap & Issue Backlog](BACKLOG.md)** for a prioritized inventory of 31 planned enhancements, scoring fixes, demographic personalization, and analytics tools sorted by priority and difficulty.
+All planned enhancements, bug fixes, demographic personalization features, and refactoring tasks are tracked centrally in our **[GitHub Issues](https://github.com/Mhmd7syn/Awrady/issues)**.
 
 ---
 
