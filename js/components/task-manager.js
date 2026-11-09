@@ -287,7 +287,23 @@ function archiveTask(id, isArchive) {
         t.isArchived = isArchive;
         const curDate = currentDateStr;
         t.archivedAt = isArchive ? curDate : null;
-        if (!isArchive) {
+        if (isArchive) {
+            // Only affect the active current day (today or future), never edit or alter old days
+            const todayStr = typeof getLocalTodayString === "function" ? getLocalTodayString() : curDate;
+            if (curDate >= todayStr) {
+                const log = appData.logs?.[curDate];
+                if (log) {
+                    const val = (log.entries && log.entries[id] !== undefined) ? Number(log.entries[id]) : 0;
+                    const isExplicitBonus = Boolean(log.taskProgress?.[id]?.isBonus);
+                    if (val <= 0 && !isExplicitBonus) {
+                        if (log.entries) delete log.entries[id];
+                        if (log.taskProgress) delete log.taskProgress[id];
+                        if (log._dirtyTasks) delete log._dirtyTasks[id];
+                        log._dirty = true;
+                    }
+                }
+            }
+        } else {
             if (t.schedule === "OneTime") {
                 t.isOneTime = true;
                 if (!t.oneTimeDate) {
@@ -356,7 +372,7 @@ function addBonusTaskToDate(taskId, dateStr) {
     if (!appData.logs[dateStr].taskProgress) appData.logs[dateStr].taskProgress = {};
 
     appData.logs[dateStr].entries[taskId] = 0;
-    appData.logs[dateStr].taskProgress[taskId] = { target: 0, achieved: 0, hours: 0, score: 0 };
+    appData.logs[dateStr].taskProgress[taskId] = { target: 0, achieved: 0, hours: 0, score: 0, isBonus: true };
 
     if (appData.logs[dateStr].disabledTaskIds && appData.logs[dateStr].disabledTaskIds.includes(taskId)) {
         appData.logs[dateStr].disabledTaskIds = appData.logs[dateStr].disabledTaskIds.filter(id => id !== taskId);

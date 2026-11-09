@@ -88,8 +88,10 @@ function renderDailyView() {
     // Group all active tasks (pending & completed) by Category
     const isTaskDisabled = (t) => {
         if (disabledIds.includes(t.id)) return true;
+        if (ScheduleEngine.isBonusTaskForDate(t, currentDateStr, appData)) return false;
         if (log._loadedFromDB && log.taskProgress && log.taskProgress[t.id]) {
             const tp = log.taskProgress[t.id];
+            if (typeof tp === "object" && tp !== null && tp.isBonus) return false;
             const target = typeof tp === "object" && tp !== null ? Number(tp.target) : Number(tp);
             if (target === 0 && ScheduleEngine.isTaskScheduledForDate(t, currentDateStr, appData, 0)) {
                 return true;

@@ -43,11 +43,14 @@ function getTaskNormalizedTarget(task, dateStr = null) {
     if (!task) return 0;
     if (dateStr && typeof window !== "undefined" && window.appData?.logs?.[dateStr]) {
         const log = window.appData.logs[dateStr];
-        if (log._loadedFromDB && log.taskProgress && log.taskProgress[task.id] !== undefined) {
+        if (log.taskProgress && log.taskProgress[task.id] !== undefined) {
             const tp = log.taskProgress[task.id];
             const savedTarget = typeof tp === "object" && tp !== null ? Number(tp.target) : Number(tp);
             if (!isNaN(savedTarget)) return savedTarget;
         }
+    }
+    if (dateStr && typeof ScheduleEngine !== "undefined" && ScheduleEngine.isBonusTaskForDate(task, dateStr)) {
+        return 0;
     }
     const target = task.target || 0;
     if (isTimeTask(task)) {
@@ -65,6 +68,9 @@ function getTaskNormalizedTarget(task, dateStr = null) {
  */
 function isTaskCompleted(task, val, dateStr = null) {
     if (isPrayerSelector(task)) {
+        return val > 0;
+    }
+    if (dateStr && typeof ScheduleEngine !== "undefined" && ScheduleEngine.isBonusTaskForDate(task, dateStr)) {
         return val > 0;
     }
     const normTarget = getTaskNormalizedTarget(task, dateStr);

@@ -23,6 +23,7 @@ class ScheduleEngine {
         // Historical DB snapshot: preserve past scheduled status from recorded target
         if (log?._loadedFromDB && log.taskProgress && log.taskProgress[task.id] !== undefined) {
             const tp = log.taskProgress[task.id];
+            if (typeof tp === "object" && tp !== null && tp.isBonus) return false;
             const target = typeof tp === "object" && tp !== null ? Number(tp.target) : Number(tp);
             if (target === 0) return false;
             if (target > 0) return true;
@@ -68,15 +69,22 @@ class ScheduleEngine {
         const log = appData?.logs?.[dateStr];
         const val = loggedVal !== null ? loggedVal : (log?.entries?.[task.id] || 0);
 
-        // Day snapshot target check: recorded target === 0 means bonus task
-        if (log?.taskProgress && log.taskProgress[task.id] !== undefined) {
-            const tp = log.taskProgress[task.id];
-            const target = typeof tp === "object" && tp !== null ? Number(tp.target) : Number(tp);
-            if (target === 0) return true;
+        const tp = log?.taskProgress?.[task.id];
+        if (tp && typeof tp === "object") {
+            if (tp.isBonus !== undefined) return Boolean(tp.isBonus);
+            const target = Number(tp.target);
             if (target > 0) return false;
         }
 
-        if (task.isBonus || task.isArchived) {
+        if (log?.disabledTaskIds?.includes(task.id)) return false;
+
+        if (task.isBonus) return true;
+
+        if (task.isArchived) {
+            if (dateStr < "2026-11-08" && log?._loadedFromDB) {
+                const recordedTarget = typeof tp === "object" && tp !== null ? Number(tp.target) : Number(tp);
+                if (recordedTarget > 0) return false;
+            }
             return true;
         }
 
@@ -101,23 +109,31 @@ class ScheduleEngine {
         const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
         const log = appData?.logs?.[dateStr];
 
-        // 1. If day snapshot is loaded from DB, taskProgress is the definitive source of truth
-        if (log?._loadedFromDB && log.taskProgress) {
-            return log.taskProgress[task.id] !== undefined;
-        }
-
-        // 2. Explicit day entries (dirty, in taskProgress, or logged) are visible immediately
-        if (log?.taskProgress && log.taskProgress[task.id] !== undefined) return true;
-        if (log?.entries && log.entries[task.id] !== undefined && log?._dirtyTasks?.[task.id]) return true;
-
         const val = (log?.entries && log.entries[task.id] !== undefined) ? (Number(log.entries[task.id]) || 0) : 0;
         if (val > 0) return true;
 
-        // Archived tasks never appear on live days unless explicitly added
-        if (task.isArchived) return false;
+        const tp = log?.taskProgress?.[task.id];
+        const recordedTarget = typeof tp === "object" && tp !== null ? Number(tp.target) : Number(tp);
+        const isExplicitBonus = Boolean(tp?.isBonus) || Boolean(log?.entries && log.entries[task.id] !== undefined && log?._dirtyTasks?.[task.id]);
 
-        // 3. Live / unsaved day checks:
+        // Archived tasks never appear on live days unless logged or explicitly added as bonus
+        if (task.isArchived) {
+            if (isExplicitBonus) return true;
+            // On old days before 2026-11-08, preserve historical active scheduled status if recordedTarget > 0
+            if (dateStr < "2026-11-08" && log?._loadedFromDB && recordedTarget > 0) return true;
+            return false;
+        }
+
+        if (isExplicitBonus) return true;
         if (log?.disabledTaskIds?.includes(task.id)) return true;
+
+        if (log?._loadedFromDB && log.taskProgress) {
+            if (log.taskProgress[task.id] !== undefined) {
+                if (recordedTarget > 0 || Boolean(tp?.isBonus)) return true;
+                if (ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val)) return true;
+            }
+            return false;
+        }
 
         return ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val);
     }
