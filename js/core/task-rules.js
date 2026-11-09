@@ -43,16 +43,11 @@ function getTaskNormalizedTarget(task, dateStr = null) {
     if (!task) return 0;
     if (dateStr && typeof window !== "undefined" && window.appData?.logs?.[dateStr]) {
         const log = window.appData.logs[dateStr];
-        if (log.taskProgress && log.taskProgress[task.id] !== undefined) {
-            const tp = log.taskProgress[task.id];
-            if (tp && typeof tp === "object" && tp.status !== undefined) {
-                if (tp.status === "bonus" || tp.status === "disabled") return 0;
-                const savedTarget = Number(tp.target);
-                if (!isNaN(savedTarget) && savedTarget > 0) return savedTarget;
-            } else {
-                const savedTarget = typeof tp === "object" && tp !== null ? Number(tp.target) : Number(tp);
-                if (!isNaN(savedTarget)) return savedTarget;
-            }
+        const tp = log.taskProgress?.[task.id];
+        if (tp && typeof tp === "object") {
+            if (tp.status === "bonus" || tp.status === "disabled") return 0;
+            const savedTarget = Number(tp.target);
+            if (!isNaN(savedTarget) && savedTarget > 0) return savedTarget;
         }
     }
     if (dateStr && typeof ScheduleEngine !== "undefined" && ScheduleEngine.isBonusTaskForDate(task, dateStr)) {

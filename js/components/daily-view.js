@@ -91,15 +91,7 @@ function renderDailyView() {
         if (tp && typeof tp === "object" && tp.status !== undefined) {
             return tp.status === "disabled";
         }
-        if (disabledIds.includes(t.id)) return true;
-        if (ScheduleEngine.isBonusTaskForDate(t, currentDateStr, appData)) return false;
-        if (log._loadedFromDB && log.taskProgress && log.taskProgress[t.id]) {
-            const target = typeof tp === "object" && tp !== null ? Number(tp.target) : Number(tp);
-            if (target === 0 && ScheduleEngine.isTaskScheduledForDate(t, currentDateStr, appData, 0)) {
-                return true;
-            }
-        }
-        return false;
+        return disabledIds.includes(t.id);
     };
 
     const disabledTasks = allScheduled.filter(isTaskDisabled);

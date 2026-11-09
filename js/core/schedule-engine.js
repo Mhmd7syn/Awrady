@@ -14,25 +14,15 @@ class ScheduleEngine {
      * @returns {boolean}
      */
     static isTaskScheduledForDate(task, dateStr, appDataRef = null, loggedVal = null, dateContext = null) {
-        if (!task) return false;
-        if (task.isBonus) return false;
-        if (task.isArchived) return false;
+        if (!task || task.isBonus || task.isArchived) return false;
         const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
         const log = appData?.logs?.[dateStr];
         const val = loggedVal !== null ? loggedVal : (log?.entries?.[task.id] || 0);
 
-        // Historical DB snapshot: preserve past scheduled status from recorded target
-        if (log?._loadedFromDB && log.taskProgress && log.taskProgress[task.id] !== undefined) {
-            const tp = log.taskProgress[task.id];
-            if (typeof tp === "object" && tp !== null) {
-                if (tp.status !== undefined) return tp.status === "scheduled";
-                if (tp.isBonus) return false;
-                const target = Number(tp.target);
-                if (target === 0) return false;
-                if (target > 0) return true;
-            } else if (Number(tp) > 0) {
-                return true;
-            }
+        // Database snapshot: explicit status is the single source of truth
+        const tp = log?.taskProgress?.[task.id];
+        if (tp && typeof tp === "object" && tp.status !== undefined) {
+            return tp.status === "scheduled";
         }
 
         const sched = (task.schedule || "Everyday").trim();
@@ -68,26 +58,18 @@ class ScheduleEngine {
      * @returns {boolean}
      */
     static isBonusTaskForDate(task, dateStr, appDataRef = null, loggedVal = null, dateContext = null) {
-        if (!task) return false;
+        if (!task || task.isArchived) return false;
         const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
         const log = appData?.logs?.[dateStr];
-        const val = loggedVal !== null ? loggedVal : (log?.entries?.[task.id] || 0);
 
+        // Database snapshot: explicit status is the single source of truth
         const tp = log?.taskProgress?.[task.id];
-        if (tp && typeof tp === "object") {
-            if (tp.status !== undefined) return tp.status === "bonus";
-            if (tp.isBonus !== undefined) return Boolean(tp.isBonus);
-            const target = Number(tp.target);
-            if (target > 0) return false;
+        if (tp && typeof tp === "object" && tp.status !== undefined) {
+            return tp.status === "bonus";
         }
 
         if (log?.disabledTaskIds?.includes(task.id)) return false;
-
         if (task.isBonus) return true;
-
-        if (task.isArchived) {
-            return false;
-        }
 
         const sched = (task.schedule || "").trim();
         if (sched === "OneTime") {
@@ -95,6 +77,7 @@ class ScheduleEngine {
             return taskDate !== dateStr;
         }
 
+        const val = loggedVal !== null ? loggedVal : (log?.entries?.[task.id] || 0);
         return !ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val, dateContext);
     }
 
@@ -110,31 +93,30 @@ class ScheduleEngine {
         const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
         const log = appData?.logs?.[dateStr];
 
-        const val = (log?.entries && log.entries[task.id] !== undefined) ? (Number(log.entries[task.id]) || 0) : 0;
-        const tp = log?.taskProgress?.[task.id];
-        const recordedTarget = typeof tp === "object" && tp !== null ? Number(tp.target) : Number(tp);
-        const status = typeof tp === "object" && tp !== null ? tp.status : null;
-        const isExplicitBonus = status === "bonus" || Boolean(tp?.isBonus) || Boolean(log?.entries && log.entries[task.id] !== undefined && log?._dirtyTasks?.[task.id]);
-
-        // Archived tasks are ONLY visible if they have actual achieved progress (val > 0) or are an explicit bonus
-        if (task.isArchived) {
-            return status === "bonus" || val > 0;
-        }
-
-        if (status === "bonus" || isExplicitBonus) return true;
-        if (status === "disabled" || log?.disabledTaskIds?.includes(task.id)) return true;
-
+        // 1. Saved Database Snapshot: taskProgress is the definitive source of truth
         if (log?._loadedFromDB && log.taskProgress) {
-            if (log.taskProgress[task.id] !== undefined) {
-                if (status === "scheduled") return true;
-                if (!status && recordedTarget > 0) return true;
-                if (val > 0) return true;
-                if (ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val)) return true;
+            const tp = log.taskProgress[task.id];
+            if (!tp) return false;
+            if (task.isArchived) {
+                return tp.status === "bonus" || (Number(tp.achieved) || 0) > 0;
             }
-            return false;
+            return true;
         }
 
+        // 2. Unsaved / Live day checks
+        if (task.isArchived) {
+            const val = (log?.entries && log.entries[task.id] !== undefined) ? (Number(log.entries[task.id]) || 0) : 0;
+            const tp = log?.taskProgress?.[task.id];
+            return tp?.status === "bonus" || val > 0;
+        }
+
+        const tp = log?.taskProgress?.[task.id];
+        if (tp?.status === "bonus" || tp?.status === "disabled") return true;
+        if (log?.disabledTaskIds?.includes(task.id)) return true;
+
+        const val = (log?.entries && log.entries[task.id] !== undefined) ? (Number(log.entries[task.id]) || 0) : 0;
         if (val > 0) return true;
+
         return ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val);
     }
 
