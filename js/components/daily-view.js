@@ -396,35 +396,40 @@ function attachTaskControlListeners(grid) {
         appData.logs[currentDateStr]._dirty = true;
         appData.logs[currentDateStr].entries[taskId] = newTotal;
 
-        if (appData.logs[currentDateStr].taskProgress && appData.logs[currentDateStr].taskProgress[taskId]) {
-            const tp = appData.logs[currentDateStr].taskProgress[taskId];
-            if (typeof tp === "object" && tp !== null) {
-                tp.achieved = newTotal;
-                tp.hours = newTotal / 60;
-                const normTarget = Number(tp.target) || 0;
-                tp.score = normTarget > 0 ? (newTotal / normTarget) : (newTotal > 0 ? 1 : 0);
-            }
+        if (!appData.logs[currentDateStr].taskProgress) {
+            appData.logs[currentDateStr].taskProgress = {};
         }
+        const task = (appData.tasks || []).find(t => t.id === taskId);
+        const existingProgress = appData.logs[currentDateStr].taskProgress[taskId];
+        const normTarget = (existingProgress && Number(existingProgress.target) > 0)
+            ? Number(existingProgress.target)
+            : (task ? getTaskNormalizedTarget(task, currentDateStr) : 0);
+        const status = existingProgress?.status || (task && ScheduleEngine.isTaskScheduledForDate(task, currentDateStr, appData, newTotal) ? "scheduled" : (newTotal > 0 ? "bonus" : "scheduled"));
+
+        appData.logs[currentDateStr].taskProgress[taskId] = {
+            ...(existingProgress || {}),
+            target: normTarget,
+            achieved: newTotal,
+            status,
+            hours: newTotal / 60,
+            score: normTarget > 0 ? (newTotal / normTarget) : (newTotal > 0 ? 1 : 0)
+        };
 
         saveData();
 
         // Update card progress bar in real time without destroying input focus
-        if (card) {
-            const task = (appData.tasks || []).find(t => t.id === taskId);
-            if (task) {
-                const target = getTaskNormalizedTarget(task, currentDateStr);
-                const progressPct = target > 0 ? Math.min(100, Math.round((newTotal / target) * 100)) : (newTotal > 0 ? 100 : 0);
-                const progressBar = card.querySelector(".task-progress-bar-fill");
-                if (progressBar) {
-                    progressBar.style.width = `${progressPct}%`;
-                }
+        if (card && task) {
+            const target = getTaskNormalizedTarget(task, currentDateStr);
+            const progressPct = target > 0 ? Math.min(100, Math.round((newTotal / target) * 100)) : (newTotal > 0 ? 100 : 0);
+            const progressBar = card.querySelector(".task-progress-bar-fill");
+            if (progressBar) {
+                progressBar.style.width = `${progressPct}%`;
             }
         }
         updateDailyScoreSummary();
         updateHeaderTodayScore();
 
         if (!isInputEvent) {
-            const task = (appData.tasks || []).find(t => t.id === taskId);
             const wasDone = task ? isTaskCompleted(task, prevTotal, currentDateStr) : false;
             const nowDone = task ? isTaskCompleted(task, newTotal, currentDateStr) : false;
             if (wasDone !== nowDone) {
@@ -703,22 +708,27 @@ function setTaskVal(taskId, val) {
     const prevVal = appData.logs[currentDateStr].entries[taskId] || 0;
     appData.logs[currentDateStr].entries[taskId] = val;
 
-    if (appData.logs[currentDateStr].taskProgress && appData.logs[currentDateStr].taskProgress[taskId]) {
-        const tp = appData.logs[currentDateStr].taskProgress[taskId];
-        if (typeof tp === "object" && tp !== null) {
-            tp.achieved = val;
-            const normTarget = Number(tp.target) || 0;
-            tp.score = normTarget > 0 ? (val / normTarget) : (val > 0 ? 1 : 0);
-            const task = (appData.tasks || []).find(t => t.id === taskId);
-            if (task && task.type === "ساعة") {
-                tp.hours = val / 60;
-            }
-        }
+    if (!appData.logs[currentDateStr].taskProgress) {
+        appData.logs[currentDateStr].taskProgress = {};
     }
+    const task = (appData.tasks || []).find(t => t.id === taskId);
+    const existingProgress = appData.logs[currentDateStr].taskProgress[taskId];
+    const normTarget = (existingProgress && Number(existingProgress.target) > 0)
+        ? Number(existingProgress.target)
+        : (task ? getTaskNormalizedTarget(task, currentDateStr) : 0);
+    const status = existingProgress?.status || (task && ScheduleEngine.isTaskScheduledForDate(task, currentDateStr, appData, val) ? "scheduled" : (val > 0 ? "bonus" : "scheduled"));
+
+    appData.logs[currentDateStr].taskProgress[taskId] = {
+        ...(existingProgress || {}),
+        target: normTarget,
+        achieved: val,
+        status,
+        hours: (task && task.type === "ساعة") ? (val / 60) : 0,
+        score: normTarget > 0 ? (val / normTarget) : (val > 0 ? 1 : 0)
+    };
 
     saveData();
 
-    const task = (appData.tasks || []).find(t => t.id === taskId);
     const wasDone = task ? isTaskCompleted(task, prevVal, currentDateStr) : false;
     const nowDone = task ? isTaskCompleted(task, val, currentDateStr) : false;
 
