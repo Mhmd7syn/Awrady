@@ -87,11 +87,13 @@ function renderDailyView() {
 
     // Group all active tasks (pending & completed) by Category
     const isTaskDisabled = (t) => {
+        const tp = log?.taskProgress?.[t.id];
+        if (tp && typeof tp === "object" && tp.status !== undefined) {
+            return tp.status === "disabled";
+        }
         if (disabledIds.includes(t.id)) return true;
         if (ScheduleEngine.isBonusTaskForDate(t, currentDateStr, appData)) return false;
         if (log._loadedFromDB && log.taskProgress && log.taskProgress[t.id]) {
-            const tp = log.taskProgress[t.id];
-            if (typeof tp === "object" && tp !== null && tp.isBonus) return false;
             const target = typeof tp === "object" && tp !== null ? Number(tp.target) : Number(tp);
             if (target === 0 && ScheduleEngine.isTaskScheduledForDate(t, currentDateStr, appData, 0)) {
                 return true;
@@ -199,9 +201,12 @@ function renderDailyView() {
             
             pendingInCat.forEach(({ task, val, target }) => {
                 const card = document.createElement("div");
-                const isBonus = typeof ScheduleEngine !== "undefined"
-                    ? ScheduleEngine.isBonusTaskForDate(task, currentDateStr, appData, val)
-                    : Boolean(task.isBonus);
+                const tp = log?.taskProgress?.[task.id];
+                const isBonus = (tp && typeof tp === "object" && tp.status !== undefined)
+                    ? tp.status === "bonus"
+                    : (typeof ScheduleEngine !== "undefined"
+                        ? ScheduleEngine.isBonusTaskForDate(task, currentDateStr, appData, val)
+                        : Boolean(task.isBonus));
                 const progressPct = target > 0 ? Math.min(100, Math.round((val / target) * 100)) : (val > 0 ? 100 : 0);
                 
                 card.className = `task-card glass-card ${isBonus ? 'is-bonus-card' : ''}`;
@@ -399,6 +404,16 @@ function attachTaskControlListeners(grid) {
         appData.logs[currentDateStr]._dirty = true;
         appData.logs[currentDateStr].entries[taskId] = newTotal;
 
+        if (appData.logs[currentDateStr].taskProgress && appData.logs[currentDateStr].taskProgress[taskId]) {
+            const tp = appData.logs[currentDateStr].taskProgress[taskId];
+            if (typeof tp === "object" && tp !== null) {
+                tp.achieved = newTotal;
+                tp.hours = newTotal / 60;
+                const normTarget = Number(tp.target) || 0;
+                tp.score = normTarget > 0 ? (newTotal / normTarget) : (newTotal > 0 ? 1 : 0);
+            }
+        }
+
         saveData();
 
         // Update card progress bar in real time without destroying input focus
@@ -461,10 +476,27 @@ function attachTaskControlListeners(grid) {
         btn.addEventListener("click", (e) => {
             e.stopPropagation();
             if (appData.logs && appData.logs[currentDateStr]) {
-                appData.logs[currentDateStr].disabledTaskIds = [];
-                if (!appData.logs[currentDateStr]._dirtyFields) appData.logs[currentDateStr]._dirtyFields = {};
-                appData.logs[currentDateStr]._dirtyFields.disabledTaskIds = Date.now();
-                appData.logs[currentDateStr]._dirty = true;
+                const log = appData.logs[currentDateStr];
+                const disabled = log.disabledTaskIds || [];
+                if (!log.taskProgress) log.taskProgress = {};
+                disabled.forEach(id => {
+                    const t = (appData.tasks || []).find(x => x.id === id);
+                    const val = (log.entries && log.entries[id] !== undefined) ? Number(log.entries[id]) : 0;
+                    const normTarget = t ? getTaskNormalizedTarget(t, currentDateStr) : 1;
+                    log.taskProgress[id] = {
+                        target: normTarget,
+                        achieved: val,
+                        status: "scheduled",
+                        hours: t?.type === "ساعة" ? (val / 60) : 0,
+                        score: normTarget > 0 ? (val / normTarget) : (val > 0 ? 1 : 0)
+                    };
+                    if (!log._dirtyTasks) log._dirtyTasks = {};
+                    log._dirtyTasks[id] = Date.now();
+                });
+                log.disabledTaskIds = [];
+                if (!log._dirtyFields) log._dirtyFields = {};
+                log._dirtyFields.disabledTaskIds = Date.now();
+                log._dirty = true;
                 saveData(true);
                 renderDailyView();
             }
@@ -495,7 +527,10 @@ function toggleDeactivateTaskForDate(taskId, dateStr) {
     if (!appData.logs[dateStr]) appData.logs[dateStr] = { entries: {}, disabledTaskIds: [] };
     const log = appData.logs[dateStr];
     const task = (appData.tasks || []).find(t => t.id === taskId);
-    const isBonus = task ? ScheduleEngine.isBonusTaskForDate(task, dateStr, appData) : false;
+    const tp = log?.taskProgress?.[taskId];
+    const isBonus = (tp && typeof tp === "object" && tp.status !== undefined)
+        ? tp.status === "bonus"
+        : (task ? ScheduleEngine.isBonusTaskForDate(task, dateStr, appData) : false);
 
     if (isBonus) {
         // Bonus tasks do not belong to this day's recurring schedule.
@@ -523,15 +558,41 @@ function toggleDeactivateTaskForDate(taskId, dateStr) {
     }
 
     if (!log.disabledTaskIds) log.disabledTaskIds = [];
+    if (!log.taskProgress) log.taskProgress = {};
     const idx = log.disabledTaskIds.indexOf(taskId);
-    if (idx >= 0) log.disabledTaskIds.splice(idx, 1);
-    else log.disabledTaskIds.push(taskId);
+    const val = (log.entries && log.entries[taskId] !== undefined) ? Number(log.entries[taskId]) : 0;
+    const normTarget = task ? getTaskNormalizedTarget(task, dateStr) : 1;
+
+    if (idx >= 0) {
+        // Re-enabling
+        log.disabledTaskIds.splice(idx, 1);
+        log.taskProgress[taskId] = {
+            target: normTarget,
+            achieved: val,
+            status: "scheduled",
+            hours: task?.type === "ساعة" ? (val / 60) : 0,
+            score: normTarget > 0 ? (val / normTarget) : (val > 0 ? 1 : 0)
+        };
+    } else {
+        // Pausing / Disabling
+        log.disabledTaskIds.push(taskId);
+        log.taskProgress[taskId] = {
+            target: 0,
+            achieved: val,
+            status: "disabled",
+            hours: task?.type === "ساعة" ? (val / 60) : 0,
+            score: 0
+        };
+    }
     if (!log._dirtyFields) log._dirtyFields = {};
     log._dirtyFields.disabledTaskIds = Date.now();
+    if (!log._dirtyTasks) log._dirtyTasks = {};
+    log._dirtyTasks[taskId] = Date.now();
     log._dirty = true;
     saveData();
     renderDailyView();
     updateDailyScoreSummary();
+    updateHeaderTodayScore();
 }
 
 function getTaskVal(taskId) {
@@ -649,6 +710,19 @@ function setTaskVal(taskId, val) {
 
     const prevVal = appData.logs[currentDateStr].entries[taskId] || 0;
     appData.logs[currentDateStr].entries[taskId] = val;
+
+    if (appData.logs[currentDateStr].taskProgress && appData.logs[currentDateStr].taskProgress[taskId]) {
+        const tp = appData.logs[currentDateStr].taskProgress[taskId];
+        if (typeof tp === "object" && tp !== null) {
+            tp.achieved = val;
+            const normTarget = Number(tp.target) || 0;
+            tp.score = normTarget > 0 ? (val / normTarget) : (val > 0 ? 1 : 0);
+            const task = (appData.tasks || []).find(t => t.id === taskId);
+            if (task && task.type === "ساعة") {
+                tp.hours = val / 60;
+            }
+        }
+    }
 
     saveData();
 

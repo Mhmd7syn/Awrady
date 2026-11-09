@@ -16,6 +16,7 @@ class ScheduleEngine {
     static isTaskScheduledForDate(task, dateStr, appDataRef = null, loggedVal = null, dateContext = null) {
         if (!task) return false;
         if (task.isBonus) return false;
+        if (task.isArchived) return false;
         const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
         const log = appData?.logs?.[dateStr];
         const val = loggedVal !== null ? loggedVal : (log?.entries?.[task.id] || 0);
@@ -23,13 +24,16 @@ class ScheduleEngine {
         // Historical DB snapshot: preserve past scheduled status from recorded target
         if (log?._loadedFromDB && log.taskProgress && log.taskProgress[task.id] !== undefined) {
             const tp = log.taskProgress[task.id];
-            if (typeof tp === "object" && tp !== null && tp.isBonus) return false;
-            const target = typeof tp === "object" && tp !== null ? Number(tp.target) : Number(tp);
-            if (target === 0) return false;
-            if (target > 0) return true;
+            if (typeof tp === "object" && tp !== null) {
+                if (tp.status !== undefined) return tp.status === "scheduled";
+                if (tp.isBonus) return false;
+                const target = Number(tp.target);
+                if (target === 0) return false;
+                if (target > 0) return true;
+            } else if (Number(tp) > 0) {
+                return true;
+            }
         }
-
-        if (task.isArchived) return false;
 
         const sched = (task.schedule || "Everyday").trim();
 
@@ -71,6 +75,7 @@ class ScheduleEngine {
 
         const tp = log?.taskProgress?.[task.id];
         if (tp && typeof tp === "object") {
+            if (tp.status !== undefined) return tp.status === "bonus";
             if (tp.isBonus !== undefined) return Boolean(tp.isBonus);
             const target = Number(tp.target);
             if (target > 0) return false;
@@ -81,11 +86,7 @@ class ScheduleEngine {
         if (task.isBonus) return true;
 
         if (task.isArchived) {
-            if (dateStr < "2026-11-08" && log?._loadedFromDB) {
-                const recordedTarget = typeof tp === "object" && tp !== null ? Number(tp.target) : Number(tp);
-                if (recordedTarget > 0) return false;
-            }
-            return true;
+            return false;
         }
 
         const sched = (task.schedule || "").trim();
@@ -110,31 +111,30 @@ class ScheduleEngine {
         const log = appData?.logs?.[dateStr];
 
         const val = (log?.entries && log.entries[task.id] !== undefined) ? (Number(log.entries[task.id]) || 0) : 0;
-        if (val > 0) return true;
-
         const tp = log?.taskProgress?.[task.id];
         const recordedTarget = typeof tp === "object" && tp !== null ? Number(tp.target) : Number(tp);
-        const isExplicitBonus = Boolean(tp?.isBonus) || Boolean(log?.entries && log.entries[task.id] !== undefined && log?._dirtyTasks?.[task.id]);
+        const status = typeof tp === "object" && tp !== null ? tp.status : null;
+        const isExplicitBonus = status === "bonus" || Boolean(tp?.isBonus) || Boolean(log?.entries && log.entries[task.id] !== undefined && log?._dirtyTasks?.[task.id]);
 
-        // Archived tasks never appear on live days unless logged or explicitly added as bonus
+        // Archived tasks are ONLY visible if they have actual achieved progress (val > 0) or are an explicit bonus
         if (task.isArchived) {
-            if (isExplicitBonus) return true;
-            // On old days before 2026-11-08, preserve historical active scheduled status if recordedTarget > 0
-            if (dateStr < "2026-11-08" && log?._loadedFromDB && recordedTarget > 0) return true;
-            return false;
+            return status === "bonus" || val > 0;
         }
 
-        if (isExplicitBonus) return true;
-        if (log?.disabledTaskIds?.includes(task.id)) return true;
+        if (status === "bonus" || isExplicitBonus) return true;
+        if (status === "disabled" || log?.disabledTaskIds?.includes(task.id)) return true;
 
         if (log?._loadedFromDB && log.taskProgress) {
             if (log.taskProgress[task.id] !== undefined) {
-                if (recordedTarget > 0 || Boolean(tp?.isBonus)) return true;
+                if (status === "scheduled") return true;
+                if (!status && recordedTarget > 0) return true;
+                if (val > 0) return true;
                 if (ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val)) return true;
             }
             return false;
         }
 
+        if (val > 0) return true;
         return ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val);
     }
 

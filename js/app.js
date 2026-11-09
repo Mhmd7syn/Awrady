@@ -91,11 +91,11 @@ window.logoutApp = function() {
 
 let _dbSaveTimer = null;
 
-const AFFECTED_START_DATE = "2026-11-08";
+const AFFECTED_START_DATE = "2026-11-01";
 
 function cleanStoredDayLog(log, dateStr) {
     if (!log || !log.taskProgress) return false;
-    // Only resolve the issue for days from the regression commit onwards; old days before 2026-11-08 are never touched
+    // Only resolve the issue for active days in November onwards; old historical days before 2026-11-01 are untouched
     if (dateStr < AFFECTED_START_DATE) return false;
 
     const cleanProgress = {};
@@ -105,12 +105,13 @@ function cleanStoredDayLog(log, dateStr) {
     for (const [tid, info] of Object.entries(log.taskProgress)) {
         const val = typeof info === "object" && info !== null ? (Number(info.achieved) || 0) : (Number(info) || 0);
         const target = typeof info === "object" && info !== null ? (Number(info.target) || 0) : 0;
-        const isBonus = typeof info === "object" && info !== null ? Boolean(info.isBonus) : false;
+        const status = typeof info === "object" && info !== null ? info.status : null;
+        const isBonus = status === "bonus";
         const isDirty = Boolean(log._dirtyTasks?.[tid]);
         const task = (appData.tasks || []).find(t => t.id === tid);
 
         if (task && task.isArchived) {
-            // Archived tasks: keep only if positive progress or explicit bonus
+            // Archived tasks: keep only if positive progress or explicit bonus status
             if (val > 0 || isBonus || isDirty) {
                 cleanProgress[tid] = info;
                 cleanEntries[tid] = val;
@@ -120,8 +121,8 @@ function cleanStoredDayLog(log, dateStr) {
             continue;
         }
 
-        const isScheduled = task ? ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val) : target > 0;
-        const isPaused = log.disabledTaskIds?.includes(tid) || (target === 0 && isScheduled);
+        const isScheduled = status === "scheduled" || (task ? ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val) : target > 0);
+        const isPaused = status === "disabled" || log.disabledTaskIds?.includes(tid) || (target === 0 && isScheduled);
 
         // Keep active tasks that genuinely belong to this day
         if (val > 0 || target > 0 || isScheduled || isPaused || isBonus || isDirty) {
@@ -301,6 +302,8 @@ function mergeDayLog(localLog, cloudRow) {
 
 async function pushDayToCloud(dateStr) {
     if (!window.awradyAPI?.client) return;
+    // Strict immutability constraint: historical days prior to 2026-11-08 are completely frozen
+    if (dateStr < AFFECTED_START_DATE) return;
     const log = appData.logs?.[dateStr];
     if (!log) return;
 
@@ -321,15 +324,16 @@ async function pushDayToCloud(dateStr) {
         const hasEntry = log.entries && log.entries[t.id] !== undefined;
         const val = hasEntry ? (Number(log.entries[t.id]) || 0) : 0;
         const isScheduled = ScheduleEngine.isTaskScheduledForDate(t, dateStr, appData, val);
-        const isDisabled = disabledIds.includes(t.id);
         const existingProgress = log.taskProgress?.[t.id];
-        const isExplicitBonus = Boolean(existingProgress?.isBonus) || Boolean(log._dirtyTasks?.[t.id] && hasEntry);
+        const existingStatus = typeof existingProgress === "object" && existingProgress !== null ? existingProgress.status : null;
         const recordedTarget = typeof existingProgress === "object" && existingProgress !== null ? Number(existingProgress.target) : Number(existingProgress);
+        const isExplicitBonus = existingStatus === "bonus" || Boolean(existingProgress?.isBonus);
+        const isDisabled = existingStatus === "disabled" || disabledIds.includes(t.id);
 
         // Clean DB persistence: only persist tasks that genuinely belong to this day
+        // Guard: never persist archived tasks with val <= 0 unless status === "bonus"
         if (t.isArchived) {
-            const keepHistorical = dateStr < AFFECTED_START_DATE && log._loadedFromDB && recordedTarget > 0;
-            if (val <= 0 && !isExplicitBonus && !keepHistorical) {
+            if (val <= 0 && !isExplicitBonus) {
                 return;
             }
         } else {
@@ -338,16 +342,31 @@ async function pushDayToCloud(dateStr) {
             }
         }
 
-        const isBonus = isExplicitBonus || (!isScheduled && !isDisabled);
-        const normTarget = (isDisabled || isBonus) ? 0 : (recordedTarget > 0 ? recordedTarget : getTaskNormalizedTarget(t, dateStr));
+        let status = "scheduled";
+        if (isDisabled) {
+            status = "disabled";
+        } else if (isExplicitBonus || (!isScheduled && !t.isArchived && val > 0)) {
+            status = "bonus";
+        } else if (t.isArchived) {
+            if (isExplicitBonus || val > 0) {
+                status = "bonus";
+            } else {
+                return;
+            }
+        }
+
+        const normTarget = (status === "bonus" || status === "disabled")
+            ? 0
+            : (recordedTarget > 0 ? recordedTarget : getTaskNormalizedTarget(t, dateStr));
 
         taskProgress[t.id] = {
             target: normTarget,
             achieved: val,
+            status: status,
             hours: t.type === "ساعة" ? (val / 60) : 0,
             score: normTarget > 0 ? (val / normTarget) : (val > 0 ? 1 : 0)
         };
-        if (isBonus) {
+        if (status === "bonus") {
             taskProgress[t.id].isBonus = true;
         }
     });
@@ -388,6 +407,7 @@ async function pushDayToCloud(dateStr) {
 async function syncAllDirtyDays() {
     if (!window.awradyAPI?.client || !navigator.onLine || !appData.logs) return;
     const dirtyDates = Object.keys(appData.logs).filter(d => {
+        if (d < AFFECTED_START_DATE) return false;
         const log = appData.logs[d];
         if (!log) return false;
         return log._dirty ||
