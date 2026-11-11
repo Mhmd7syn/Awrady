@@ -8,6 +8,7 @@ class AwradyAPI {
         this.client = null;
         this.currentUser = APP_CONSTANTS.GUEST_USER;
         this._listeners = new Set();
+        this._syncChannel = null;
     }
 
     init() {
@@ -23,6 +24,7 @@ class AwradyAPI {
         try {
             if (!this.client) {
                 this.client = window.supabase.createClient(url, key);
+                this.ensureUserExists();
                 this._setupRealtimeSync();
             }
             return true;
@@ -32,13 +34,39 @@ class AwradyAPI {
         }
     }
 
+    setCurrentUser(username) {
+        const cleanUser = (username || APP_CONSTANTS.GUEST_USER).toLowerCase().trim();
+        if (this.currentUser === cleanUser && this._syncChannel) return;
+        this.currentUser = cleanUser;
+        if (this.client) {
+            this.ensureUserExists(cleanUser);
+            this._setupRealtimeSync();
+        }
+    }
+
+    async ensureUserExists(username = this.currentUser) {
+        if (!this.client || !username) return;
+        try {
+            const tblUsers = APP_CONSTANTS.DB.TABLES.USERS;
+            await this.client.from(tblUsers).upsert({ username }, { onConflict: "username", ignoreDuplicates: true });
+        } catch (_) {}
+    }
+
     _setupRealtimeSync() {
         if (!this.client) return;
-        const channelName = APP_CONSTANTS.DB.CHANNEL;
+        if (this._syncChannel) {
+            try {
+                this.client.removeChannel(this._syncChannel);
+            } catch (_) {}
+            this._syncChannel = null;
+        }
+
+        const channelName = `${APP_CONSTANTS.DB.CHANNEL}_${this.currentUser}_${Date.now()}`;
         const tblProgress = APP_CONSTANTS.DB.TABLES.PROGRESS;
         const tblTasks = APP_CONSTANTS.DB.TABLES.TASKS;
         const filter = `username=eq.${this.currentUser}`;
-        this.client
+
+        this._syncChannel = this.client
             .channel(channelName)
             .on("postgres_changes", { event: "*", schema: "public", table: tblProgress, filter }, payload => this._notify(tblProgress, payload))
             .on("postgres_changes", { event: "*", schema: "public", table: tblTasks, filter }, payload => this._notify(tblTasks, payload))
@@ -72,13 +100,12 @@ class AwradyAPI {
             totalAchieved: Number(r.total_achieved) || 0,
             totalHours: Number(r.total_hours) || 0,
             totalScore: Number(r.total_score) || 0,
-            createdAt: r.created_at
+            createdAt: r.created_at,
+            oneTimeDate: r.one_time_date || (r.schedule === "OneTime" ? (r.created_at ? r.created_at.slice(0, 10) : null) : null)
         }));
     }
 
-    async saveTask(task) {
-        if (!this.client) throw new Error("Supabase client not initialized");
-        const tblTasks = APP_CONSTANTS.DB.TABLES.TASKS;
+    _taskToRow(task) {
         const row = {
             username: this.currentUser,
             task_id: task.id,
@@ -92,9 +119,33 @@ class AwradyAPI {
             total_hours: Number(task.totalHours ?? task.total_hours) || 0,
             total_score: Number(task.totalScore ?? task.total_score) || 0
         };
+        if (task.createdAt) {
+            row.created_at = task.createdAt;
+        }
+        const otDate = task.oneTimeDate || (task.schedule === "OneTime" ? (task.createdAt ? task.createdAt.slice(0, 10) : null) : null);
+        if (otDate) {
+            row.one_time_date = otDate;
+        }
+        return row;
+    }
+
+    async saveTask(task) {
+        if (!this.client) throw new Error("Supabase client not initialized");
+        const tblTasks = APP_CONSTANTS.DB.TABLES.TASKS;
+        const row = this._taskToRow(task);
         const { data, error } = await this.client.from(tblTasks).upsert(row, { onConflict: "username, task_id" }).select();
         if (error) throw error;
         return data?.[0] || null;
+    }
+
+    async saveTasks(tasks) {
+        if (!this.client) throw new Error("Supabase client not initialized");
+        if (!Array.isArray(tasks) || tasks.length === 0) return [];
+        const tblTasks = APP_CONSTANTS.DB.TABLES.TASKS;
+        const rows = tasks.map(t => this._taskToRow(t));
+        const { data, error } = await this.client.from(tblTasks).upsert(rows, { onConflict: "username, task_id" }).select();
+        if (error) throw error;
+        return data || [];
     }
 
     async purgeTask(taskId) {

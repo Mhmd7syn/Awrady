@@ -57,7 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 window.startApp = async function(username) {
     if (window.awradyAPI) {
-        window.awradyAPI.currentUser = username;
+        window.awradyAPI.setCurrentUser(username);
     }
     if (window.securityLock) {
         window.securityLock.init();

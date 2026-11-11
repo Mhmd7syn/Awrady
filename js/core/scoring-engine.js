@@ -21,6 +21,12 @@ class ScoringEngine {
         const sub = (cat && task.subcategory) ? cat.subcategories?.find(s => s.name === task.subcategory) : null;
         const estMins = sub?.defaultEstimatedMinutes || cat?.defaultEstimatedMinutes || 1;
 
+        // For large-count counter tasks (e.g. tasbeeh with target=100 repetitions),
+        // defaultEstimatedMinutes represents the session duration, not minutes per repetition.
+        if (targetVal > 30) {
+            return estMins;
+        }
+
         return estMins * targetVal;
     }
 
@@ -72,10 +78,11 @@ class ScoringEngine {
             const isScheduled = tp?.status === "scheduled" || (!isBonus && ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val, dateContext));
 
             if (isScheduled || (isBonus && val > 0)) {
-                const target = (tp && Number(tp.target) > 0) ? Number(tp.target) : ((task.target && task.target > 0) ? task.target : 1);
                 const isTime = isTimeTask(task);
-                const normTarget = isTime ? target * 60 : target;
-                const taskRatio = val / normTarget;
+                const rawTarget = (task.target && task.target > 0) ? task.target : 1;
+                const baseNormTarget = isTime ? rawTarget * 60 : rawTarget;
+                const normTarget = (!isBonus && tp && Number(tp.target) > 0) ? Number(tp.target) : baseNormTarget;
+                const taskRatio = normTarget > 0 ? (val / normTarget) : 0;
                 const weight = ScoringEngine.getTaskWeightMinutes(task);
 
                 if (isBonus) {
@@ -115,4 +122,5 @@ class ScoringEngine {
 
 if (typeof window !== "undefined") {
     window.ScoringEngine = ScoringEngine;
+    window.calculateDayScore = ScoringEngine.calculateDayScore.bind(ScoringEngine);
 }

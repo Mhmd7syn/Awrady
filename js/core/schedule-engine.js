@@ -61,7 +61,7 @@ class ScheduleEngine {
         if (hijriInfo.isRamadan && isFasting) return true;
 
         if (sched.includes("WhiteDays")) return hijriInfo.isWhiteDay;
-        if (sched === "Everyday" || sched === "") return true;
+        if (sched === "Everyday" || sched === "" || sched === "Weekdays") return true;
         if (sched === "Ramadan") return hijriInfo.isRamadan;
 
         return sched.includes(dayAbbrev);
@@ -88,14 +88,15 @@ class ScheduleEngine {
         if (tp?.status === "disabled") return false;
         if (task.isBonus) return true;
 
+        const val = loggedVal !== null ? loggedVal : (Number(tp?.achieved) || 0);
+        if (val <= 0) return false;
+
         const sched = (task.schedule || "").trim();
         if (sched === "OneTime") {
             const taskDate = (task.oneTimeDate || task.createdAt || "").slice(0, 10);
             return taskDate !== dateStr;
         }
 
-        const val = loggedVal !== null ? loggedVal : (Number(tp?.achieved) || 0);
-        if (val <= 0) return false;
         return !ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val, dateContext);
     }
 

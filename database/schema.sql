@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS public.daily_progress (
 
 -- Ensure updated_at exists if tables were already created
 ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL;
+ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS one_time_date DATE;
 ALTER TABLE public.daily_progress ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL;
 ALTER TABLE public.daily_progress ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL;
 

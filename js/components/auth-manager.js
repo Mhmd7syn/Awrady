@@ -239,6 +239,9 @@ class AuthManager {
     loginSuccess(username) {
         this.currentUser = username;
         localStorage.setItem(this.SESSION_KEY, username);
+        if (window.awradyAPI) {
+            window.awradyAPI.setCurrentUser(username);
+        }
         this.showMsg("تم الدخول بنجاح!", false);
         setTimeout(() => {
             this.hide();
@@ -253,6 +256,9 @@ class AuthManager {
         if (!confirm("هل أنت متأكد من رغبتك في تسجيل الخروج؟")) return;
         localStorage.removeItem(this.SESSION_KEY);
         this.currentUser = null;
+        if (window.awradyAPI) {
+            window.awradyAPI.setCurrentUser(this.GUEST_USER);
+        }
         this.show();
         this.updateUI();
         if (typeof window.logoutApp === "function") {

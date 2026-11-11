@@ -30,6 +30,8 @@ function formatTimeHM(minutes) {
 }
 
 const WEEKDAY_ABBREVS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const ARABIC_WEEKDAYS = APP_CONSTANTS.WEEKDAYS.map(w => w.ar);
+const ENGLISH_WEEKDAYS = APP_CONSTANTS.WEEKDAYS.map(w => w.key);
 
 let _arabicDateFormatter = null;
 let _hijriArFormatter = null;
@@ -129,11 +131,10 @@ function getHijriDateDetails(dateStr) {
         });
 
         // White Days (13, 14, 15) - Exclude Tashreeq (Month 12 Day 13) and Ramadan (Month 9)
-        const isWhiteDay = (hDay === 13 || hDay === 14 || hDay === 15) && (hMonth !== 9) && !(hMonth === 12 && hDay === 13);
-        const isRamadan = (hMonth === 9);
+        const isWhiteDay = APP_CONSTANTS.WHITE_DAYS.includes(hDay) && (hMonth !== APP_CONSTANTS.RAMADAN_MONTH) && !(hMonth === 12 && hDay === 13);
+        const isRamadan = (hMonth === APP_CONSTANTS.RAMADAN_MONTH);
 
-        const hijriMonthNames = ["", "محرم", "صفر", "ربيع الأول", "ربيع الثاني", "جمادى الأولى", "جمادى الآخرة", "رجب", "شعبان", "رمضان", "شوال", "ذو القعدة", "ذو الحجة"];
-        const monthName = hijriMonthNames[hMonth] || "";
+        const monthName = (hMonth >= 1 && hMonth <= 12) ? (APP_CONSTANTS.HIJRI_MONTHS[hMonth - 1] || "") : "";
 
         const formatted = dateStringAr.includes("هـ") ? dateStringAr : dateStringAr + " هـ";
         const result = {
@@ -173,10 +174,6 @@ function getDatesForCurrentWeek(referenceDate = new Date()) {
     const week = [];
     const todayStr = getLocalTodayString();
 
-    const weekdays = APP_CONSTANTS.WEEKDAYS;
-    const arabicDays = weekdays.map(w => w.ar);
-    const englishDays = weekdays.map(w => w.key);
-
     for (let i = 0; i < 7; i++) {
         const d = new Date(sat);
         d.setDate(sat.getDate() + i);
@@ -184,8 +181,8 @@ function getDatesForCurrentWeek(referenceDate = new Date()) {
         week.push({
             dateStr,
             dateObj: d,
-            dayNameAr: arabicDays[i],
-            dayNameEn: englishDays[i],
+            dayNameAr: ARABIC_WEEKDAYS[i],
+            dayNameEn: ENGLISH_WEEKDAYS[i],
             isToday: (dateStr === todayStr)
         });
     }

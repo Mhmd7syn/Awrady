@@ -119,9 +119,7 @@ function setupDataManagement() {
                         saveData(true);
                         if (window.awradyAPI?.client) {
                             try {
-                                for (const t of (appData.tasks || [])) {
-                                    await window.awradyAPI.saveTask(t);
-                                }
+                                await window.awradyAPI.saveTasks(appData.tasks || []);
                             } catch (e) {
                                 console.warn("[AwradyAPI] Import tasks sync error:", e);
                             }
@@ -147,8 +145,13 @@ function setupDataManagement() {
     if (btnResetProgress) {
         btnResetProgress.addEventListener("click", async () => {
             if (confirm("هل أنت متأكد من مسح جميع السجلات ونقاط الإنجاز التاريخية؟ (ستبقى المهام والتصنيفات كما هي)")) {
+                if (typeof _dbSaveTimer !== "undefined" && _dbSaveTimer) {
+                    clearTimeout(_dbSaveTimer);
+                }
                 appData.logs = {};
-                saveData(true);
+                try {
+                    localStorage.setItem(getUserStorageKey(), JSON.stringify(appData));
+                } catch (_) {}
                 if (window.awradyAPI?.client) {
                     try {
                         await window.awradyAPI.client.from(APP_CONSTANTS.DB.TABLES.PROGRESS).delete().eq("username", window.awradyAPI.currentUser);
@@ -170,9 +173,7 @@ function setupDataManagement() {
                 saveData(true);
                 if (window.awradyAPI?.client) {
                     try {
-                        for (const task of appData.tasks) {
-                            await window.awradyAPI.saveTask(task);
-                        }
+                        await window.awradyAPI.saveTasks(appData.tasks || []);
                     } catch (e) {
                         console.warn("[AwradyAPI] Reset tasks sync error:", e);
                     }
@@ -202,7 +203,12 @@ function setupDataManagement() {
         }
     };
 
-    window.addEventListener("online", refreshCloudStatus);
+    window.addEventListener("online", () => {
+        refreshCloudStatus();
+        if (typeof pushDayToCloud === "function" && typeof currentDateStr !== "undefined") {
+            pushDayToCloud(currentDateStr);
+        }
+    });
     window.addEventListener("offline", refreshCloudStatus);
 
     if (headerCloudPill) {
