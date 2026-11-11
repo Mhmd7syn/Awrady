@@ -14,7 +14,6 @@ class SecurityLock {
         this.PIN_HASH_KEY = APP_CONSTANTS.STORAGE_KEYS.PIN_HASH;
         this.AUTH_TOKEN_KEY = APP_CONSTANTS.STORAGE_KEYS.PIN_SESSION;
         this.SALT = APP_CONSTANTS.HASH_SALTS.PIN;
-        this.LEGACY_SALT = "enjaz_secure_salt_v1";
 
         this.currentEnteredPin = "";
         this.isUnlocked = false;
@@ -209,17 +208,7 @@ class SecurityLock {
     async verifyEnteredPin() {
         const storedHash = localStorage.getItem(this.PIN_HASH_KEY);
         const enteredHash = await this.hashPin(this.currentEnteredPin, this.SALT);
-        let isMatch = (storedHash === enteredHash);
-
-        // Seamless migration if stored hash was generated with legacy salt
-        if (!isMatch && this.LEGACY_SALT) {
-            const legacyHash = await this.hashPin(this.currentEnteredPin, this.LEGACY_SALT);
-            if (storedHash === legacyHash) {
-                isMatch = true;
-                // Upgrade stored hash to new salt
-                localStorage.setItem(this.PIN_HASH_KEY, enteredHash);
-            }
-        }
+        const isMatch = (storedHash === enteredHash);
 
         if (isMatch) {
             // Correct PIN!

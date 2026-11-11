@@ -48,7 +48,7 @@ function checkAndShowNawafelPrompt(prayerTaskId) {
     const curDateStr = currentDateStr;
     
     if (window.appData && !window.appData.logs[curDateStr]) {
-        window.appData.logs[curDateStr] = { entries: {} };
+        window.appData.logs[curDateStr] = { taskProgress: {} };
     }
     
     if (window.appData && !window.appData.logs[curDateStr].prayerExtras) {
@@ -84,7 +84,7 @@ function savePrayerExtras() {
             const curDateStr = currentDateStr;
 
             if (!window.appData.logs[curDateStr]) {
-                window.appData.logs[curDateStr] = { entries: {} };
+                window.appData.logs[curDateStr] = { taskProgress: {} };
             }
             if (!window.appData.logs[curDateStr].prayerExtras) {
                 window.appData.logs[curDateStr].prayerExtras = {};
@@ -102,8 +102,6 @@ function savePrayerExtras() {
             };
 
             const curLog = window.appData.logs[curDateStr];
-            if (!curLog._dirtyFields) curLog._dirtyFields = {};
-            curLog._dirtyFields["prayerExtras." + prayerId] = Date.now();
             curLog._dirty = true;
 
             const sunnahId = APP_CONSTANTS.TASK_IDS.SUNNAH;
@@ -156,8 +154,6 @@ function removePrayerExtras(prayerTaskId) {
         }
     }
     delete log.prayerExtras[prayerTaskId];
-    if (!log._dirtyFields) log._dirtyFields = {};
-    log._dirtyFields["prayerExtras." + prayerTaskId] = Date.now();
     log._dirty = true;
     saveData();
     renderDailyView();

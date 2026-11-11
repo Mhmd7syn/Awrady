@@ -150,9 +150,6 @@ class AwradyAPI {
     }
 }
 
-const EnjazAPI = AwradyAPI; // backward compatibility
-
 if (typeof window !== "undefined") {
     window.awradyAPI = new AwradyAPI();
-    window.enjazAPI = window.awradyAPI; // backward compatibility alias
 }

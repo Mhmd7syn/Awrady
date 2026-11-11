@@ -2,19 +2,6 @@
  * Task create/edit modal
  */
 
-function autoDetectType(catName, subcatName) {
-    const c = appData.categories.find(x => x.name === catName);
-    if (c) {
-        if (subcatName) {
-            const sub = (c.subcategories || []).find(s => s.name === subcatName);
-            if (sub && sub.defaultUnit) return sub.defaultUnit;
-            if (catName === "صلاة" && subcatName === "فرض") return "صلاة";
-        }
-        if (c.defaultUnit) return c.defaultUnit;
-    }
-    return "مهمة";
-}
-
 function openTaskModal(id, options = {}) {
     editingTaskId = id;
     const modal = document.getElementById("task-modal");

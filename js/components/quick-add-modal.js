@@ -98,7 +98,6 @@ function populateQuickAddExistingList() {
 
     function renderList() {
         const curDate = currentDateStr;
-        const log = (appData.logs && appData.logs[curDate]) || { entries: {} };
         const term = (document.getElementById("quick-add-search-input")?.value || "").trim().toLowerCase();
 
         list.innerHTML = "";

@@ -5,24 +5,6 @@
 
 class ScoringEngine {
     /**
-     * Resolves the task time unit
-     * @param {Object} task 
-     * @returns {string}
-     */
-    static getTaskUnit(task) {
-        return getTaskUnit(task);
-    }
-
-    /**
-     * Checks if a task is hour/time-based
-     * @param {Object} task 
-     * @returns {boolean}
-     */
-    static isTimeTask(task) {
-        return isTimeTask(task);
-    }
-
-    /**
      * Returns the time weight (in minutes) for a task used in weighted-average scoring
      * @param {Object} task 
      * @returns {number} Weight in minutes
@@ -31,7 +13,7 @@ class ScoringEngine {
         if (!task) return 1;
         const targetVal = (task.target && task.target > 0) ? task.target : 1;
 
-        if (ScoringEngine.isTimeTask(task)) {
+        if (isTimeTask(task)) {
             return 60 * targetVal;
         }
 
@@ -91,7 +73,7 @@ class ScoringEngine {
 
             if (isScheduled || (isBonus && val > 0)) {
                 const target = (tp && Number(tp.target) > 0) ? Number(tp.target) : ((task.target && task.target > 0) ? task.target : 1);
-                const isTime = ScoringEngine.isTimeTask(task);
+                const isTime = isTimeTask(task);
                 const normTarget = isTime ? target * 60 : target;
                 const taskRatio = val / normTarget;
                 const weight = ScoringEngine.getTaskWeightMinutes(task);

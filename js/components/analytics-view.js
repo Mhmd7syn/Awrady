@@ -12,8 +12,7 @@ function getRecordedDates() {
         if (!log) return false;
         const hasPositiveAchieved = log.taskProgress && Object.values(log.taskProgress).some(p => (Number(p?.achieved) || 0) > 0);
         const hasPrecomputed = log.precomputedScore !== undefined && log.precomputedScore !== null;
-        const hasDisabled = (log.taskProgress && Object.values(log.taskProgress).some(p => p?.status === "disabled")) ||
-            (Array.isArray(log.disabledTaskIds) && log.disabledTaskIds.length > 0);
+        const hasDisabled = Boolean(log.taskProgress && Object.values(log.taskProgress).some(p => p?.status === "disabled"));
         return hasPositiveAchieved || hasPrecomputed || hasDisabled;
     }).sort();
 }

@@ -68,7 +68,7 @@ function getTasksSummaryByDay(options = null) {
             const weightMins = ScoringEngine.getTaskWeightMinutes(t);
             totalMins += weightMins;
             const target = t.target || 1;
-            const unit = ScoringEngine.getTaskUnit(t);
+            const unit = getTaskUnit(t);
 
             taskList.push({
                 name: t.name,
