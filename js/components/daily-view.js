@@ -80,18 +80,12 @@ function renderDailyView() {
         }
     }
 
-    const log = appData.logs[currentDateStr] || { entries: {}, disabledTaskIds: [] };
-    const disabledIds = log.disabledTaskIds || [];
-
+    const log = appData.logs[currentDateStr] || { taskProgress: {} };
     const allScheduled = appData.tasks.filter(t => ScheduleEngine.isVisibleOn(t, currentDateStr, appData));
 
     // Group all active tasks (pending & completed) by Category
     const isTaskDisabled = (t) => {
-        const tp = log?.taskProgress?.[t.id];
-        if (tp && typeof tp === "object" && tp.status !== undefined) {
-            return tp.status === "disabled";
-        }
-        return disabledIds.includes(t.id);
+        return log?.taskProgress?.[t.id]?.status === "disabled";
     };
 
     const disabledTasks = allScheduled.filter(isTaskDisabled);
@@ -388,19 +382,15 @@ function attachTaskControlListeners(grid) {
         const m = Math.max(0, Math.min(59, parseInt(minutesEl ? minutesEl.value : input.value, 10) || 0));
         const newTotal = (h * 60) + m;
 
-        const prevTotal = (appData.logs[currentDateStr] && appData.logs[currentDateStr].entries) ? (appData.logs[currentDateStr].entries[taskId] || 0) : 0;
-        if (!appData.logs[currentDateStr]) appData.logs[currentDateStr] = { entries: {} };
-        if (!appData.logs[currentDateStr].entries) appData.logs[currentDateStr].entries = {};
+        if (!appData.logs[currentDateStr]) appData.logs[currentDateStr] = { taskProgress: {} };
+        if (!appData.logs[currentDateStr].taskProgress) appData.logs[currentDateStr].taskProgress = {};
         if (!appData.logs[currentDateStr]._dirtyTasks) appData.logs[currentDateStr]._dirtyTasks = {};
         appData.logs[currentDateStr]._dirtyTasks[taskId] = Date.now();
         appData.logs[currentDateStr]._dirty = true;
-        appData.logs[currentDateStr].entries[taskId] = newTotal;
 
-        if (!appData.logs[currentDateStr].taskProgress) {
-            appData.logs[currentDateStr].taskProgress = {};
-        }
         const task = (appData.tasks || []).find(t => t.id === taskId);
         const existingProgress = appData.logs[currentDateStr].taskProgress[taskId];
+        const prevTotal = Number(existingProgress?.achieved) || 0;
         const normTarget = (existingProgress && Number(existingProgress.target) > 0)
             ? Number(existingProgress.target)
             : (task ? getTaskNormalizedTarget(task, currentDateStr) : 0);
@@ -472,27 +462,25 @@ function attachTaskControlListeners(grid) {
     grid.querySelectorAll("#btn-reenable-all-today").forEach(btn => {
         btn.addEventListener("click", (e) => {
             e.stopPropagation();
-            if (appData.logs && appData.logs[currentDateStr]) {
-                const log = appData.logs[currentDateStr];
-                const disabled = log.disabledTaskIds || [];
-                if (!log.taskProgress) log.taskProgress = {};
-                disabled.forEach(id => {
-                    const t = (appData.tasks || []).find(x => x.id === id);
-                    const val = (log.entries && log.entries[id] !== undefined) ? Number(log.entries[id]) : 0;
-                    const normTarget = t ? getTaskNormalizedTarget(t, currentDateStr) : 1;
-                    log.taskProgress[id] = {
-                        target: normTarget,
-                        achieved: val,
-                        status: "scheduled",
-                        hours: t?.type === "ساعة" ? (val / 60) : 0,
-                        score: normTarget > 0 ? (val / normTarget) : (val > 0 ? 1 : 0)
-                    };
-                    if (!log._dirtyTasks) log._dirtyTasks = {};
-                    log._dirtyTasks[id] = Date.now();
-                });
-                log.disabledTaskIds = [];
-                if (!log._dirtyFields) log._dirtyFields = {};
-                log._dirtyFields.disabledTaskIds = Date.now();
+            const log = appData.logs?.[currentDateStr];
+            if (log?.taskProgress) {
+                for (const [id, tp] of Object.entries(log.taskProgress)) {
+                    if (tp?.status === "disabled") {
+                        const t = (appData.tasks || []).find(x => x.id === id);
+                        const val = Number(tp.achieved) || 0;
+                        const normTarget = t ? getTaskNormalizedTarget(t, null) : 1;
+                        log.taskProgress[id] = {
+                            ...tp,
+                            target: normTarget,
+                            achieved: val,
+                            status: "scheduled",
+                            hours: t?.type === "ساعة" ? (val / 60) : 0,
+                            score: normTarget > 0 ? (val / normTarget) : (val > 0 ? 1 : 0)
+                        };
+                        if (!log._dirtyTasks) log._dirtyTasks = {};
+                        log._dirtyTasks[id] = Date.now();
+                    }
+                }
                 log._dirty = true;
                 saveData(true);
                 renderDailyView();
@@ -521,10 +509,11 @@ function attachTaskControlListeners(grid) {
 }
 
 function toggleDeactivateTaskForDate(taskId, dateStr) {
-    if (!appData.logs[dateStr]) appData.logs[dateStr] = { entries: {}, disabledTaskIds: [] };
+    if (!appData.logs[dateStr]) appData.logs[dateStr] = { taskProgress: {} };
     const log = appData.logs[dateStr];
+    if (!log.taskProgress) log.taskProgress = {};
     const task = (appData.tasks || []).find(t => t.id === taskId);
-    const tp = log?.taskProgress?.[taskId];
+    const tp = log.taskProgress[taskId];
     const isBonus = (tp && typeof tp === "object" && tp.status !== undefined)
         ? tp.status === "bonus"
         : (task ? ScheduleEngine.isBonusTaskForDate(task, dateStr, appData) : false);
@@ -532,17 +521,11 @@ function toggleDeactivateTaskForDate(taskId, dateStr) {
     if (isBonus) {
         // Bonus tasks do not belong to this day's recurring schedule.
         // Removing / deactivating a bonus task completely removes it from this day's log and progress.
-        if (log.entries && log.entries[taskId] !== undefined) {
-            delete log.entries[taskId];
-        }
-        if (log.taskProgress && log.taskProgress[taskId] !== undefined) {
+        if (log.taskProgress[taskId] !== undefined) {
             delete log.taskProgress[taskId];
         }
         if (log._dirtyTasks && log._dirtyTasks[taskId] !== undefined) {
             delete log._dirtyTasks[taskId];
-        }
-        if (Array.isArray(log.disabledTaskIds)) {
-            log.disabledTaskIds = log.disabledTaskIds.filter(id => id !== taskId);
         }
         log._dirty = true;
         delete log.precomputedScore;
@@ -554,16 +537,14 @@ function toggleDeactivateTaskForDate(taskId, dateStr) {
         return;
     }
 
-    if (!log.disabledTaskIds) log.disabledTaskIds = [];
-    if (!log.taskProgress) log.taskProgress = {};
-    const idx = log.disabledTaskIds.indexOf(taskId);
-    const val = (log.entries && log.entries[taskId] !== undefined) ? Number(log.entries[taskId]) : 0;
-    const normTarget = task ? getTaskNormalizedTarget(task, dateStr) : 1;
+    const val = Number(tp?.achieved) || 0;
+    const normTarget = task ? getTaskNormalizedTarget(task, null) : 1;
+    const isCurrentlyDisabled = tp?.status === "disabled";
 
-    if (idx >= 0) {
+    if (isCurrentlyDisabled) {
         // Re-enabling
-        log.disabledTaskIds.splice(idx, 1);
         log.taskProgress[taskId] = {
+            ...(tp || {}),
             target: normTarget,
             achieved: val,
             status: "scheduled",
@@ -572,8 +553,8 @@ function toggleDeactivateTaskForDate(taskId, dateStr) {
         };
     } else {
         // Pausing / Disabling
-        log.disabledTaskIds.push(taskId);
         log.taskProgress[taskId] = {
+            ...(tp || {}),
             target: 0,
             achieved: val,
             status: "disabled",
@@ -581,8 +562,7 @@ function toggleDeactivateTaskForDate(taskId, dateStr) {
             score: 0
         };
     }
-    if (!log._dirtyFields) log._dirtyFields = {};
-    log._dirtyFields.disabledTaskIds = Date.now();
+
     if (!log._dirtyTasks) log._dirtyTasks = {};
     log._dirtyTasks[taskId] = Date.now();
     log._dirty = true;
@@ -593,11 +573,8 @@ function toggleDeactivateTaskForDate(taskId, dateStr) {
 }
 
 function getTaskVal(taskId) {
-    const log = appData.logs[currentDateStr];
-    if (log && log.entries && log.entries[taskId] !== undefined) {
-        return log.entries[taskId];
-    }
-    return 0;
+    const log = appData.logs?.[currentDateStr];
+    return Number(log?.taskProgress?.[taskId]?.achieved) || 0;
 }
 
 function adjustTaskVal(taskId, delta) {
@@ -694,10 +671,10 @@ function updateTaskCardInPlace(taskId, val, task = null) {
 
 function setTaskVal(taskId, val) {
     if (!appData.logs[currentDateStr]) {
-        appData.logs[currentDateStr] = { entries: {} };
+        appData.logs[currentDateStr] = { taskProgress: {} };
     }
-    if (!appData.logs[currentDateStr].entries) {
-        appData.logs[currentDateStr].entries = {};
+    if (!appData.logs[currentDateStr].taskProgress) {
+        appData.logs[currentDateStr].taskProgress = {};
     }
     if (!appData.logs[currentDateStr]._dirtyTasks) {
         appData.logs[currentDateStr]._dirtyTasks = {};
@@ -705,14 +682,9 @@ function setTaskVal(taskId, val) {
     appData.logs[currentDateStr]._dirtyTasks[taskId] = Date.now();
     appData.logs[currentDateStr]._dirty = true;
 
-    const prevVal = appData.logs[currentDateStr].entries[taskId] || 0;
-    appData.logs[currentDateStr].entries[taskId] = val;
-
-    if (!appData.logs[currentDateStr].taskProgress) {
-        appData.logs[currentDateStr].taskProgress = {};
-    }
     const task = (appData.tasks || []).find(t => t.id === taskId);
     const existingProgress = appData.logs[currentDateStr].taskProgress[taskId];
+    const prevVal = Number(existingProgress?.achieved) || 0;
     const normTarget = (existingProgress && Number(existingProgress.target) > 0)
         ? Number(existingProgress.target)
         : (task ? getTaskNormalizedTarget(task, currentDateStr) : 0);

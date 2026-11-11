@@ -3,7 +3,7 @@
  * Provides offline caching, lightning-fast app shell loading, and network resilience.
  */
 
-const CACHE_NAME = "awrady-pwa-v28";
+const CACHE_NAME = "awrady-pwa-v30";
 
 const PRECACHE_ASSETS = [
     "./",

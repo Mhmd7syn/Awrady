@@ -131,7 +131,7 @@ function renderTaskBreakdown(allDates) {
             let lastLoggedDate = null;
             if (appData.logs) {
                 for (const dKey in appData.logs) {
-                    if (appData.logs[dKey]?.entries?.[task.id] > 0) {
+                    if ((Number(appData.logs[dKey]?.taskProgress?.[task.id]?.achieved) || 0) > 0) {
                         taskHasAnyLogs = true;
                         if (!lastLoggedDate || dKey > lastLoggedDate) {
                             lastLoggedDate = dKey;
@@ -142,7 +142,7 @@ function renderTaskBreakdown(allDates) {
 
             (allDates || []).forEach(d => {
                 const log = (appData.logs && appData.logs[d]) ? appData.logs[d] : null;
-                const val = (log && log.entries) ? (log.entries[task.id] || 0) : 0;
+                const val = Number(log?.taskProgress?.[task.id]?.achieved) || 0;
 
                 const isExplicitBonus = Boolean(task.isBonus);
                 let isScheduled = false;
@@ -190,7 +190,7 @@ function renderTaskBreakdown(allDates) {
             if (statusKey === "onetime" && scheduledDaysCount === 0 && targetDate) {
                 scheduledDaysCount = 1;
                 const log = (appData.logs && appData.logs[targetDate]) ? appData.logs[targetDate] : null;
-                const val = (log && log.entries) ? (log.entries[task.id] || 0) : 0;
+                const val = Number(log?.taskProgress?.[task.id]?.achieved) || 0;
                 if (val > 0) {
                     activeTimes = Math.max(activeTimes, 1);
                     const tgt = getTaskNormalizedTarget(task, targetDate);

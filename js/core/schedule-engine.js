@@ -17,7 +17,7 @@ class ScheduleEngine {
         if (!task || task.isBonus || task.isArchived) return false;
         const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
         const log = appData?.logs?.[dateStr];
-        const val = loggedVal !== null ? loggedVal : (log?.entries?.[task.id] || 0);
+        const val = loggedVal !== null ? loggedVal : (Number(log?.taskProgress?.[task.id]?.achieved) || 0);
 
         // Database snapshot: explicit status is the single source of truth
         const tp = log?.taskProgress?.[task.id];
@@ -68,7 +68,7 @@ class ScheduleEngine {
             return tp.status === "bonus";
         }
 
-        if (log?.disabledTaskIds?.includes(task.id)) return false;
+        if (tp?.status === "disabled") return false;
         if (task.isBonus) return true;
 
         const sched = (task.schedule || "").trim();
@@ -77,7 +77,7 @@ class ScheduleEngine {
             return taskDate !== dateStr;
         }
 
-        const val = loggedVal !== null ? loggedVal : (log?.entries?.[task.id] || 0);
+        const val = loggedVal !== null ? loggedVal : (Number(log?.taskProgress?.[task.id]?.achieved) || 0);
         return !ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val, dateContext);
     }
 
@@ -104,17 +104,15 @@ class ScheduleEngine {
         }
 
         // 2. Unsaved / Live day checks
+        const tp = log?.taskProgress?.[task.id];
+        const val = Number(tp?.achieved) || 0;
+
         if (task.isArchived) {
-            const val = (log?.entries && log.entries[task.id] !== undefined) ? (Number(log.entries[task.id]) || 0) : 0;
-            const tp = log?.taskProgress?.[task.id];
             return tp?.status === "bonus" || val > 0;
         }
 
-        const tp = log?.taskProgress?.[task.id];
         if (tp?.status === "bonus" || tp?.status === "disabled") return true;
-        if (log?.disabledTaskIds?.includes(task.id)) return true;
 
-        const val = (log?.entries && log.entries[task.id] !== undefined) ? (Number(log.entries[task.id]) || 0) : 0;
         if (val > 0) return true;
 
         return ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val);

@@ -10,10 +10,10 @@ function getRecordedDates() {
     return Object.keys(appData.logs).filter(d => {
         const log = appData.logs[d];
         if (!log) return false;
-        const hasPositiveEntries = log.entries && Object.values(log.entries).some(v => v > 0);
+        const hasPositiveAchieved = log.taskProgress && Object.values(log.taskProgress).some(p => (Number(p?.achieved) || 0) > 0);
         const hasPrecomputed = log.precomputedScore !== undefined && log.precomputedScore !== null;
-        const hasDisabled = log.disabledTaskIds && log.disabledTaskIds.length > 0;
-        return hasPositiveEntries || hasPrecomputed || hasDisabled;
+        const hasDisabled = log.taskProgress && Object.values(log.taskProgress).some(p => p?.status === "disabled");
+        return hasPositiveAchieved || hasPrecomputed || hasDisabled;
     }).sort();
 }
 

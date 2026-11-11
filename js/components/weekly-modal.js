@@ -44,7 +44,7 @@ function getTasksSummaryByDay(options = null) {
             if (t.isArchived) return;
 
             const logEntry = dataStore.logs?.[dateStr];
-            const val = logEntry?.entries?.[t.id] || 0;
+            const val = Number(logEntry?.taskProgress?.[t.id]?.achieved) || 0;
             const isBonus = ScheduleEngine.isBonusTaskForDate(t, dateStr, dataStore, val);
 
             const cat = t.category || "";

@@ -290,15 +290,11 @@ function archiveTask(id, isArchive) {
         if (isArchive) {
             const log = appData.logs?.[curDate];
             if (log) {
-                const val = (log.entries && log.entries[id] !== undefined) ? Number(log.entries[id]) : 0;
                 const tp = log.taskProgress?.[id];
+                const val = Number(tp?.achieved) || 0;
                 if (val <= 0 && tp?.status !== "bonus") {
-                    if (log.entries) delete log.entries[id];
                     if (log.taskProgress) delete log.taskProgress[id];
                     if (log._dirtyTasks) delete log._dirtyTasks[id];
-                    if (Array.isArray(log.disabledTaskIds)) {
-                        log.disabledTaskIds = log.disabledTaskIds.filter(x => x !== id);
-                    }
                     log._dirty = true;
                 }
             }
@@ -334,17 +330,11 @@ function deleteForever(id) {
             Object.keys(appData.logs).forEach(dateStr => {
                 const log = appData.logs[dateStr];
                 if (log) {
-                    if (log.entries && log.entries[id] !== undefined) {
-                        delete log.entries[id];
-                    }
                     if (log.taskProgress && log.taskProgress[id] !== undefined) {
                         delete log.taskProgress[id];
                     }
                     if (log._dirtyTasks && log._dirtyTasks[id] !== undefined) {
                         delete log._dirtyTasks[id];
-                    }
-                    if (Array.isArray(log.disabledTaskIds)) {
-                        log.disabledTaskIds = log.disabledTaskIds.filter(x => x !== id);
                     }
                     if (log.prayerExtras && log.prayerExtras[id]) {
                         delete log.prayerExtras[id];
@@ -366,23 +356,17 @@ function deleteForever(id) {
 }
 
 function addBonusTaskToDate(taskId, dateStr) {
-    if (!appData.logs[dateStr]) appData.logs[dateStr] = { entries: {} };
-    if (!appData.logs[dateStr].entries) appData.logs[dateStr].entries = {};
+    if (!appData.logs[dateStr]) appData.logs[dateStr] = { taskProgress: {} };
     if (!appData.logs[dateStr].taskProgress) appData.logs[dateStr].taskProgress = {};
 
-    appData.logs[dateStr].entries[taskId] = 0;
     appData.logs[dateStr].taskProgress[taskId] = {
         target: 0,
         achieved: 0,
         status: "bonus",
         hours: 0,
-        score: 0,
-        isBonus: true
+        score: 0
     };
 
-    if (appData.logs[dateStr].disabledTaskIds && appData.logs[dateStr].disabledTaskIds.includes(taskId)) {
-        appData.logs[dateStr].disabledTaskIds = appData.logs[dateStr].disabledTaskIds.filter(id => id !== taskId);
-    }
     if (!appData.logs[dateStr]._dirtyTasks) appData.logs[dateStr]._dirtyTasks = {};
     appData.logs[dateStr]._dirtyTasks[taskId] = Date.now();
     appData.logs[dateStr]._dirty = true;

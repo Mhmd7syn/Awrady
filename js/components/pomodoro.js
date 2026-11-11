@@ -162,7 +162,9 @@ function setupPomodoroControls() {
     document.addEventListener("keydown", unlockOnAnyGesture, { once: true });
 
     // Request notification permission smoothly if not already decided
-    requestPomoNotificationPermission();
+    if (typeof requestPomoNotificationPermission === "function") {
+        requestPomoNotificationPermission();
+    }
 
     loadPomoState();
 }
@@ -200,7 +202,7 @@ function populatePomoTaskSelect() {
             if (t.isArchived) return false;
             if (t.isOneTime || t.schedule === "OneTime") {
                 const isSched = ScheduleEngine.isTaskScheduledForDate(t, curDate, appData);
-                const hasLoggedToday = !!(appData.logs && appData.logs[curDate]?.entries?.[t.id] > 0);
+                const hasLoggedToday = !!(Number(appData.logs?.[curDate]?.taskProgress?.[t.id]?.achieved) > 0);
                 return isSched || hasLoggedToday;
             }
             return true;
@@ -406,7 +408,9 @@ function startPomoTimer() {
     ensureAudioUnlocked();
 
     // 2. Request notification permission if not yet decided
-    requestPomoNotificationPermission();
+    if (typeof requestPomoNotificationPermission === "function") {
+        requestPomoNotificationPermission();
+    }
 
     // 3. Read current settings
     readDurationInputs();
@@ -581,11 +585,26 @@ function commitWorkMinutesToDisk(minutes, showAlert = false) {
 
     if (PomodoroTimer.taskId && appData) {
         if (!appData.logs) appData.logs = {};
-        if (!appData.logs[realTodayStr]) appData.logs[realTodayStr] = { entries: {} };
-        if (!appData.logs[realTodayStr].entries) appData.logs[realTodayStr].entries = {};
+        if (!appData.logs[realTodayStr]) appData.logs[realTodayStr] = { taskProgress: {} };
+        if (!appData.logs[realTodayStr].taskProgress) appData.logs[realTodayStr].taskProgress = {};
 
-        const currentVal = appData.logs[realTodayStr].entries[PomodoroTimer.taskId] || 0;
-        appData.logs[realTodayStr].entries[PomodoroTimer.taskId] = currentVal + minutes;
+        const existingProgress = appData.logs[realTodayStr].taskProgress[PomodoroTimer.taskId];
+        const currentVal = Number(existingProgress?.achieved) || 0;
+        const newVal = currentVal + minutes;
+        const task = (appData.tasks || []).find(t => t.id === PomodoroTimer.taskId);
+        const normTarget = (existingProgress && Number(existingProgress.target) > 0)
+            ? Number(existingProgress.target)
+            : (task ? getTaskNormalizedTarget(task, realTodayStr) : 0);
+        const status = existingProgress?.status || (task && ScheduleEngine.isTaskScheduledForDate(task, realTodayStr, appData, newVal) ? "scheduled" : (newVal > 0 ? "bonus" : "scheduled"));
+
+        appData.logs[realTodayStr].taskProgress[PomodoroTimer.taskId] = {
+            ...(existingProgress || {}),
+            target: normTarget,
+            achieved: newVal,
+            status,
+            hours: newVal / 60,
+            score: normTarget > 0 ? (newVal / normTarget) : (newVal > 0 ? 1 : 0)
+        };
         if (!appData.logs[realTodayStr]._dirtyTasks) appData.logs[realTodayStr]._dirtyTasks = {};
         appData.logs[realTodayStr]._dirtyTasks[PomodoroTimer.taskId] = Date.now();
         appData.logs[realTodayStr]._dirty = true;

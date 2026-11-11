@@ -26,6 +26,11 @@ Object.defineProperty(appData, "categories", {
 window.appData = appData;
 
 let currentDateStr = getLocalTodayString();
+Object.defineProperty(window, "currentDateStr", {
+    get: () => currentDateStr,
+    set: (v) => { currentDateStr = v; },
+    configurable: true
+});
 let chartTimeRange = "all";
 let chartInstance = null;
 let editingTaskId = null;
@@ -114,78 +119,43 @@ function mergeDayLog(localLog, cloudRow) {
     if (!localLog) return cloudLog;
 
     const dirtyTasks = localLog._dirtyTasks || {};
-    const dirtyFields = localLog._dirtyFields || {};
     const hasDirtyTasks = Object.keys(dirtyTasks).length > 0;
-    const hasDirtyFields = Object.keys(dirtyFields).length > 0;
 
-    // Untouched remote fields must always take precedence over stale local cache values
-    if (!localLog._dirty && !hasDirtyTasks && !hasDirtyFields) {
+    // Clean remote row takes precedence over stale local cache
+    if (!localLog._dirty && !hasDirtyTasks) {
         return cloudLog;
     }
 
-    // 1. Task entries merge: locally dirty tasks strictly retain local values
-    const mergedEntries = { ...(cloudLog.entries || {}) };
+    // 1. Task progress merge: locally dirty tasks strictly retain local values
+    const mergedTaskProgress = { ...(cloudLog.taskProgress || {}) };
     const remainingDirtyTasks = {};
 
     for (const taskId in dirtyTasks) {
         if (!dirtyTasks[taskId]) continue;
-        if (localLog.entries && localLog.entries[taskId] !== undefined) {
-            mergedEntries[taskId] = localLog.entries[taskId];
+        if (localLog.taskProgress && localLog.taskProgress[taskId]) {
+            mergedTaskProgress[taskId] = localLog.taskProgress[taskId];
         }
         remainingDirtyTasks[taskId] = dirtyTasks[taskId];
     }
 
-    // 2. Prayer extras merge: locally dirty keys strictly retain local values
-    const mergedPrayerExtras = { ...(cloudLog.prayerExtras || {}) };
-    const remainingDirtyFields = {};
+    // 2. Prayer extras merge: locally dirty keys retain local values
+    const mergedPrayerExtras = {
+        ...(cloudLog.prayerExtras || {}),
+        ...(localLog.prayerExtras || {})
+    };
 
-    if (dirtyFields.prayerExtras) {
-        Object.assign(mergedPrayerExtras, localLog.prayerExtras || {});
-        remainingDirtyFields.prayerExtras = dirtyFields.prayerExtras;
-    }
-
-    for (const key in dirtyFields) {
-        if (key.startsWith("prayerExtras.")) {
-            const prayerId = key.slice("prayerExtras.".length);
-            if (localLog.prayerExtras?.[prayerId]) {
-                mergedPrayerExtras[prayerId] = localLog.prayerExtras[prayerId];
-            } else {
-                delete mergedPrayerExtras[prayerId];
-            }
-            remainingDirtyFields[key] = dirtyFields[key];
-        }
-    }
-
-    // 3. Disabled task IDs: locally dirty field retains local value
-    let mergedDisabled = cloudLog.disabledTaskIds || [];
-    if (dirtyFields.disabledTaskIds) {
-        mergedDisabled = localLog.disabledTaskIds || [];
-        remainingDirtyFields.disabledTaskIds = dirtyFields.disabledTaskIds;
-    }
-
-    const isStillDirty = Object.keys(remainingDirtyTasks).length > 0 || Object.keys(remainingDirtyFields).length > 0;
-
-    const mergedTaskProgress = { ...(cloudLog.taskProgress || {}) };
-    for (const taskId in remainingDirtyTasks) {
-        if (localLog.taskProgress && localLog.taskProgress[taskId]) {
-            mergedTaskProgress[taskId] = localLog.taskProgress[taskId];
-        }
-    }
+    const isStillDirty = Object.keys(remainingDirtyTasks).length > 0;
 
     const mergedLog = {
         ...cloudLog,
-        entries: mergedEntries,
         taskProgress: mergedTaskProgress,
         prayerExtras: mergedPrayerExtras,
-        disabledTaskIds: Array.from(new Set(mergedDisabled)),
         _dirty: isStillDirty,
         _dirtyTasks: remainingDirtyTasks,
-        _dirtyFields: remainingDirtyFields,
         _loadedFromDB: true
     };
 
     if (isStillDirty) {
-        // Invalidate outdated precomputed score so it recalculates accurately on next read or cloud push
         delete mergedLog.precomputedScore;
         delete mergedLog.totalHours;
     }
@@ -207,53 +177,26 @@ async function pushDayToCloud(dateStr) {
     try {
         const saveStartTime = Date.now();
         const snapshottedDirtyTasks = { ...(log._dirtyTasks || {}) };
-        const snapshottedDirtyFields = { ...(log._dirtyFields || {}) };
 
         const prayerExtras = { ...(log.prayerExtras || {}) };
         delete prayerExtras._meta;
 
-        const totalScore = (log.precomputedScore !== undefined && (!log._dirtyTasks || Object.keys(log._dirtyTasks).length === 0) && (!log._dirtyFields || Object.keys(log._dirtyFields).length === 0))
+        const totalScore = (log.precomputedScore !== undefined && (!log._dirtyTasks || Object.keys(log._dirtyTasks).length === 0))
             ? log.precomputedScore
             : calculateDayScore(dateStr, appData, false);
-        const totalHours = (log.totalHours !== undefined && (!log._dirtyTasks || Object.keys(log._dirtyTasks).length === 0) && (!log._dirtyFields || Object.keys(log._dirtyFields).length === 0))
+        const totalHours = (log.totalHours !== undefined && (!log._dirtyTasks || Object.keys(log._dirtyTasks).length === 0))
             ? log.totalHours
             : calculateDayScore(dateStr, appData, true);
 
+        // Filter taskProgress to only include active records (never persist zero-progress uncompleted archived tasks)
         const taskProgress = {};
-        const disabledIds = log.disabledTaskIds || [];
-
-        (appData.tasks || []).forEach(t => {
-            const hasEntry = log.entries && log.entries[t.id] !== undefined;
-            const val = hasEntry ? (Number(log.entries[t.id]) || 0) : 0;
-            const isScheduled = ScheduleEngine.isTaskScheduledForDate(t, dateStr, appData, val);
-            const existingProgress = log.taskProgress?.[t.id];
-            const existingStatus = existingProgress?.status;
-            const isDisabled = existingStatus === "disabled" || disabledIds.includes(t.id);
-            const isBonus = existingStatus === "bonus" || (!isScheduled && !isDisabled && val > 0);
-
-            // Never persist uncompleted archived tasks
-            if (t.isArchived && val <= 0 && existingStatus !== "bonus") {
-                return;
+        for (const [tid, info] of Object.entries(log.taskProgress || {})) {
+            const task = (appData.tasks || []).find(t => t.id === tid);
+            if (task?.isArchived && (Number(info.achieved) || 0) <= 0 && info.status !== "bonus") {
+                continue;
             }
-
-            // Only persist tasks that belong to this day
-            if (!isScheduled && !isDisabled && !isBonus && val <= 0) {
-                return;
-            }
-
-            const status = isDisabled ? "disabled" : (isBonus ? "bonus" : "scheduled");
-            const normTarget = (status === "bonus" || status === "disabled")
-                ? 0
-                : ((existingProgress?.target > 0) ? Number(existingProgress.target) : getTaskNormalizedTarget(t, dateStr));
-
-            taskProgress[t.id] = {
-                target: normTarget,
-                achieved: val,
-                status: status,
-                hours: t.type === "ساعة" ? (val / 60) : 0,
-                score: normTarget > 0 ? (val / normTarget) : (val > 0 ? 1 : 0)
-            };
-        });
+            taskProgress[tid] = info;
+        }
 
         const savedRow = await window.awradyAPI.saveDayProgress(dateStr, taskProgress, prayerExtras, { totalScore, totalHours });
         if (appData.logs?.[dateStr]) {
@@ -266,16 +209,8 @@ async function pushDayToCloud(dateStr) {
                     }
                 }
             }
-            if (currentLog._dirtyFields) {
-                for (const f in snapshottedDirtyFields) {
-                    if (currentLog._dirtyFields[f] && currentLog._dirtyFields[f] <= (snapshottedDirtyFields[f] || saveStartTime)) {
-                        delete currentLog._dirtyFields[f];
-                    }
-                }
-            }
             const hasRemainingDirtyTasks = currentLog._dirtyTasks && Object.keys(currentLog._dirtyTasks).length > 0;
-            const hasRemainingDirtyFields = currentLog._dirtyFields && Object.keys(currentLog._dirtyFields).length > 0;
-            currentLog._dirty = hasRemainingDirtyTasks || hasRemainingDirtyFields;
+            currentLog._dirty = hasRemainingDirtyTasks;
 
             // Preserve local active modifications for any tasks still dirty
             if (!currentLog.taskProgress) currentLog.taskProgress = {};
@@ -300,9 +235,6 @@ async function pushDayToCloud(dateStr) {
             }
             try {
                 localStorage.setItem(getUserStorageKey(), JSON.stringify(appData));
-                if ((window.awradyAPI?.currentUser || "").toLowerCase() === APP_CONSTANTS.GUEST_USER) {
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
-                }
             } catch (_) {}
         }
         updateCloudSyncUI({
@@ -560,7 +492,6 @@ async function switchActiveDate(newDate) {
                 const newLog = (localLog && (localLog._dirty || localLog._dirtyTasks))
                     ? mergeDayLog(localLog, dayProgress)
                     : rowToLog(dayProgress);
-                cleanStoredDayLog(newLog, currentDateStr);
                 appData.logs[currentDateStr] = newLog;
             }
         } catch (_) {}

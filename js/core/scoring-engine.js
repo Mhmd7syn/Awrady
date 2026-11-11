@@ -57,11 +57,10 @@ class ScoringEngine {
         if (!log) return 0;
 
         const isDirty = Boolean(log._dirty ||
-            (log._dirtyTasks && Object.keys(log._dirtyTasks).length > 0) ||
-            (log._dirtyFields && Object.keys(log._dirtyFields).length > 0));
+            (log._dirtyTasks && Object.keys(log._dirtyTasks).length > 0));
 
         // Freeze historical days: if clean and loaded from DB (or stored totals exist), return in O(1)
-        if (!isDirty && (log._loadedFromDB || (!log.entries || Object.keys(log.entries).length === 0))) {
+        if (!isDirty && log._loadedFromDB) {
             const storedScore = log.total_score ?? log.precomputedScore;
             const storedHours = log.total_hours ?? log.totalHours;
             if (storedScore !== undefined && storedScore !== null) {
@@ -73,22 +72,22 @@ class ScoringEngine {
         let reqTotalWeight = 0.0;
         let bonusWeightedScore = 0.0;
 
-        const disabledIds = log.disabledTaskIds || [];
         const dateContext = {
             dayAbbrev: getDayOfWeekAbbrev(dateStr),
             hijriInfo: getHijriDateDetails(dateStr)
         };
 
         (appData.tasks || []).forEach(task => {
-            if (task.isArchived && (!log.entries || !log.entries[task.id])) return;
-            if (disabledIds.includes(task.id)) return;
+            const tp = log.taskProgress?.[task.id];
+            const val = Number(tp?.achieved) || 0;
+            if (task.isArchived && val <= 0 && tp?.status !== "bonus") return;
+            if (tp?.status === "disabled") return;
 
-            const val = Number(log.entries?.[task.id]) || 0;
-            const isBonus = Boolean(task.isBonus) || ScheduleEngine.isBonusTaskForDate(task, dateStr, appData, val, dateContext);
-            const isScheduled = !isBonus && ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val, dateContext);
+            const isBonus = tp?.status === "bonus" || Boolean(task.isBonus) || ScheduleEngine.isBonusTaskForDate(task, dateStr, appData, val, dateContext);
+            const isScheduled = tp?.status === "scheduled" || (!isBonus && ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val, dateContext));
 
             if (isScheduled || (isBonus && val > 0)) {
-                const target = (task.target && task.target > 0) ? task.target : 1;
+                const target = (tp && Number(tp.target) > 0) ? Number(tp.target) : ((task.target && task.target > 0) ? task.target : 1);
                 const isTime = ScoringEngine.isTimeTask(task);
                 const normTarget = isTime ? target * 60 : target;
                 const taskRatio = val / normTarget;

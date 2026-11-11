@@ -164,18 +164,11 @@ function groupTasksByCategory(tasks) {
  * @returns {Object}
  */
 function rowToLog(row) {
-    if (!row) return { entries: {}, taskProgress: {}, prayerExtras: {}, precomputedScore: 0, totalHours: 0, _loadedFromDB: false };
-    const entries = {};
-    if (row.task_progress) {
-        for (const [tid, info] of Object.entries(row.task_progress)) {
-            entries[tid] = (typeof info === "object" && info !== null) ? (info.achieved ?? 0) : Number(info) || 0;
-        }
-    }
+    if (!row) return { taskProgress: {}, prayerExtras: {}, precomputedScore: 0, totalHours: 0, _loadedFromDB: false };
     const prayerExtras = { ...(row.prayer_extras || {}) };
     delete prayerExtras._meta;
 
     return {
-        entries,
         taskProgress: row.task_progress || {},
         prayerExtras,
         precomputedScore: Number(row.total_score) || 0,
