@@ -5,15 +5,20 @@
  * ============================================================================
  */
 
+let chartTimeRange = "all";
+if (typeof window !== "undefined") {
+    window.chartTimeRange = chartTimeRange;
+}
+
 function getRecordedDates() {
     if (!appData || !appData.logs) return [];
     return Object.keys(appData.logs).filter(d => {
         const log = appData.logs[d];
         if (!log) return false;
         const hasPositiveAchieved = log.taskProgress && Object.values(log.taskProgress).some(p => (Number(p?.achieved) || 0) > 0);
-        const hasPrecomputed = log.precomputedScore !== undefined && log.precomputedScore !== null;
+        const hasScore = (Number(log.total_score) || 0) > 0 || (Number(log.precomputedScore) || 0) > 0;
         const hasDisabled = Boolean(log.taskProgress && Object.values(log.taskProgress).some(p => p?.status === "disabled"));
-        return hasPositiveAchieved || hasPrecomputed || hasDisabled;
+        return hasPositiveAchieved || hasScore || hasDisabled;
     }).sort();
 }
 

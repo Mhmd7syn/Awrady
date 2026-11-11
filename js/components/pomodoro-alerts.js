@@ -7,7 +7,7 @@
  */
 function ensureAudioUnlocked() {
     try {
-        if (!PomodoroTimer.audioContext) {
+        if (!PomodoroTimer.audioContext || PomodoroTimer.audioContext.state === "closed") {
             const AudioCtx = window.AudioContext || window.webkitAudioContext;
             if (AudioCtx) {
                 PomodoroTimer.audioContext = new AudioCtx({ latencyHint: "playback" });
@@ -133,6 +133,8 @@ function dispatchSystemNotification() {
     }
 }
 
+let _titleBlinkFocusHandler = null;
+
 /**
  * Start tab title flashing when alarm fires
  */
@@ -147,13 +149,11 @@ function startTitleBlinking() {
         state = !state;
     }, 600);
 
-    const onUserFocus = () => {
+    _titleBlinkFocusHandler = () => {
         stopTitleBlinking();
-        window.removeEventListener("focus", onUserFocus);
-        document.removeEventListener("click", onUserFocus);
     };
-    window.addEventListener("focus", onUserFocus);
-    document.addEventListener("click", onUserFocus);
+    window.addEventListener("focus", _titleBlinkFocusHandler);
+    document.addEventListener("click", _titleBlinkFocusHandler);
 }
 
 /**
@@ -163,6 +163,11 @@ function stopTitleBlinking() {
     if (PomodoroTimer.titleBlinkInterval) {
         clearInterval(PomodoroTimer.titleBlinkInterval);
         PomodoroTimer.titleBlinkInterval = null;
+    }
+    if (_titleBlinkFocusHandler) {
+        window.removeEventListener("focus", _titleBlinkFocusHandler);
+        document.removeEventListener("click", _titleBlinkFocusHandler);
+        _titleBlinkFocusHandler = null;
     }
     restoreDocumentTitle();
 }

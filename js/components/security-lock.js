@@ -21,6 +21,7 @@ class SecurityLock {
         this.maxPinLength = APP_CONSTANTS.LIMITS.PIN_MAX;
         this.targetPinLength = this.minPinLength;
         this.onUnlockCallback = null;
+        this.initialized = false;
     }
 
     /**
@@ -44,7 +45,7 @@ class SecurityLock {
      */
     isSessionAuthorized() {
         if (!this.isPinSet()) return true; // No PIN set = freely accessible
-        const sessionToken = localStorage.getItem(this.AUTH_TOKEN_KEY);
+        const sessionToken = localStorage.getItem(this.AUTH_TOKEN_KEY) || sessionStorage.getItem(this.AUTH_TOKEN_KEY);
         const pinHash = localStorage.getItem(this.PIN_HASH_KEY);
         return Boolean(sessionToken && sessionToken === pinHash);
     }
@@ -55,8 +56,11 @@ class SecurityLock {
     init(onUnlock = null) {
         if (onUnlock) this.onUnlockCallback = onUnlock;
 
-        this.bindKeypadEvents();
-        this.bindKeyboardEvents();
+        if (!this.initialized) {
+            this.bindKeypadEvents();
+            this.bindKeyboardEvents();
+            this.initialized = true;
+        }
 
         if (this.isSessionAuthorized()) {
             this.isUnlocked = true;
@@ -218,8 +222,10 @@ class SecurityLock {
             const finalToken = localStorage.getItem(this.PIN_HASH_KEY) || enteredHash;
             if (shouldRemember) {
                 localStorage.setItem(this.AUTH_TOKEN_KEY, finalToken);
+                sessionStorage.removeItem(this.AUTH_TOKEN_KEY);
             } else {
                 sessionStorage.setItem(this.AUTH_TOKEN_KEY, finalToken);
+                localStorage.removeItem(this.AUTH_TOKEN_KEY);
             }
 
             this.isUnlocked = true;
@@ -251,7 +257,16 @@ class SecurityLock {
 
         const hash = await this.hashPin(pin);
         localStorage.setItem(this.PIN_HASH_KEY, hash);
-        localStorage.setItem(this.AUTH_TOKEN_KEY, hash);
+
+        const rememberCheckbox = document.getElementById("pin-remember-device");
+        const shouldRemember = rememberCheckbox ? rememberCheckbox.checked : true;
+        if (shouldRemember) {
+            localStorage.setItem(this.AUTH_TOKEN_KEY, hash);
+            sessionStorage.removeItem(this.AUTH_TOKEN_KEY);
+        } else {
+            sessionStorage.setItem(this.AUTH_TOKEN_KEY, hash);
+            localStorage.removeItem(this.AUTH_TOKEN_KEY);
+        }
 
         this.isUnlocked = true;
         this.triggerSuccessAnimation();

@@ -264,7 +264,7 @@ function renderDailyView() {
 
                 pill.innerHTML = `
                     <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-                        <div style="display:flex; align-items:center; gap:8px;">
+                        <div style="display:flex; align-items:center; gap:8px; cursor:pointer;" data-edit-id="${task.id}" title="انقر لتعديل الورد">
                             <span style="color:#10b981;">${iconHtml}</span>
                             <strong style="color:#fff; font-size:0.9rem;">${task.name}</strong>
                             <span class="task-target-str" style="font-size:0.8rem; color:#10b981; font-weight:700;">— ${targetStr}</span>
@@ -319,13 +319,6 @@ function renderDisabledSection(grid, disabledTasks) {
     });
     disabledSection.appendChild(disabledGrid);
     grid.appendChild(disabledSection);
-}
-
-function getCategoryIconHtml(task) {
-    const cat = (appData.categories || []).find(c => c.name === task.category);
-    const rawIcon = cat ? (cat.icon || "fa-tag") : "fa-tag";
-    const iconClass = rawIcon.startsWith("fa-") ? rawIcon : `fa-${rawIcon}`;
-    return `<i class="fa-solid ${iconClass}"></i>`;
 }
 
 function attachTaskControlListeners(grid) {
@@ -387,6 +380,7 @@ function attachTaskControlListeners(grid) {
         if (!appData.logs[currentDateStr]._dirtyTasks) appData.logs[currentDateStr]._dirtyTasks = {};
         appData.logs[currentDateStr]._dirtyTasks[taskId] = Date.now();
         appData.logs[currentDateStr]._dirty = true;
+        ScoringEngine.invalidateScoreCache(currentDateStr, appData);
 
         const task = (appData.tasks || []).find(t => t.id === taskId);
         const existingProgress = appData.logs[currentDateStr].taskProgress[taskId];
@@ -423,6 +417,8 @@ function attachTaskControlListeners(grid) {
             const nowDone = task ? isTaskCompleted(task, newTotal, currentDateStr) : false;
             if (wasDone !== nowDone) {
                 renderDailyView();
+            } else if (task) {
+                updateTaskCardInPlace(taskId, newTotal, task);
             }
         }
     };
@@ -480,6 +476,7 @@ function attachTaskControlListeners(grid) {
                     }
                 }
                 log._dirty = true;
+                ScoringEngine.invalidateScoreCache(currentDateStr, appData);
                 saveData(true);
                 renderDailyView();
             }
@@ -526,8 +523,7 @@ function toggleDeactivateTaskForDate(taskId, dateStr) {
             delete log._dirtyTasks[taskId];
         }
         log._dirty = true;
-        delete log.precomputedScore;
-        delete log.totalHours;
+        ScoringEngine.invalidateScoreCache(dateStr, appData);
         saveData();
         renderDailyView();
         updateDailyScoreSummary();
@@ -561,6 +557,7 @@ function toggleDeactivateTaskForDate(taskId, dateStr) {
     if (!log._dirtyTasks) log._dirtyTasks = {};
     log._dirtyTasks[taskId] = Date.now();
     log._dirty = true;
+    ScoringEngine.invalidateScoreCache(dateStr, appData);
     saveData();
     renderDailyView();
     updateDailyScoreSummary();
@@ -641,8 +638,7 @@ function updateTaskCardInPlace(taskId, val, task = null) {
         const rawTarget = task.target || 0;
         const isTime = isTimeTask(task);
         const isPrayer = isPrayerSelector(task);
-        const catObj = APP_CONSTANTS.CATEGORIES.find(c => c.name === task.category);
-        const unitLabel = isTime ? "دقيقة" : (task.type || (catObj && catObj.defaultUnit) || "");
+        const unitLabel = isTime ? "دقيقة" : getTaskUnit(task);
         let targetStr;
         if (isPrayer) {
             targetStr = val === APP_CONSTANTS.PRAYER_VALUES.CONGREGATION ? "جماعة (100%)" : "منفرد (50%)";
@@ -676,6 +672,7 @@ function setTaskVal(taskId, val) {
     }
     appData.logs[currentDateStr]._dirtyTasks[taskId] = Date.now();
     appData.logs[currentDateStr]._dirty = true;
+    ScoringEngine.invalidateScoreCache(currentDateStr, appData);
 
     const task = (appData.tasks || []).find(t => t.id === taskId);
     const existingProgress = appData.logs[currentDateStr].taskProgress[taskId];
@@ -705,9 +702,9 @@ function setTaskVal(taskId, val) {
         renderDailyView();
     }
 
-    if (isObligatoryPrayerTask(taskId) && val > 0) {
+    if (isObligatoryPrayerTask(taskId) && val > 0 && val !== prevVal) {
         checkAndShowNawafelPrompt(taskId);
-    } else if (val > prevVal && isQiyamTask(taskId)) {
+    } else if (prevVal === 0 && val > 0 && isQiyamTask(taskId)) {
         checkAndShowQiyamPrompt();
     } else if (val === 0 && isObligatoryPrayerTask(taskId)) {
         removePrayerExtras(taskId);

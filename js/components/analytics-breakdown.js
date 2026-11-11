@@ -3,6 +3,7 @@
  */
 
 let analyticsTaskStatusFilter = "all";
+let _analyticsFiltersInitialized = false;
 
 const TASK_STATUS_CONFIG = {
     scheduled: {
@@ -33,6 +34,7 @@ function getTaskStatusKey(task) {
 }
 
 function setupAnalyticsFilters() {
+    if (_analyticsFiltersInitialized) return;
     const buttons = document.querySelectorAll(".analytics-task-filter-strip .btn-filter-status");
     if (!buttons || buttons.length === 0) return;
     buttons.forEach(btn => {
@@ -44,6 +46,7 @@ function setupAnalyticsFilters() {
             renderTaskBreakdown(selectedDates);
         };
     });
+    _analyticsFiltersInitialized = true;
 }
 
 function renderTaskBreakdown(allDates) {
@@ -175,7 +178,7 @@ function renderTaskBreakdown(allDates) {
                         const tgt = getTaskNormalizedTarget(task, d);
                         const baseTgt = (task.target && task.target > 0) ? (isTimeTask(task) ? task.target * 60 : task.target) : 1;
                         const effectiveTgt = tgt > 0 ? tgt : baseTgt;
-                        sumRatio += val / effectiveTgt;
+                        sumRatio += Math.min(1.0, val / effectiveTgt);
                     }
                 } else if (val > 0) {
                     // Strictly additive bonus entry: never increments scheduledDaysCount
@@ -183,7 +186,7 @@ function renderTaskBreakdown(allDates) {
                     const tgt = getTaskNormalizedTarget(task, d);
                     const baseTgt = (task.target && task.target > 0) ? (isTimeTask(task) ? task.target * 60 : task.target) : 1;
                     const effectiveTgt = tgt > 0 ? tgt : baseTgt;
-                    sumRatio += val / effectiveTgt;
+                    sumRatio += Math.min(1.0, val / effectiveTgt);
                 }
             });
 
@@ -200,13 +203,13 @@ function renderTaskBreakdown(allDates) {
                         const tgt = getTaskNormalizedTarget(task, targetDate);
                         const baseTgt = (task.target && task.target > 0) ? (isTimeTask(task) ? task.target * 60 : task.target) : 1;
                         const effectiveTgt = tgt > 0 ? tgt : baseTgt;
-                        sumRatio += val / effectiveTgt;
+                        sumRatio += Math.min(1.0, val / effectiveTgt);
                     }
                 }
             }
 
             const effectiveTotalDays = scheduledDaysCount > 0 ? scheduledDaysCount : (activeTimes > 0 ? activeTimes : 0);
-            const consistencyPct = effectiveTotalDays > 0 ? Math.round((sumRatio / effectiveTotalDays) * 100) : 0;
+            const consistencyPct = effectiveTotalDays > 0 ? Math.min(100, Math.round((sumRatio / effectiveTotalDays) * 100)) : 0;
             catSumPct += consistencyPct;
             const iconHtml = getCategoryIconHtml(task);
             const statusBadgeHtml = `<span class="breakdown-status-badge ${statusCfg.badgeClass}"><i class="fa-solid ${statusCfg.icon}"></i> ${statusCfg.label}</span>`;

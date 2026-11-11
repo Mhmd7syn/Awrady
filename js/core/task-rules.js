@@ -299,6 +299,19 @@ function renderTaskControls(task, val, { compact = false } = {}) {
     `;
 }
 
+/**
+ * Resolves category icon HTML from appData or APP_CONSTANTS
+ * @param {Object} task
+ * @returns {string}
+ */
+function getCategoryIconHtml(task) {
+    const categories = (typeof appData !== "undefined" && appData?.categories) ? appData.categories : (APP_CONSTANTS.CATEGORIES || []);
+    const cat = categories.find(c => c.name === task?.category);
+    const rawIcon = cat ? (cat.icon || "fa-tag") : "fa-tag";
+    const iconClass = rawIcon.startsWith("fa-") ? rawIcon : `fa-${rawIcon}`;
+    return `<i class="fa-solid ${iconClass}"></i>`;
+}
+
 if (typeof window !== "undefined") {
     window.getTaskUnit = getTaskUnit;
     window.isTimeTask = isTimeTask;
@@ -309,4 +322,5 @@ if (typeof window !== "undefined") {
     window.groupTasksByCategory = groupTasksByCategory;
     window.rowToLog = rowToLog;
     window.renderTaskControls = renderTaskControls;
+    window.getCategoryIconHtml = getCategoryIconHtml;
 }

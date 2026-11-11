@@ -79,7 +79,7 @@ function openTaskModal(id, options = {}) {
             if (isOt) {
                 if (otBox) otBox.classList.remove("hidden");
                 if (otDateInput) {
-                    otDateInput.value = (task.createdAt || "").slice(0, 10) || (currentDateStr);
+                    otDateInput.value = (task.oneTimeDate || task.createdAt || "").slice(0, 10) || currentDateStr;
                 }
             } else {
                 if (otBox) otBox.classList.add("hidden");
@@ -125,6 +125,10 @@ function closeTaskModal() {
 function saveTaskFromModal() {
     const id = document.getElementById("task-id-input").value || `task_${Date.now()}`;
     const name = document.getElementById("task-name-input").value.trim();
+    if (!name) {
+        alert("يرجى إدخال اسم المهمة");
+        return;
+    }
     const cat = document.getElementById("task-category-input").value;
     const subcat = document.getElementById("task-subcategory-input").value || null;
     const targetStr = document.getElementById("task-target-input").value;
@@ -153,7 +157,10 @@ function saveTaskFromModal() {
             oldTask.target = parsedTarget;
             oldTask.schedule = scheduleVal;
             if (schedType === "OneTime") {
+                oldTask.oneTimeDate = chosenOneTimeDate;
                 oldTask.createdAt = chosenOneTimeDate;
+            } else {
+                oldTask.oneTimeDate = null;
             }
             savedTask = oldTask;
         }
@@ -166,7 +173,8 @@ function saveTaskFromModal() {
             target: parsedTarget,
             schedule: scheduleVal,
             isArchived: false,
-            createdAt: (schedType === "OneTime") ? chosenOneTimeDate : selectedDate
+            createdAt: (schedType === "OneTime") ? chosenOneTimeDate : (new Date().toISOString()),
+            oneTimeDate: (schedType === "OneTime") ? chosenOneTimeDate : null
         };
         appData.tasks.push(newTask);
         savedTask = newTask;

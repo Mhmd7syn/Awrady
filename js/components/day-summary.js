@@ -23,9 +23,13 @@ function updateDailyScoreSummary() {
 
     // Count completed tasks for the badge
     const allScheduled = appData.tasks.filter(t => ScheduleEngine.isVisibleOn(t, currentDateStr, appData));
+    const log = appData.logs?.[currentDateStr];
     let completedCount = 0;
     let inProgressCount = 0;
     allScheduled.forEach(t => {
+        const tp = log?.taskProgress?.[t.id];
+        if (tp && typeof tp === "object" && tp.status === "disabled") return;
+
         const val = getTaskVal(t.id);
         const isDone = isTaskCompleted(t, val, currentDateStr);
         if (isDone) completedCount++;
@@ -40,6 +44,9 @@ function updateDailyScoreSummary() {
     // Calculate remaining estimated time in minutes for today's scheduled non-bonus tasks
     let totalRemainingMinutes = 0;
     allScheduled.forEach(t => {
+        const tp = log?.taskProgress?.[t.id];
+        if (tp && typeof tp === "object" && tp.status === "disabled") return;
+
         const isBonus = ScheduleEngine.isBonusTaskForDate(t, currentDateStr, appData);
         if (isBonus) return;
 
@@ -48,7 +55,7 @@ function updateDailyScoreSummary() {
 
         if (isPrayerSelector(t)) {
             if (val === 0) {
-                totalRemainingMinutes += ScoringEngine.getTaskWeightMinutes(t, currentDateStr, appData);
+                totalRemainingMinutes += ScoringEngine.getTaskWeightMinutes(t);
             }
         } else if (isTimeTask(t)) {
             const normTarget = getTaskNormalizedTarget(t, currentDateStr);
@@ -57,7 +64,7 @@ function updateDailyScoreSummary() {
             }
         } else {
             if (target > 0 && val < target) {
-                const totalWeightMins = ScoringEngine.getTaskWeightMinutes(t, currentDateStr, appData);
+                const totalWeightMins = ScoringEngine.getTaskWeightMinutes(t);
                 const unitWeightMins = totalWeightMins / (target || 1);
                 const remUnits = target - val;
                 totalRemainingMinutes += (remUnits * unitWeightMins);

@@ -45,6 +45,8 @@ function getTasksSummaryByDay(options = null) {
 
             const logEntry = dataStore.logs?.[dateStr];
             const val = Number(logEntry?.taskProgress?.[t.id]?.achieved) || 0;
+            if (logEntry?.taskProgress?.[t.id]?.status === "disabled" && val === 0) return;
+
             const isBonus = ScheduleEngine.isBonusTaskForDate(t, dateStr, dataStore, val);
 
             const cat = t.category || "";

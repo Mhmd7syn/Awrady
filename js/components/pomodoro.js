@@ -607,6 +607,7 @@ function commitWorkMinutesToDisk(minutes, showAlert = false) {
         if (!appData.logs[realTodayStr]._dirtyTasks) appData.logs[realTodayStr]._dirtyTasks = {};
         appData.logs[realTodayStr]._dirtyTasks[PomodoroTimer.taskId] = Date.now();
         appData.logs[realTodayStr]._dirty = true;
+        ScoringEngine.invalidateScoreCache(realTodayStr, appData);
 
         // Persist data immediately
         saveData(true);
