@@ -81,7 +81,7 @@ class ScoringEngine {
             const tp = log.taskProgress?.[task.id];
             const val = Number(tp?.achieved) || 0;
             if (task.isArchived && val <= 0 && tp?.status !== "bonus") return;
-            if (tp?.status === "disabled") return;
+            if (ScheduleEngine.isTaskDisabledForDate(task, log, appData)) return;
 
             const isBonus = tp?.status === "bonus" || Boolean(task.isBonus) || ScheduleEngine.isBonusTaskForDate(task, dateStr, appData, val, dateContext);
             const isScheduled = tp?.status === "scheduled" || (!isBonus && ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val, dateContext));

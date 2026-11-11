@@ -143,13 +143,14 @@ function renderTaskBreakdown(allDates) {
             (allDates || []).forEach(d => {
                 const log = (appData.logs && appData.logs[d]) ? appData.logs[d] : null;
                 const val = Number(log?.taskProgress?.[task.id]?.achieved) || 0;
+                const isDeactivated = ScheduleEngine.isTaskDisabledForDate(task, log, appData);
 
                 const isExplicitBonus = Boolean(task.isBonus);
                 let isScheduled = false;
 
-                if (!isExplicitBonus) {
+                if (!isExplicitBonus && !(isDeactivated && val === 0)) {
                     if (statusKey === "onetime") {
-                        if (targetDate && d === targetDate) {
+                        if (targetDate && d === targetDate && !isDeactivated) {
                             isScheduled = true;
                         }
                     } else if (statusKey === "archived") {
@@ -160,7 +161,7 @@ function renderTaskBreakdown(allDates) {
                         } else if (!archiveCutoff && lastLoggedDate && d > lastLoggedDate) {
                             isScheduled = false;
                         } else {
-                            isScheduled = ScheduleEngine.isTaskScheduledForDate(task, d, appData, val);
+                            isScheduled = ScheduleEngine.isTaskScheduledForDate(task, d, appData, val, null, true);
                         }
                     } else {
                         isScheduled = ScheduleEngine.isTaskScheduledForDate(task, d, appData, val);
@@ -188,15 +189,19 @@ function renderTaskBreakdown(allDates) {
 
             // Special fallback for one-time task if target date wasn't inside allDates range
             if (statusKey === "onetime" && scheduledDaysCount === 0 && targetDate) {
-                scheduledDaysCount = 1;
                 const log = (appData.logs && appData.logs[targetDate]) ? appData.logs[targetDate] : null;
+                const isDeactivated = ScheduleEngine.isTaskDisabledForDate(task, log, appData);
                 const val = Number(log?.taskProgress?.[task.id]?.achieved) || 0;
-                if (val > 0) {
-                    activeTimes = Math.max(activeTimes, 1);
-                    const tgt = getTaskNormalizedTarget(task, targetDate);
-                    const baseTgt = (task.target && task.target > 0) ? (isTimeTask(task) ? task.target * 60 : task.target) : 1;
-                    const effectiveTgt = tgt > 0 ? tgt : baseTgt;
-                    sumRatio += val / effectiveTgt;
+
+                if (!isDeactivated || val > 0) {
+                    scheduledDaysCount = isDeactivated ? 0 : 1;
+                    if (val > 0) {
+                        activeTimes = Math.max(activeTimes, 1);
+                        const tgt = getTaskNormalizedTarget(task, targetDate);
+                        const baseTgt = (task.target && task.target > 0) ? (isTimeTask(task) ? task.target * 60 : task.target) : 1;
+                        const effectiveTgt = tgt > 0 ? tgt : baseTgt;
+                        sumRatio += val / effectiveTgt;
+                    }
                 }
             }
 

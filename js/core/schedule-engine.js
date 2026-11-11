@@ -5,16 +5,43 @@
 
 class ScheduleEngine {
     /**
+     * Checks if a task is deactivated / stopped for a given date or day log
+     * @param {Object} task 
+     * @param {string|Object} dateOrLog Date string (YYYY-MM-DD) or day log object
+     * @param {Object} [appDataRef] 
+     * @returns {boolean}
+     */
+    static isTaskDisabledForDate(task, dateOrLog, appDataRef = null) {
+        if (!task) return false;
+        const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
+        const log = typeof dateOrLog === "string" ? appData?.logs?.[dateOrLog] : dateOrLog;
+        if (!log) return false;
+
+        const tp = log.taskProgress?.[task.id];
+        if (tp && typeof tp === "object" && tp.status !== undefined) {
+            return tp.status === "disabled";
+        }
+        if (Array.isArray(log.disabledTaskIds) && log.disabledTaskIds.includes(task.id)) {
+            return true;
+        }
+        if (tp && tp.status === undefined && Number(tp.target) === 0 && (Number(tp.achieved) || 0) === 0) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * Checks if a task is scheduled for a given date
      * @param {Object} task 
      * @param {string} dateStr 
      * @param {Object} [appDataRef] 
      * @param {number|null} [loggedVal=null] 
      * @param {Object|null} [dateContext=null] Optional pre-resolved { dayAbbrev, hijriInfo }
+     * @param {boolean} [allowArchived=false] Allow checking schedule rules for archived tasks
      * @returns {boolean}
      */
-    static isTaskScheduledForDate(task, dateStr, appDataRef = null, loggedVal = null, dateContext = null) {
-        if (!task || task.isBonus || task.isArchived) return false;
+    static isTaskScheduledForDate(task, dateStr, appDataRef = null, loggedVal = null, dateContext = null, allowArchived = false) {
+        if (!task || task.isBonus || (!allowArchived && task.isArchived)) return false;
         const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
         const log = appData?.logs?.[dateStr];
         const val = loggedVal !== null ? loggedVal : (Number(log?.taskProgress?.[task.id]?.achieved) || 0);
@@ -23,6 +50,10 @@ class ScheduleEngine {
         const tp = log?.taskProgress?.[task.id];
         if (tp && typeof tp === "object" && tp.status !== undefined) {
             return tp.status === "scheduled";
+        }
+
+        if (ScheduleEngine.isTaskDisabledForDate(task, log, appData)) {
+            return false;
         }
 
         const sched = (task.schedule || "Everyday").trim();
@@ -111,7 +142,7 @@ class ScheduleEngine {
             return tp?.status === "bonus" || val > 0;
         }
 
-        if (tp?.status === "bonus" || tp?.status === "disabled") return true;
+        if (tp?.status === "bonus" || ScheduleEngine.isTaskDisabledForDate(task, log, appData)) return true;
 
         if (val > 0) return true;
 
