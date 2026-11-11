@@ -75,6 +75,26 @@ window.startApp = async function(username) {
     renderDailyView();
     renderAllTimeStats();
     updateHeaderTodayScore();
+
+    // If today has no records in the database, populate and save all its scheduled tasks
+    const todayStr = currentDateStr || getLocalTodayString();
+    if (window.awradyAPI?.client && (!appData.logs?.[todayStr] || !appData.logs[todayStr]._loadedFromDB)) {
+        window.awradyAPI.getDayProgress(todayStr).then(dayProgress => {
+            if (dayProgress) {
+                if (!appData.logs) appData.logs = {};
+                const localLog = appData.logs[todayStr];
+                appData.logs[todayStr] = localLog
+                    ? mergeDayLog(localLog, dayProgress)
+                    : rowToLog(dayProgress);
+            } else {
+                populateDayTasksIfMissing(todayStr);
+                pushDayToCloud(todayStr);
+            }
+            renderDailyView();
+            updateDailyScoreSummary();
+            updateHeaderTodayScore();
+        }).catch(() => {});
+    }
 };
 
 window.logoutApp = function() {
@@ -121,13 +141,12 @@ function mergeDayLog(localLog, cloudRow) {
     const dirtyTasks = localLog._dirtyTasks || {};
     const hasDirtyTasks = Object.keys(dirtyTasks).length > 0;
 
-    // Clean remote row takes precedence over stale local cache
-    if (!localLog._dirty && !hasDirtyTasks) {
-        return cloudLog;
-    }
-
-    // 1. Task progress merge: locally dirty tasks strictly retain local values
-    const mergedTaskProgress = { ...(cloudLog.taskProgress || {}) };
+    // 1. Task progress merge: union local and cloud tasks so no task record is lost.
+    // Cloud takes precedence for non-dirty tasks; locally dirty tasks strictly retain local values.
+    const mergedTaskProgress = {
+        ...(localLog.taskProgress || {}),
+        ...(cloudLog.taskProgress || {})
+    };
     const remainingDirtyTasks = {};
 
     for (const taskId in dirtyTasks) {
@@ -181,22 +200,66 @@ async function pushDayToCloud(dateStr) {
         const prayerExtras = { ...(log.prayerExtras || {}) };
         delete prayerExtras._meta;
 
-        const totalScore = (log.precomputedScore !== undefined && (!log._dirtyTasks || Object.keys(log._dirtyTasks).length === 0))
-            ? log.precomputedScore
-            : calculateDayScore(dateStr, appData, false);
-        const totalHours = (log.totalHours !== undefined && (!log._dirtyTasks || Object.keys(log._dirtyTasks).length === 0))
-            ? log.totalHours
-            : calculateDayScore(dateStr, appData, true);
+        if (!log.taskProgress) log.taskProgress = {};
 
-        // Filter taskProgress to only include active records (never persist zero-progress uncompleted archived tasks)
+        const dateContext = {
+            dayAbbrev: getDayOfWeekAbbrev(dateStr),
+            hijriInfo: getHijriDateDetails(dateStr)
+        };
+
+        // Populate taskProgress with ALL tasks that belong to this date (scheduled, bonus, or disabled)
+        // so that new days without records store complete task records in the DB snapshot
         const taskProgress = {};
-        for (const [tid, info] of Object.entries(log.taskProgress || {})) {
-            const task = (appData.tasks || []).find(t => t.id === tid);
-            if (task?.isArchived && (Number(info.achieved) || 0) <= 0 && info.status !== "bonus") {
-                continue;
+
+        (appData.tasks || []).forEach(t => {
+            const existingProgress = log.taskProgress[t.id];
+            const val = Number(existingProgress?.achieved) || 0;
+            const isDisabled = ScheduleEngine.isTaskDisabledForDate(t, log, appData);
+            const isBonus = existingProgress?.status === "bonus" || Boolean(t.isBonus) || ScheduleEngine.isBonusTaskForDate(t, dateStr, appData, val, dateContext);
+            const isScheduled = existingProgress?.status === "scheduled" || (!isBonus && !isDisabled && ScheduleEngine.isTaskScheduledForDate(t, dateStr, appData, val, dateContext));
+
+            // Never persist uncompleted archived tasks
+            if (t.isArchived && val <= 0 && existingProgress?.status !== "bonus") {
+                return;
             }
-            taskProgress[tid] = info;
+
+            // Only persist tasks that belong to this day (scheduled, active bonus, or disabled)
+            if (!isScheduled && !isDisabled && !isBonus && val <= 0) {
+                return;
+            }
+
+            const status = isDisabled ? "disabled" : (isBonus ? "bonus" : "scheduled");
+            const normTarget = (status === "bonus" || status === "disabled")
+                ? 0
+                : ((existingProgress && Number(existingProgress.target) > 0) ? Number(existingProgress.target) : getTaskNormalizedTarget(t, dateStr));
+
+            const { hours: _h, score: _s, ...cleanExisting } = existingProgress || {};
+            const entry = {
+                ...cleanExisting,
+                target: normTarget,
+                achieved: val,
+                status: status
+            };
+
+            taskProgress[t.id] = entry;
+            log.taskProgress[t.id] = entry;
+        });
+
+        // Also preserve any additional active taskProgress entries that might have existed
+        for (const [tid, info] of Object.entries(log.taskProgress)) {
+            if (!taskProgress[tid]) {
+                const task = (appData.tasks || []).find(t => t.id === tid);
+                if (task?.isArchived && (Number(info?.achieved) || 0) <= 0 && info?.status !== "bonus") {
+                    continue;
+                }
+                const { hours: _h, score: _s, ...cleanInfo } = info || {};
+                taskProgress[tid] = cleanInfo;
+                log.taskProgress[tid] = cleanInfo;
+            }
         }
+
+        const totalScore = calculateDayScore(dateStr, appData, false);
+        const totalHours = calculateDayScore(dateStr, appData, true);
 
         const savedRow = await window.awradyAPI.saveDayProgress(dateStr, taskProgress, prayerExtras, { totalScore, totalHours });
         if (appData.logs?.[dateStr]) {
@@ -401,7 +464,8 @@ function loadDefaultAppData() {
 function saveData(immediate = false) {
     const curDate = currentDateStr;
     if (!appData.logs) appData.logs = {};
-    if (!appData.logs[curDate]) appData.logs[curDate] = { entries: {} };
+    if (!appData.logs[curDate]) appData.logs[curDate] = { taskProgress: {} };
+    if (!appData.logs[curDate].taskProgress) appData.logs[curDate].taskProgress = {};
 
     appData.logs[curDate]._dirty = true;
     delete appData.logs[curDate].precomputedScore;
@@ -478,6 +542,45 @@ function setupNavigation() {
     }
 }
 
+function populateDayTasksIfMissing(dateStr) {
+    if (!appData.logs) appData.logs = {};
+    if (!appData.logs[dateStr]) appData.logs[dateStr] = { taskProgress: {} };
+    const log = appData.logs[dateStr];
+    if (!log.taskProgress) log.taskProgress = {};
+
+    const dateContext = {
+        dayAbbrev: getDayOfWeekAbbrev(dateStr),
+        hijriInfo: getHijriDateDetails(dateStr)
+    };
+
+    let addedAny = false;
+    (appData.tasks || []).forEach(t => {
+        if (t.isArchived) return;
+        if (log.taskProgress[t.id]) return;
+
+        const isScheduled = ScheduleEngine.isTaskScheduledForDate(t, dateStr, appData, 0, dateContext);
+        if (isScheduled) {
+            const normTarget = getTaskNormalizedTarget(t, dateStr);
+            log.taskProgress[t.id] = {
+                target: normTarget,
+                achieved: 0,
+                status: "scheduled",
+                hours: 0,
+                score: 0
+            };
+            addedAny = true;
+        }
+    });
+
+    if (addedAny) {
+        log._dirty = true;
+        delete log.precomputedScore;
+        delete log.totalHours;
+    }
+
+    return addedAny;
+}
+
 async function switchActiveDate(newDate) {
     currentDateStr = newDate;
     const datePicker = document.getElementById("date-picker-input");
@@ -489,10 +592,14 @@ async function switchActiveDate(newDate) {
             if (dayProgress) {
                 if (!appData.logs) appData.logs = {};
                 const localLog = appData.logs[currentDateStr];
-                const newLog = (localLog && (localLog._dirty || localLog._dirtyTasks))
+                const newLog = localLog
                     ? mergeDayLog(localLog, dayProgress)
                     : rowToLog(dayProgress);
                 appData.logs[currentDateStr] = newLog;
+            } else {
+                // If the record of this day is not available, populate and save all its scheduled tasks
+                populateDayTasksIfMissing(currentDateStr);
+                pushDayToCloud(currentDateStr);
             }
         } catch (_) {}
     }

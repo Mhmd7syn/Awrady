@@ -396,13 +396,12 @@ function attachTaskControlListeners(grid) {
             : (task ? getTaskNormalizedTarget(task, currentDateStr) : 0);
         const status = existingProgress?.status || (task && ScheduleEngine.isTaskScheduledForDate(task, currentDateStr, appData, newTotal) ? "scheduled" : (newTotal > 0 ? "bonus" : "scheduled"));
 
+        const { hours: _h, score: _s, ...cleanExisting } = existingProgress || {};
         appData.logs[currentDateStr].taskProgress[taskId] = {
-            ...(existingProgress || {}),
+            ...cleanExisting,
             target: normTarget,
             achieved: newTotal,
-            status,
-            hours: newTotal / 60,
-            score: normTarget > 0 ? (newTotal / normTarget) : (newTotal > 0 ? 1 : 0)
+            status
         };
 
         saveData();
@@ -469,13 +468,12 @@ function attachTaskControlListeners(grid) {
                         const t = (appData.tasks || []).find(x => x.id === id);
                         const val = Number(tp.achieved) || 0;
                         const normTarget = t ? getTaskNormalizedTarget(t, null) : 1;
+                        const { hours: _h, score: _s, ...cleanTp } = tp || {};
                         log.taskProgress[id] = {
-                            ...tp,
+                            ...cleanTp,
                             target: normTarget,
                             achieved: val,
-                            status: "scheduled",
-                            hours: t?.type === "ساعة" ? (val / 60) : 0,
-                            score: normTarget > 0 ? (val / normTarget) : (val > 0 ? 1 : 0)
+                            status: "scheduled"
                         };
                         if (!log._dirtyTasks) log._dirtyTasks = {};
                         log._dirtyTasks[id] = Date.now();
@@ -541,25 +539,22 @@ function toggleDeactivateTaskForDate(taskId, dateStr) {
     const normTarget = task ? getTaskNormalizedTarget(task, null) : 1;
     const isCurrentlyDisabled = tp?.status === "disabled";
 
+    const { hours: _h, score: _s, ...cleanTp } = tp || {};
     if (isCurrentlyDisabled) {
         // Re-enabling
         log.taskProgress[taskId] = {
-            ...(tp || {}),
+            ...cleanTp,
             target: normTarget,
             achieved: val,
-            status: "scheduled",
-            hours: task?.type === "ساعة" ? (val / 60) : 0,
-            score: normTarget > 0 ? (val / normTarget) : (val > 0 ? 1 : 0)
+            status: "scheduled"
         };
     } else {
         // Pausing / Disabling
         log.taskProgress[taskId] = {
-            ...(tp || {}),
+            ...cleanTp,
             target: 0,
             achieved: val,
-            status: "disabled",
-            hours: task?.type === "ساعة" ? (val / 60) : 0,
-            score: 0
+            status: "disabled"
         };
     }
 
@@ -690,13 +685,12 @@ function setTaskVal(taskId, val) {
         : (task ? getTaskNormalizedTarget(task, currentDateStr) : 0);
     const status = existingProgress?.status || (task && ScheduleEngine.isTaskScheduledForDate(task, currentDateStr, appData, val) ? "scheduled" : (val > 0 ? "bonus" : "scheduled"));
 
+    const { hours: _h, score: _s, ...cleanExisting } = existingProgress || {};
     appData.logs[currentDateStr].taskProgress[taskId] = {
-        ...(existingProgress || {}),
+        ...cleanExisting,
         target: normTarget,
         achieved: val,
-        status,
-        hours: (task && task.type === "ساعة") ? (val / 60) : 0,
-        score: normTarget > 0 ? (val / normTarget) : (val > 0 ? 1 : 0)
+        status
     };
 
     saveData();

@@ -59,8 +59,11 @@ class ScoringEngine {
         const isDirty = Boolean(log._dirty ||
             (log._dirtyTasks && Object.keys(log._dirtyTasks).length > 0));
 
+        const todayStr = typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().slice(0, 10);
+        const isHistorical = dateStr < todayStr;
+
         // Freeze historical days: if clean and loaded from DB (or stored totals exist), return in O(1)
-        if (!isDirty && log._loadedFromDB) {
+        if (isHistorical && !isDirty && log._loadedFromDB) {
             const storedScore = log.total_score ?? log.precomputedScore;
             const storedHours = log.total_hours ?? log.totalHours;
             if (storedScore !== undefined && storedScore !== null) {

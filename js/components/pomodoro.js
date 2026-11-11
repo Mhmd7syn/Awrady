@@ -597,13 +597,12 @@ function commitWorkMinutesToDisk(minutes, showAlert = false) {
             : (task ? getTaskNormalizedTarget(task, realTodayStr) : 0);
         const status = existingProgress?.status || (task && ScheduleEngine.isTaskScheduledForDate(task, realTodayStr, appData, newVal) ? "scheduled" : (newVal > 0 ? "bonus" : "scheduled"));
 
+        const { hours: _h, score: _s, ...cleanExisting } = existingProgress || {};
         appData.logs[realTodayStr].taskProgress[PomodoroTimer.taskId] = {
-            ...(existingProgress || {}),
+            ...cleanExisting,
             target: normTarget,
             achieved: newVal,
-            status,
-            hours: newVal / 60,
-            score: normTarget > 0 ? (newVal / normTarget) : (newVal > 0 ? 1 : 0)
+            status
         };
         if (!appData.logs[realTodayStr]._dirtyTasks) appData.logs[realTodayStr]._dirtyTasks = {};
         appData.logs[realTodayStr]._dirtyTasks[PomodoroTimer.taskId] = Date.now();

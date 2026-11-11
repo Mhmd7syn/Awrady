@@ -362,9 +362,7 @@ function addBonusTaskToDate(taskId, dateStr) {
     appData.logs[dateStr].taskProgress[taskId] = {
         target: 0,
         achieved: 0,
-        status: "bonus",
-        hours: 0,
-        score: 0
+        status: "bonus"
     };
 
     if (!appData.logs[dateStr]._dirtyTasks) appData.logs[dateStr]._dirtyTasks = {};

@@ -124,17 +124,6 @@ class ScheduleEngine {
         const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
         const log = appData?.logs?.[dateStr];
 
-        // 1. Saved Database Snapshot: taskProgress is the definitive source of truth
-        if (log?._loadedFromDB && log.taskProgress) {
-            const tp = log.taskProgress[task.id];
-            if (!tp) return false;
-            if (task.isArchived) {
-                return tp.status === "bonus" || (Number(tp.achieved) || 0) > 0;
-            }
-            return true;
-        }
-
-        // 2. Unsaved / Live day checks
         const tp = log?.taskProgress?.[task.id];
         const val = Number(tp?.achieved) || 0;
 
@@ -145,6 +134,8 @@ class ScheduleEngine {
         if (tp?.status === "bonus" || ScheduleEngine.isTaskDisabledForDate(task, log, appData)) return true;
 
         if (val > 0) return true;
+
+        if (tp?.status === "scheduled") return true;
 
         return ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val);
     }

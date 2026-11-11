@@ -168,8 +168,15 @@ function rowToLog(row) {
     const prayerExtras = { ...(row.prayer_extras || {}) };
     delete prayerExtras._meta;
 
+    const taskProgress = {};
+    for (const [tid, tp] of Object.entries(row.task_progress || {})) {
+        if (!tp) continue;
+        const { hours: _h, score: _s, ...cleanTp } = tp;
+        taskProgress[tid] = cleanTp;
+    }
+
     return {
-        taskProgress: row.task_progress || {},
+        taskProgress,
         prayerExtras,
         precomputedScore: Number(row.total_score) || 0,
         totalHours: Number(row.total_hours) || 0,
