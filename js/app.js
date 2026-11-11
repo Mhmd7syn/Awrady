@@ -75,26 +75,6 @@ window.startApp = async function(username) {
     renderDailyView();
     renderAllTimeStats();
     updateHeaderTodayScore();
-
-    // If today has no records in the database, populate and save all its scheduled tasks
-    const todayStr = currentDateStr || getLocalTodayString();
-    if (window.awradyAPI?.client && (!appData.logs?.[todayStr] || !appData.logs[todayStr]._loadedFromDB)) {
-        window.awradyAPI.getDayProgress(todayStr).then(dayProgress => {
-            if (dayProgress) {
-                if (!appData.logs) appData.logs = {};
-                const localLog = appData.logs[todayStr];
-                appData.logs[todayStr] = localLog
-                    ? mergeDayLog(localLog, dayProgress)
-                    : rowToLog(dayProgress);
-            } else {
-                populateDayTasksIfMissing(todayStr);
-                pushDayToCloud(todayStr);
-            }
-            renderDailyView();
-            updateDailyScoreSummary();
-            updateHeaderTodayScore();
-        }).catch(() => {});
-    }
 };
 
 window.logoutApp = function() {
@@ -126,7 +106,24 @@ function loadLocalState() {
             const parsed = JSON.parse(localSaved);
             if (parsed) {
                 if (parsed.tasks && parsed.tasks.length > 0) appData.tasks = parsed.tasks;
-                if (parsed.logs) appData.logs = parsed.logs;
+                if (parsed.logs) {
+                    appData.logs = parsed.logs;
+                    // Clean up any zero-progress false bonus entries from local store
+                    for (const dateStr in appData.logs) {
+                        const log = appData.logs[dateStr];
+                        if (log?.taskProgress) {
+                            for (const tid in log.taskProgress) {
+                                const tp = log.taskProgress[tid];
+                                if (tp?.status === "bonus" && (Number(tp?.achieved) || 0) <= 0 && !tp?._explicit) {
+                                    const task = (appData.tasks || []).find(t => t.id === tid);
+                                    if (task && !task.isBonus) {
+                                        delete log.taskProgress[tid];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     } catch (e) {
@@ -207,56 +204,37 @@ async function pushDayToCloud(dateStr) {
             hijriInfo: getHijriDateDetails(dateStr)
         };
 
-        // Populate taskProgress with ALL tasks that belong to this date (scheduled, bonus, or disabled)
-        // so that new days without records store complete task records in the DB snapshot
+        // Populate taskProgress: scheduled tasks for this day + dirty tasks + explicit bonus or disabled
         const taskProgress = {};
 
         (appData.tasks || []).forEach(t => {
-            const existingProgress = log.taskProgress[t.id];
-            const val = Number(existingProgress?.achieved) || 0;
+            if (t.isArchived) return;
+
+            const existing = log.taskProgress[t.id];
+            const val = Number(existing?.achieved) || 0;
             const isDisabled = ScheduleEngine.isTaskDisabledForDate(t, log, appData);
-            const isBonus = existingProgress?.status === "bonus" || Boolean(t.isBonus) || ScheduleEngine.isBonusTaskForDate(t, dateStr, appData, val, dateContext);
-            const isScheduled = existingProgress?.status === "scheduled" || (!isBonus && !isDisabled && ScheduleEngine.isTaskScheduledForDate(t, dateStr, appData, val, dateContext));
+            const isExplicitBonus = Boolean(t.isBonus || (existing?.status === "bonus" && (val > 0 || existing?._explicit)));
+            const isScheduled = ScheduleEngine.isTaskScheduledForDate(t, dateStr, appData, val, dateContext);
 
-            // Never persist uncompleted archived tasks
-            if (t.isArchived && val <= 0 && existingProgress?.status !== "bonus") {
-                return;
+            // Add ONLY scheduled tasks of this day, disabled tasks, or bonus tasks with val > 0 / explicit
+            if (isScheduled || isDisabled || isExplicitBonus || val > 0) {
+                const status = isDisabled ? "disabled" : ((isExplicitBonus || (!isScheduled && val > 0)) ? "bonus" : "scheduled");
+                const normTarget = (status === "bonus" || status === "disabled")
+                    ? 0
+                    : ((existing && Number(existing.target) > 0) ? Number(existing.target) : getTaskNormalizedTarget(t, dateStr));
+
+                const { hours: _h, score: _s, ...cleanExisting } = existing || {};
+                taskProgress[t.id] = {
+                    ...cleanExisting,
+                    target: normTarget,
+                    achieved: val,
+                    status
+                };
             }
-
-            // Only persist tasks that belong to this day (scheduled, active bonus, or disabled)
-            if (!isScheduled && !isDisabled && !isBonus && val <= 0) {
-                return;
-            }
-
-            const status = isDisabled ? "disabled" : (isBonus ? "bonus" : "scheduled");
-            const normTarget = (status === "bonus" || status === "disabled")
-                ? 0
-                : ((existingProgress && Number(existingProgress.target) > 0) ? Number(existingProgress.target) : getTaskNormalizedTarget(t, dateStr));
-
-            const { hours: _h, score: _s, ...cleanExisting } = existingProgress || {};
-            const entry = {
-                ...cleanExisting,
-                target: normTarget,
-                achieved: val,
-                status: status
-            };
-
-            taskProgress[t.id] = entry;
-            log.taskProgress[t.id] = entry;
         });
 
-        // Also preserve any additional active taskProgress entries that might have existed
-        for (const [tid, info] of Object.entries(log.taskProgress)) {
-            if (!taskProgress[tid]) {
-                const task = (appData.tasks || []).find(t => t.id === tid);
-                if (task?.isArchived && (Number(info?.achieved) || 0) <= 0 && info?.status !== "bonus") {
-                    continue;
-                }
-                const { hours: _h, score: _s, ...cleanInfo } = info || {};
-                taskProgress[tid] = cleanInfo;
-                log.taskProgress[tid] = cleanInfo;
-            }
-        }
+        // Set local log.taskProgress directly to taskProgress so un-scheduled items are pruned
+        log.taskProgress = taskProgress;
 
         const totalScore = calculateDayScore(dateStr, appData, false);
         const totalHours = calculateDayScore(dateStr, appData, true);
@@ -325,10 +303,7 @@ async function syncAllDirtyDays() {
     if (!window.awradyAPI?.client || !navigator.onLine || !appData.logs) return;
     const dirtyDates = Object.keys(appData.logs).filter(d => {
         const log = appData.logs[d];
-        if (!log) return false;
-        return log._dirty ||
-            (log._dirtyTasks && Object.keys(log._dirtyTasks).length > 0) ||
-            (log._dirtyFields && Object.keys(log._dirtyFields).length > 0);
+        return Boolean(log && (log._dirty || (log._dirtyTasks && Object.keys(log._dirtyTasks).length > 0)));
     });
     for (const d of dirtyDates) {
         await pushDayToCloud(d);
@@ -387,7 +362,7 @@ async function initData() {
                     const row = payload.new;
                     if (!appData.logs) appData.logs = {};
                     const currentLog = appData.logs[currentDateStr];
-                    const hasDirty = Boolean(currentLog && (currentLog._dirty || (currentLog._dirtyTasks && Object.keys(currentLog._dirtyTasks).length > 0) || (currentLog._dirtyFields && Object.keys(currentLog._dirtyFields).length > 0)));
+                    const hasDirty = Boolean(currentLog && (currentLog._dirty || (currentLog._dirtyTasks && Object.keys(currentLog._dirtyTasks).length > 0)));
 
                     // Ignore echo of our own save when there are no unsaved dirty edits
                     const rowUpdatedAt = row.updated_at ? new Date(row.updated_at).getTime() : 0;
@@ -495,10 +470,6 @@ function saveData(immediate = false) {
     }
 }
 
-const isTaskScheduledForDate = (task, dateStr, loggedVal = null) => ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, loggedVal);
-const isBonusTaskForDate = (task, dateStr, loggedVal = null) => ScheduleEngine.isBonusTaskForDate(task, dateStr, appData, loggedVal);
-
-
 // ============================================================================
 // NAVIGATION & CONTROLS
 // ============================================================================
@@ -542,45 +513,6 @@ function setupNavigation() {
     }
 }
 
-function populateDayTasksIfMissing(dateStr) {
-    if (!appData.logs) appData.logs = {};
-    if (!appData.logs[dateStr]) appData.logs[dateStr] = { taskProgress: {} };
-    const log = appData.logs[dateStr];
-    if (!log.taskProgress) log.taskProgress = {};
-
-    const dateContext = {
-        dayAbbrev: getDayOfWeekAbbrev(dateStr),
-        hijriInfo: getHijriDateDetails(dateStr)
-    };
-
-    let addedAny = false;
-    (appData.tasks || []).forEach(t => {
-        if (t.isArchived) return;
-        if (log.taskProgress[t.id]) return;
-
-        const isScheduled = ScheduleEngine.isTaskScheduledForDate(t, dateStr, appData, 0, dateContext);
-        if (isScheduled) {
-            const normTarget = getTaskNormalizedTarget(t, dateStr);
-            log.taskProgress[t.id] = {
-                target: normTarget,
-                achieved: 0,
-                status: "scheduled",
-                hours: 0,
-                score: 0
-            };
-            addedAny = true;
-        }
-    });
-
-    if (addedAny) {
-        log._dirty = true;
-        delete log.precomputedScore;
-        delete log.totalHours;
-    }
-
-    return addedAny;
-}
-
 async function switchActiveDate(newDate) {
     currentDateStr = newDate;
     const datePicker = document.getElementById("date-picker-input");
@@ -596,10 +528,6 @@ async function switchActiveDate(newDate) {
                     ? mergeDayLog(localLog, dayProgress)
                     : rowToLog(dayProgress);
                 appData.logs[currentDateStr] = newLog;
-            } else {
-                // If the record of this day is not available, populate and save all its scheduled tasks
-                populateDayTasksIfMissing(currentDateStr);
-                pushDayToCloud(currentDateStr);
             }
         } catch (_) {}
     }
@@ -633,10 +561,6 @@ function setupDailyControls() {
 // ============================================================================
 // SCORING ENGINE INTEGRATION & HELPERS
 // ============================================================================
-function getTaskWeightMinutes(task, dateStr = null) {
-    return ScoringEngine.getTaskWeightMinutes(task, dateStr, appData);
-}
-
 function calculateDayScore(dateStr, appDataRef = null, returnHours = false) {
     return ScoringEngine.calculateDayScore(dateStr, appDataRef || appData, returnHours);
 }

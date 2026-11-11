@@ -200,7 +200,6 @@ function createTaskRowElement(task, isArchived) {
 
     const displayType = isPrayerSelector(task) ? 'صلاة فريضة' : getTaskUnit(task);
     const targetText = task.target ? `🎯 الهدف: ${task.target} ${displayType}` : `🏷️ وحدة: ${displayType}`;
-    const multText = task.multiplier !== undefined && task.multiplier !== 1 ? `⚡ معامل النقاط: ${task.multiplier * 100}%` : '';
 
     const catBadgeText = task.subcategory ? `${task.category} - ${task.subcategory}` : (task.category || 'عام');
     const otBadge = isOt ? `<span class="badge" style="font-size:0.75rem; background:rgba(245,158,11,0.18); color:#f59e0b; border:1px solid rgba(245,158,11,0.35);"><i class="fa-solid fa-bolt"></i> لمرة واحدة</span>` : '';
@@ -214,7 +213,6 @@ function createTaskRowElement(task, isArchived) {
                     <p>
                         <span>${targetText}</span>
                         <span>${schedText}</span>
-                        ${multText ? `<span>${multText}</span>` : ''}
                     </p>
                 </div>
             </div>
@@ -362,7 +360,8 @@ function addBonusTaskToDate(taskId, dateStr) {
     appData.logs[dateStr].taskProgress[taskId] = {
         target: 0,
         achieved: 0,
-        status: "bonus"
+        status: "bonus",
+        _explicit: true
     };
 
     if (!appData.logs[dateStr]._dirtyTasks) appData.logs[dateStr]._dirtyTasks = {};

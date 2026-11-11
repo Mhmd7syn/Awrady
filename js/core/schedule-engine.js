@@ -15,19 +15,7 @@ class ScheduleEngine {
         if (!task) return false;
         const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
         const log = typeof dateOrLog === "string" ? appData?.logs?.[dateOrLog] : dateOrLog;
-        if (!log) return false;
-
-        const tp = log.taskProgress?.[task.id];
-        if (tp && typeof tp === "object" && tp.status !== undefined) {
-            return tp.status === "disabled";
-        }
-        if (Array.isArray(log.disabledTaskIds) && log.disabledTaskIds.includes(task.id)) {
-            return true;
-        }
-        if (tp && tp.status === undefined && Number(tp.target) === 0 && (Number(tp.achieved) || 0) === 0) {
-            return true;
-        }
-        return false;
+        return log?.taskProgress?.[task.id]?.status === "disabled";
     }
 
     /**
@@ -92,13 +80,11 @@ class ScheduleEngine {
         if (!task || task.isArchived) return false;
         const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
         const log = appData?.logs?.[dateStr];
-
-        // Database snapshot: explicit status is the single source of truth
         const tp = log?.taskProgress?.[task.id];
+
         if (tp && typeof tp === "object" && tp.status !== undefined) {
             return tp.status === "bonus";
         }
-
         if (tp?.status === "disabled") return false;
         if (task.isBonus) return true;
 
@@ -108,7 +94,8 @@ class ScheduleEngine {
             return taskDate !== dateStr;
         }
 
-        const val = loggedVal !== null ? loggedVal : (Number(log?.taskProgress?.[task.id]?.achieved) || 0);
+        const val = loggedVal !== null ? loggedVal : (Number(tp?.achieved) || 0);
+        if (val <= 0) return false;
         return !ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val, dateContext);
     }
 
@@ -123,31 +110,19 @@ class ScheduleEngine {
         if (!task) return false;
         const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
         const log = appData?.logs?.[dateStr];
-
         const tp = log?.taskProgress?.[task.id];
         const val = Number(tp?.achieved) || 0;
 
         if (task.isArchived) {
-            return tp?.status === "bonus" || val > 0;
+            return val > 0;
         }
 
-        if (tp?.status === "bonus" || ScheduleEngine.isTaskDisabledForDate(task, log, appData)) return true;
-
+        if (ScheduleEngine.isTaskDisabledForDate(task, log, appData)) return true;
         if (val > 0) return true;
-
-        if (tp?.status === "scheduled") return true;
+        if (tp?._explicit || (tp?.status === "bonus" && (val > 0 || task.isBonus))) return true;
 
         return ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val);
     }
-
-    /**
-     * Direct property accessor for backward compatibility
-     */
-    static getTaskEffectiveProps(task) {
-        return task;
-    }
-
-    static invalidateTaskCache() {}
 }
 
 if (typeof window !== "undefined") {
