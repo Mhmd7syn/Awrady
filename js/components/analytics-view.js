@@ -139,12 +139,37 @@ function initChart() {
                     pointBackgroundColor: "#f59e0b",
                     pointBorderColor: "#fff",
                     pointRadius: 4,
-                    pointHoverRadius: 7
+                    pointHoverRadius: 7,
+                    pointHitRadius: 10
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick: (event, elements, chart) => {
+                    if (!elements || !elements.length) return;
+                    const datasetIndex = elements[0].datasetIndex ?? 0;
+                    const pointIndex = elements[0].index;
+                    const targetDate = chart.data?.datasets?.[datasetIndex]?.rawDates?.[pointIndex];
+                    if (!targetDate) return;
+
+                    if (typeof switchActiveDate === "function") {
+                        switchActiveDate(targetDate);
+                    } else if (typeof window !== "undefined" && typeof window.switchActiveDate === "function") {
+                        window.switchActiveDate(targetDate);
+                    }
+
+                    const dailyTab = document.querySelector('.nav-tab[data-tab="view-daily"]');
+                    if (dailyTab) {
+                        dailyTab.click();
+                    }
+                },
+                onHover: (event, elements) => {
+                    const canvas = event.native ? event.native.target : event.chart?.canvas;
+                    if (canvas) {
+                        canvas.style.cursor = elements && elements.length ? "pointer" : "default";
+                    }
+                },
                 plugins: {
                     legend: { display: false },
                     zoom: {
@@ -331,6 +356,7 @@ function updateChartAndAnalytics() {
         chartInstance.data.datasets[0].rawDates = rawDates;
         chartInstance.data.datasets[0].pointRadius = 4;
         chartInstance.data.datasets[0].pointHoverRadius = 7;
+        chartInstance.data.datasets[0].pointHitRadius = 10;
         chartInstance.update();
     }
 

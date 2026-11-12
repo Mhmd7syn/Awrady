@@ -650,6 +650,7 @@ function calculateDayScore(dateStr, appDataRef = null, returnHours = false) {
 
 if (typeof window !== "undefined") {
     window.renderDailyView = renderDailyView;
+    window.switchActiveDate = switchActiveDate;
     window.setTaskVal = setTaskVal;
     window.adjustTaskVal = adjustTaskVal;
     window.getTaskVal = getTaskVal;
