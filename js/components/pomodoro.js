@@ -8,6 +8,7 @@ const PomodoroTimer = {
     isRunning: false,
     totalSeconds: APP_CONSTANTS.POMODORO_DEFAULTS.WORK_MINUTES * 60,
     remainingSeconds: APP_CONSTANTS.POMODORO_DEFAULTS.WORK_MINUTES * 60,
+    lastSavedRemainingSeconds: APP_CONSTANTS.POMODORO_DEFAULTS.WORK_MINUTES * 60,
     targetEndTime: null,
     intervalId: null,
     taskId: null,
@@ -44,8 +45,6 @@ function setupPomodoroControls() {
 
     const btnStart = document.getElementById("btn-pomo-start");
     const btnPause = document.getElementById("btn-pomo-pause");
-    const btnReset = document.getElementById("btn-pomo-reset");
-    const btnFinish = document.getElementById("btn-pomo-finish");
     const btnClose = document.getElementById("btn-close-pomodoro");
 
     if (btnStart) {
@@ -58,18 +57,6 @@ function setupPomodoroControls() {
         btnPause.addEventListener("click", () => {
             ensureAudioUnlocked();
             pausePomoTimer();
-        });
-    }
-    if (btnReset) {
-        btnReset.addEventListener("click", () => {
-            ensureAudioUnlocked();
-            resetPomoTimer();
-        });
-    }
-    if (btnFinish) {
-        btnFinish.addEventListener("click", () => {
-            ensureAudioUnlocked();
-            finishPomoSession();
         });
     }
     if (btnClose) btnClose.addEventListener("click", closePomodoroModal);
@@ -316,21 +303,17 @@ function updatePomoModeUI(mode) {
 }
 
 /**
- * Switch mode (Work / Rest) with prompt to save pending work if switching away from work
+ * Switch mode (Work / Rest), committing any uncommitted work minutes cleanly
  */
 function setPomoMode(mode) {
     if (PomodoroTimer.mode === mode) return;
 
-    // Check if there is elapsed work time that hasn't been saved yet
     if (PomodoroTimer.mode === "work") {
-        const elapsedSecs = PomodoroTimer.totalSeconds - PomodoroTimer.remainingSeconds;
-        const elapsedMins = Math.floor(elapsedSecs / 60);
-
-        if (elapsedMins > 0) {
-            const taskLabel = PomodoroTimer.taskName ? `مهمتك (${PomodoroTimer.taskName})` : "جلسة عامة";
-            if (confirm(`لديك ${elapsedMins} دقيقة عمل منجزة. هل ترغب في حفظها في ${taskLabel} قبل التبديل إلى وقت الراحة؟`)) {
-                commitWorkMinutesToDisk(elapsedMins, true);
-            }
+        const lastSaved = typeof PomodoroTimer.lastSavedRemainingSeconds === "number" ? PomodoroTimer.lastSavedRemainingSeconds : PomodoroTimer.totalSeconds;
+        const uncommittedSecs = lastSaved - PomodoroTimer.remainingSeconds;
+        const uncommittedMins = Math.floor(uncommittedSecs / 60);
+        if (uncommittedMins > 0) {
+            commitWorkMinutesToDisk(uncommittedMins);
         }
     }
 
@@ -418,6 +401,9 @@ function startPomoTimer() {
     if (PomodoroTimer.remainingSeconds <= 0) {
         PomodoroTimer.totalSeconds = (PomodoroTimer.mode === "work" ? PomodoroTimer.workMinutes : PomodoroTimer.restMinutes) * 60;
         PomodoroTimer.remainingSeconds = PomodoroTimer.totalSeconds;
+        PomodoroTimer.lastSavedRemainingSeconds = PomodoroTimer.totalSeconds;
+    } else if (typeof PomodoroTimer.lastSavedRemainingSeconds !== "number") {
+        PomodoroTimer.lastSavedRemainingSeconds = PomodoroTimer.remainingSeconds;
     }
 
     PomodoroTimer.isRunning = true;
@@ -452,6 +438,20 @@ function syncPomoTimer() {
     const now = Date.now();
     const remaining = Math.max(0, Math.ceil((PomodoroTimer.targetEndTime - now) / 1000));
     PomodoroTimer.remainingSeconds = remaining;
+
+    // Auto-save every 5 minutes (300s) during active work sessions
+    if (PomodoroTimer.mode === "work") {
+        if (typeof PomodoroTimer.lastSavedRemainingSeconds !== "number") {
+            PomodoroTimer.lastSavedRemainingSeconds = PomodoroTimer.totalSeconds;
+        }
+        const elapsedSinceLastSave = PomodoroTimer.lastSavedRemainingSeconds - remaining;
+        if (elapsedSinceLastSave >= 300) {
+            const fiveMinBlocks = Math.floor(elapsedSinceLastSave / 300);
+            commitWorkMinutesToDisk(fiveMinBlocks * 5);
+            PomodoroTimer.lastSavedRemainingSeconds -= (fiveMinBlocks * 300);
+            savePomoState();
+        }
+    }
 
     updatePomoDisplay();
 
@@ -503,43 +503,13 @@ function resetPomoTimer() {
     const durationMins = PomodoroTimer.mode === "work" ? PomodoroTimer.workMinutes : PomodoroTimer.restMinutes;
     PomodoroTimer.totalSeconds = durationMins * 60;
     PomodoroTimer.remainingSeconds = PomodoroTimer.totalSeconds;
+    PomodoroTimer.lastSavedRemainingSeconds = PomodoroTimer.totalSeconds;
     PomodoroTimer.targetEndTime = null;
 
     stopTitleBlinking();
     restoreDocumentTitle();
     updatePomoDisplay();
     savePomoState();
-}
-
-/**
- * Finish session & save elapsed minutes accurately
- */
-function finishPomoSession() {
-    // If timer is running, capture exact remaining time first
-    if (PomodoroTimer.isRunning && PomodoroTimer.targetEndTime) {
-        const now = Date.now();
-        PomodoroTimer.remainingSeconds = Math.max(0, Math.ceil((PomodoroTimer.targetEndTime - now) / 1000));
-    }
-
-    pausePomoTimer();
-
-    if (PomodoroTimer.mode === "work") {
-        const elapsedSecs = PomodoroTimer.totalSeconds - PomodoroTimer.remainingSeconds;
-        const elapsedMins = Math.floor(elapsedSecs / 60);
-
-        if (elapsedMins > 0) {
-            commitWorkMinutesToDisk(elapsedMins, true);
-        } else if (elapsedSecs > 5) {
-            alert(`تم إنهاء الجلسة. الوقت المنقضي (${elapsedSecs} ثانية) أقل من دقيقة كاملة، لذلك لم يتم تسجيل دقائق.`);
-        } else {
-            alert("تم إنهاء الجلسة وإعادة ضبط المؤقت.");
-        }
-    } else {
-        alert("تم إنهاء فترة الاستراحة بنجاح! جاهز لجلسة تركيز جديدة 🎯");
-    }
-
-    resetPomoTimer();
-    closePomodoroModal();
 }
 
 /**
@@ -552,17 +522,24 @@ function handlePomoCompletion() {
     dispatchSystemNotification();
 
     const isWork = PomodoroTimer.mode === "work";
-    const completedMins = PomodoroTimer.workMinutes;
 
     if (isWork) {
-        commitWorkMinutesToDisk(completedMins, false);
+        // Commit any leftover full minutes (< 5 min)
+        if (typeof PomodoroTimer.lastSavedRemainingSeconds === "number") {
+            const leftoverSecs = PomodoroTimer.lastSavedRemainingSeconds - PomodoroTimer.remainingSeconds;
+            const leftoverMins = Math.floor(leftoverSecs / 60);
+            if (leftoverMins > 0) {
+                commitWorkMinutesToDisk(leftoverMins);
+            }
+        }
     }
+
     resetPomoTimer();
 
     // Prompt user smoothly without cutting audio or blocking execution
     setTimeout(() => {
         const msg = isWork
-            ? `🎉 أحسنت! انتهى وقت العمل (${completedMins} دقيقة) وتم حفظه تلقائياً.\n\nهل ترغب في بدء فترة استراحة الآن؟`
+            ? `🎉 أحسنت! انتهت جلسة التركيز (${PomodoroTimer.workMinutes} دقيقة) وتم حفظ التقدم تلقائياً.\n\nهل ترغب في بدء فترة استراحة الآن؟`
             : "☕ انتهت فترة الاستراحة! هل ترغب في العودة للعمل والتركيز؟";
 
         if (confirm(msg)) {
@@ -578,7 +555,7 @@ function handlePomoCompletion() {
 /**
  * Commit work minutes to appData logs and trigger UI updates
  */
-function commitWorkMinutesToDisk(minutes, showAlert = false) {
+function commitWorkMinutesToDisk(minutes) {
     if (minutes <= 0) return 0;
     const realTodayStr = getLocalTodayString();
     const appData = getActiveAppData();
@@ -617,14 +594,6 @@ function commitWorkMinutesToDisk(minutes, showAlert = false) {
         updateDailyScoreSummary();
         updateHeaderTodayScore();
         updateChartAndAnalytics();
-
-        if (showAlert) {
-            const timeStr = formatTimeHM(minutes);
-            alert(`✅ تم حفظ ${timeStr} عمل في مهمة (${PomodoroTimer.taskName || 'المحددة'}) بنجاح!`);
-        }
-    } else if (showAlert) {
-        const timeStr = formatTimeHM(minutes);
-        alert(`✅ تم إكمال ${timeStr} تركيز عام بنجاح! لم يتم ربط الوقت بمهمة معينة.`);
     }
 
     return minutes;
@@ -674,6 +643,7 @@ function savePomoState() {
         isRunning: PomodoroTimer.isRunning,
         totalSeconds: PomodoroTimer.totalSeconds,
         remainingSeconds: PomodoroTimer.remainingSeconds,
+        lastSavedRemainingSeconds: PomodoroTimer.lastSavedRemainingSeconds,
         targetEndTime: PomodoroTimer.targetEndTime,
         taskId: PomodoroTimer.taskId,
         taskName: PomodoroTimer.taskName,
@@ -708,6 +678,9 @@ function loadPomoState() {
         if (s.taskId) PomodoroTimer.taskId = s.taskId;
         if (s.taskName) PomodoroTimer.taskName = s.taskName;
         if (s.mode) PomodoroTimer.mode = s.mode;
+        if (typeof s.lastSavedRemainingSeconds === "number") {
+            PomodoroTimer.lastSavedRemainingSeconds = s.lastSavedRemainingSeconds;
+        }
 
         populatePomoTaskSelect();
         updatePomoTaskHeader();
@@ -720,6 +693,9 @@ function loadPomoState() {
                 PomodoroTimer.targetEndTime = s.targetEndTime;
                 PomodoroTimer.remainingSeconds = Math.ceil((s.targetEndTime - now) / 1000);
                 PomodoroTimer.totalSeconds = s.totalSeconds || (PomodoroTimer.mode === "work" ? PomodoroTimer.workMinutes * 60 : PomodoroTimer.restMinutes * 60);
+                if (typeof PomodoroTimer.lastSavedRemainingSeconds !== "number") {
+                    PomodoroTimer.lastSavedRemainingSeconds = PomodoroTimer.remainingSeconds;
+                }
                 PomodoroTimer.isRunning = true;
 
                 const btnStart = document.getElementById("btn-pomo-start");
@@ -739,6 +715,9 @@ function loadPomoState() {
         } else {
             PomodoroTimer.totalSeconds = s.totalSeconds || (PomodoroTimer.mode === "work" ? PomodoroTimer.workMinutes * 60 : PomodoroTimer.restMinutes * 60);
             PomodoroTimer.remainingSeconds = typeof s.remainingSeconds === "number" ? s.remainingSeconds : PomodoroTimer.totalSeconds;
+            if (typeof PomodoroTimer.lastSavedRemainingSeconds !== "number") {
+                PomodoroTimer.lastSavedRemainingSeconds = PomodoroTimer.remainingSeconds;
+            }
             updatePomoDisplay();
         }
     } catch (e) {
@@ -764,6 +743,5 @@ if (typeof window !== "undefined") {
     window.startPomoTimer = startPomoTimer;
     window.pausePomoTimer = pausePomoTimer;
     window.resetPomoTimer = resetPomoTimer;
-    window.finishPomoSession = finishPomoSession;
     window.setPomoMode = setPomoMode;
 }
