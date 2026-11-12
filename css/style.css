@@ -316,6 +316,12 @@ body {
 .current-date-display {
     position: relative;
     cursor: pointer;
+    border-radius: var(--radius-sm, 8px);
+}
+
+.current-date-display:focus-visible {
+    outline: 2px solid var(--emerald-primary);
+    outline-offset: 4px;
 }
 
 .current-date-display h2 {

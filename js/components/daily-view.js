@@ -10,9 +10,11 @@ function renderDailyView() {
 
     // Update date header
     const dateTitle = document.getElementById("display-date-title");
+    const datePicker = document.getElementById("date-picker-input");
     const hijriPill = document.getElementById("display-hijri-title");
     const hijri = getHijriDateDetails(currentDateStr);
     if (dateTitle) dateTitle.textContent = getArabicDateFormatted(currentDateStr);
+    if (datePicker && datePicker.value !== currentDateStr) datePicker.value = currentDateStr;
     if (hijriPill) {
         let tagsHtml = "";
         if (hijri.isRamadan) tagsHtml += ` <span class="badge badge-emerald" style="font-size:0.75rem;">🌙 رمضان</span>`;

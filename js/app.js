@@ -547,31 +547,84 @@ function setupNavigation() {
 }
 
 async function switchActiveDate(newDate) {
+    if (!newDate || newDate === currentDateStr) return;
     currentDateStr = newDate;
     const datePicker = document.getElementById("date-picker-input");
     if (datePicker) datePicker.value = currentDateStr;
 
+    // 1. Instant optimistic render (0ms response)
+    renderDailyView();
+
+    // 2. Non-blocking cloud fetch in background
     if (window.awradyAPI?.client && (!appData.logs[currentDateStr] || !appData.logs[currentDateStr]._loadedFromDB)) {
+        const targetDate = currentDateStr;
         try {
-            const dayProgress = await window.awradyAPI.getDayProgress(currentDateStr);
+            const dayProgress = await window.awradyAPI.getDayProgress(targetDate);
+            if (!appData.logs) appData.logs = {};
             if (dayProgress) {
-                if (!appData.logs) appData.logs = {};
-                const localLog = appData.logs[currentDateStr];
-                const newLog = localLog
+                const localLog = appData.logs[targetDate];
+                appData.logs[targetDate] = localLog
                     ? mergeDayLog(localLog, dayProgress)
                     : rowToLog(dayProgress);
-                appData.logs[currentDateStr] = newLog;
+            } else {
+                if (!appData.logs[targetDate]) {
+                    appData.logs[targetDate] = { taskProgress: {}, prayerExtras: {}, _loadedFromDB: true };
+                } else {
+                    appData.logs[targetDate]._loadedFromDB = true;
+                }
+            }
+
+            // Re-render only if the user is still viewing this date
+            if (currentDateStr === targetDate) {
+                renderDailyView();
             }
         } catch (_) {}
     }
-    renderDailyView();
 }
 
 function setupDailyControls() {
     const datePicker = document.getElementById("date-picker-input");
+    const dateDisplay = document.getElementById("current-date-display");
+
+    const openDatePicker = () => {
+        if (!datePicker) return;
+        try {
+            if (typeof datePicker.showPicker === "function") {
+                datePicker.showPicker();
+            } else {
+                datePicker.focus();
+            }
+        } catch (_) {
+            datePicker.focus();
+        }
+    };
+
     if (datePicker) {
         datePicker.value = currentDateStr;
-        datePicker.addEventListener("change", (e) => switchActiveDate(e.target.value));
+        datePicker.addEventListener("change", (e) => {
+            if (e.target.value) {
+                switchActiveDate(e.target.value);
+            } else {
+                datePicker.value = currentDateStr;
+            }
+        });
+        datePicker.addEventListener("click", () => {
+            openDatePicker();
+        });
+    }
+
+    if (dateDisplay) {
+        dateDisplay.addEventListener("click", (e) => {
+            if (e.target !== datePicker) {
+                openDatePicker();
+            }
+        });
+        dateDisplay.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                openDatePicker();
+            }
+        });
     }
 
     const btnPrev = document.getElementById("btn-prev-day");
