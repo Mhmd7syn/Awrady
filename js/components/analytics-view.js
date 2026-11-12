@@ -12,13 +12,16 @@ if (typeof window !== "undefined") {
 
 function getRecordedDates() {
     if (!appData || !appData.logs) return [];
+    const todayStr = typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().slice(0, 10);
     return Object.keys(appData.logs).filter(d => {
+        if (d > todayStr) return false;
         const log = appData.logs[d];
         if (!log) return false;
         const hasPositiveAchieved = log.taskProgress && Object.values(log.taskProgress).some(p => (Number(p?.achieved) || 0) > 0);
         const hasScore = (Number(log.total_score) || 0) > 0 || (Number(log.precomputedScore) || 0) > 0;
         const hasDisabled = Boolean(log.taskProgress && Object.values(log.taskProgress).some(p => p?.status === "disabled"));
-        return hasPositiveAchieved || hasScore;
+        const hasPrayerExtras = Boolean(log.prayerExtras && Object.values(log.prayerExtras).some(v => Boolean(v)));
+        return hasPositiveAchieved || hasScore || hasDisabled || hasPrayerExtras;
     }).sort();
 }
 
@@ -28,6 +31,24 @@ function getSelectedDates() {
     const daysLimit = parseInt(chartTimeRange, 10);
     if (isNaN(daysLimit) || daysLimit <= 0) return allDates;
     return allDates.slice(-daysLimit);
+}
+
+function calculateScoreForDates(dates) {
+    if (!dates || dates.length === 0) return { avgPercent: 0, count: 0 };
+    const todayStr = typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().slice(0, 10);
+    let sumScores = 0;
+    let count = 0;
+    dates.forEach(d => {
+        const score = ScoringEngine.calculateDayScore(d, appData, false);
+        // Exclude in-progress ongoing day with 0 score so it does not pull down the average
+        if (d === todayStr && score <= 0) {
+            return;
+        }
+        sumScores += score;
+        count++;
+    });
+    if (count === 0) return { avgPercent: 0, count: 0 };
+    return { avgPercent: Math.round((sumScores / count) * 100), count };
 }
 
 function updateAnalyticsHeroMetrics(selectedDates = null) {
@@ -56,13 +77,7 @@ function updateAnalyticsHeroMetrics(selectedDates = null) {
         return;
     }
 
-    let sumScores = 0;
-    activeDates.forEach(d => {
-        sumScores += ScoringEngine.calculateDayScore(d, appData, false);
-    });
-
-    const averageScore = sumScores / activeDates.length;
-    const avgPercent = Math.round(averageScore * 100);
+    const { avgPercent } = calculateScoreForDates(activeDates);
 
     if (elAnalyticsVal) elAnalyticsVal.textContent = `${avgPercent}%`;
 
@@ -90,14 +105,7 @@ function renderAllTimeStats() {
         if (elHeaderScore) elHeaderScore.textContent = "0%";
         if (elHeaderDays) elHeaderDays.textContent = "0";
     } else {
-        let sumScores = 0;
-        allDates.forEach(d => {
-            sumScores += ScoringEngine.calculateDayScore(d, appData, false);
-        });
-
-        const averageScore = sumScores / allDates.length;
-        const avgPercent = Math.round(averageScore * 100);
-
+        const { avgPercent } = calculateScoreForDates(allDates);
         if (elHeaderScore) elHeaderScore.textContent = `${avgPercent}%`;
         if (elHeaderDays) elHeaderDays.textContent = allDates.length.toString();
     }
@@ -264,6 +272,9 @@ function updateChartAndAnalytics() {
         initChart();
     }
     const selectedDates = getSelectedDates();
+
+    // Ensure header all-time score and commitment days stay synchronized
+    renderAllTimeStats();
 
     // Synchronize hero metric card (percentage, title, subtitle) with selected period
     updateAnalyticsHeroMetrics(selectedDates);

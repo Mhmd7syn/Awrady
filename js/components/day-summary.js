@@ -100,4 +100,8 @@ function updateHeaderTodayScore() {
     const scorePct = Math.round(score * 100);
     const headerEl = document.getElementById("header-today-score");
     if (headerEl) headerEl.textContent = `${scorePct}%`;
+
+    if (typeof renderAllTimeStats === "function") {
+        renderAllTimeStats();
+    }
 }
