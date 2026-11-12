@@ -200,6 +200,11 @@ function renderDailyView() {
                 
                 const iconHtml = getCategoryIconHtml(task);
                 const bonusBadge = isBonus ? `<span class="tag-badge" style="font-size:0.7rem; background:rgba(245,158,11,0.2); color:#f59e0b; border-color:rgba(245,158,11,0.4);">بونص</span>` : "";
+                const isFastingTask = task.category === "صوم" || (task.schedule || "").includes("WhiteDays") || (task.name && (task.name.includes("صيام") || task.name.includes("صوم")));
+                const curDayAbbrev = getDayOfWeekAbbrev(currentDateStr);
+                const curHijri = getHijriDateDetails(currentDateStr);
+                const isCoincidence = isFastingTask && (task.schedule || "").includes("WhiteDays") && (curDayAbbrev === "Mon" || curDayAbbrev === "Thu") && curHijri.isWhiteDay && !curHijri.isRamadan;
+                const coincidenceBadge = isCoincidence ? `<span class="tag-badge" style="font-size:0.7rem; background:rgba(16,185,129,0.2); color:#10b981; border:1px solid rgba(16,185,129,0.4); margin-right:4px;">اجتماع فضيلتين: ${curDayAbbrev === "Mon" ? "الإثنين" : "الخميس"} والبيض</span>` : "";
                 const rawTarget = task.target || 0;
                 const unit = getTaskUnit(task);
                 const targetDisplay = rawTarget > 0 ? `(${rawTarget} ${unit})` : '';
@@ -210,7 +215,7 @@ function renderDailyView() {
                         <div class="task-title-group" style="cursor:pointer;" data-edit-id="${task.id}" title="انقر لتعديل الورد">
                             <div class="task-icon">${iconHtml}</div>
                             <div>
-                                <h4>${task.name} ${bonusBadge}</h4>
+                                <h4>${task.name} ${bonusBadge}${coincidenceBadge}</h4>
                                 <span class="task-unit-label">${task.category}${task.subcategory ? ' - ' + task.subcategory : ''} ${targetDisplay}</span>
                             </div>
                         </div>
@@ -261,12 +266,17 @@ function renderDailyView() {
                 const progressPct = target > 0 ? Math.min(100, Math.round((val / target) * 100)) : (val > 0 ? 100 : 0);
                 const barColor = overTarget ? "#f59e0b" : "#10b981";
                 const minControlsHtml = renderTaskControls(task, val, { compact: true });
+                const isFastingTask = task.category === "صوم" || (task.schedule || "").includes("WhiteDays") || (task.name && (task.name.includes("صيام") || task.name.includes("صوم")));
+                const curDayAbbrev = getDayOfWeekAbbrev(currentDateStr);
+                const curHijri = getHijriDateDetails(currentDateStr);
+                const isCoincidence = isFastingTask && (task.schedule || "").includes("WhiteDays") && (curDayAbbrev === "Mon" || curDayAbbrev === "Thu") && curHijri.isWhiteDay && !curHijri.isRamadan;
+                const coincidenceBadge = isCoincidence ? `<span class="tag-badge" style="font-size:0.7rem; background:rgba(16,185,129,0.2); color:#10b981; border:1px solid rgba(16,185,129,0.4); margin-right:4px;">اجتماع فضيلتين</span>` : "";
 
                 pill.innerHTML = `
                     <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
                         <div style="display:flex; align-items:center; gap:8px; cursor:pointer;" data-edit-id="${task.id}" title="انقر لتعديل الورد">
                             <span style="color:#10b981;">${iconHtml}</span>
-                            <strong style="color:#fff; font-size:0.9rem;">${task.name}</strong>
+                            <strong style="color:#fff; font-size:0.9rem;">${task.name}</strong> ${coincidenceBadge}
                             <span class="task-target-str" style="font-size:0.8rem; color:#10b981; font-weight:700;">— ${targetStr}</span>
                             <span class="over-target-badge-container">${overTarget ? '<span style="font-size:0.75rem; color:#f59e0b; background:rgba(245,158,11,0.15); padding:2px 6px; border-radius:8px;">⭐ تجاوز الهدف</span>' : ''}</span>
                         </div>

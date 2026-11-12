@@ -57,8 +57,52 @@ class ScheduleEngine {
         const hijriInfo = dateContext?.hijriInfo || getHijriDateDetails(dateStr);
         const dayAbbrev = dateContext?.dayAbbrev || getDayOfWeekAbbrev(dateStr);
 
-        const isFasting = task.category === "صوم" || (task.name && (task.name.includes("صيام") || task.name.includes("صوم")));
-        if (hijriInfo.isRamadan && isFasting) return true;
+        const isFasting = task.category === "صوم" || sched === "WhiteDays" || (task.name && (task.name.includes("صيام") || task.name.includes("صوم")));
+
+        if (isFasting) {
+            // Priority 1: Ramadan — obligatory fasting suppresses all voluntary fasting tasks
+            if (hijriInfo.isRamadan) {
+                const isDedicatedRamadanTask = sched === "Ramadan" || (task.name && task.name.includes("رمضان"));
+                if (isDedicatedRamadanTask) return true;
+
+                // Check if user has a dedicated Ramadan fasting task in their task list
+                const allTasks = appData?.tasks || [];
+                const hasDedicatedRamadan = allTasks.some(t => !t.isArchived && (t.schedule === "Ramadan" || (t.category === "صوم" && t.name && t.name.includes("رمضان"))));
+
+                // If user has a dedicated Ramadan task, voluntary tasks are suppressed
+                if (hasDedicatedRamadan) return false;
+
+                // If no dedicated Ramadan task exists, only the primary default fasting task acts as the Ramadan fast
+                return task.id === "task_fasting" || (!sched.includes("WhiteDays") && sched !== "OneTime");
+            }
+
+            // Priority 2: White Days (13, 14, 15 Hijri outside Ramadan)
+            if (hijriInfo.isWhiteDay) {
+                const isMonThuFasting = sched.includes("Mon") || sched.includes("Thu");
+                if (sched.includes("WhiteDays")) {
+                    const whiteDayVal = val;
+                    const monThuTask = (appData?.tasks || []).find(t => t.id === "task_fasting" || (t.category === "صوم" && ((t.schedule || "").includes("Mon") || (t.schedule || "").includes("Thu"))));
+                    const monThuVal = monThuTask ? (Number(log?.taskProgress?.[monThuTask.id]?.achieved) || 0) : 0;
+                    if (whiteDayVal === 0 && monThuVal > 0) return false;
+                    return true;
+                }
+
+                if (isMonThuFasting) {
+                    const monThuVal = val;
+                    const whiteDayTask = (appData?.tasks || []).find(t => (t.schedule || "").includes("WhiteDays"));
+                    const whiteDayVal = whiteDayTask ? (Number(log?.taskProgress?.[whiteDayTask.id]?.achieved) || 0) : 0;
+                    if (monThuVal > 0 && whiteDayVal === 0) return true;
+                    return false;
+                }
+            }
+
+            // Priority 3: Regular Monday / Thursday voluntary fasting
+            if (sched.includes("WhiteDays")) return false;
+            if (sched === "Ramadan") return false;
+            if (sched === "Everyday" || sched === "" || sched === "Weekdays") return true;
+
+            return sched.includes(dayAbbrev);
+        }
 
         if (sched.includes("WhiteDays")) return hijriInfo.isWhiteDay;
         if (sched === "Everyday" || sched === "" || sched === "Weekdays") return true;
