@@ -2,6 +2,8 @@
   "name": "Awrady - Daily Habits, Wird & Routine Tracker",
   "short_name": "Awrady",
   "description": "لوحة ذكية لمتابعة أوراد العبادات والصلوات وروتين الحياة اليومي مع مؤقت بومودورو ومزامنة سحابية",
+  "id": "./index.html",
+  "scope": "./",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0f172a",

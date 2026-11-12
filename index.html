@@ -17,7 +17,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
     <!-- Supabase JS Client for 24/7 Cloud Sync -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.48.1/dist/umd/supabase.min.js"></script>
-    <link rel="stylesheet" href="css/style.css?v=20261013_7">
+    <link rel="stylesheet" href="css/style.css?v=20261111_06">
     <link rel="icon" type="image/x-icon" href="app-icon.ico">
 
     <!-- PWA & Mobile Web App Meta Tags -->
@@ -85,11 +85,11 @@
                         <span class="stat-label">المستخدم</span>
                         <span class="stat-value" id="header-username-display" style="font-size: 0.82rem; font-weight: 700;">-</span>
                     </div>
-                    <button id="btn-header-logout" title="تسجيل الخروج" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.75rem;">
+                    <button id="btn-header-logout" title="تسجيل الخروج" aria-label="تسجيل الخروج" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.75rem;">
                         <i class="fa-solid fa-arrow-right-from-bracket"></i>
                     </button>
                 </div>
-                <button class="stat-pill glass-card" id="btn-header-quick-lock" title="قفل لوحة التحكم فوراً 🔒" style="cursor: pointer; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;">
+                <button class="stat-pill glass-card" id="btn-header-quick-lock" title="قفل لوحة التحكم فوراً 🔒" aria-label="قفل لوحة التحكم فوراً" style="cursor: pointer; padding: 6px 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;">
                     <i class="fa-solid fa-lock" style="color: #94a3b8; font-size: 0.95rem;"></i>
                 </button>
             </div>
@@ -137,12 +137,12 @@
             <!-- Date Controls and Seasonal Bar -->
             <div class="daily-controls-strip glass-card">
                 <div class="date-navigation">
-                    <button class="btn-icon" id="btn-prev-day" title="اليوم السابق"><i class="fa-solid fa-chevron-right"></i></button>
+                    <button class="btn-icon" id="btn-prev-day" title="اليوم السابق" aria-label="اليوم السابق"><i class="fa-solid fa-chevron-right"></i></button>
                     <div class="current-date-display">
-                        <input type="date" id="date-picker-input">
+                        <input type="date" id="date-picker-input" aria-label="اختر التاريخ">
                         <h2 id="display-date-title">الخميس، 28 يوليو 2026</h2>
                     </div>
-                    <button class="btn-icon" id="btn-next-day" title="اليوم التالي"><i class="fa-solid fa-chevron-left"></i></button>
+                    <button class="btn-icon" id="btn-next-day" title="اليوم التالي" aria-label="اليوم التالي"><i class="fa-solid fa-chevron-left"></i></button>
                     <button class="btn-secondary btn-sm" id="btn-jump-today"><i class="fa-solid fa-calendar-day"></i> اليوم</button>
                 </div>
 
@@ -499,7 +499,7 @@
         <div class="modal-container glass-card">
             <div class="modal-header">
                 <h3 id="modal-task-title"><i class="fa-solid fa-pen-to-square"></i> إضافة ورد أو مهمة مخصصة</h3>
-                <button class="btn-close" id="btn-close-modal"><i class="fa-solid fa-xmark"></i></button>
+                <button class="btn-close" id="btn-close-modal" aria-label="إغلاق النافذة"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
             <form id="form-task-editor" class="modal-form">
@@ -587,7 +587,7 @@
         <div class="modal-container glass-card" style="max-width: 500px;">
             <div class="modal-header">
                 <h3 id="quick-add-modal-title"><i class="fa-solid fa-plus gold-text"></i> إضافة ورد أو مهمة لليوم</h3>
-                <button class="btn-close" id="btn-close-quick-add-modal"><i class="fa-solid fa-xmark"></i></button>
+                <button class="btn-close" id="btn-close-quick-add-modal" aria-label="إغلاق النافذة"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
             <!-- Step 1: Choose existing or new -->
@@ -626,7 +626,7 @@
                     <span style="font-size:0.82rem; color:#f59e0b; font-weight:600;"><i class="fa-solid fa-gift"></i> تُضاف كـ ورد بونص</span>
                 </div>
                 <div style="margin-bottom:10px;">
-                    <input type="text" id="quick-add-search-input" placeholder="🔍 ابحث في المهام..." style="width:100%; box-sizing:border-box; padding:10px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.12); background:rgba(0,0,0,0.3); color:#fff; font-family:inherit; font-size:0.9rem; outline:none;">
+                    <input type="text" id="quick-add-search-input" placeholder="🔍 ابحث في المهام..." aria-label="ابحث في المهام" style="width:100%; box-sizing:border-box; padding:10px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.12); background:rgba(0,0,0,0.3); color:#fff; font-family:inherit; font-size:0.9rem; outline:none;">
                 </div>
                 <div id="quick-add-filter-chips" style="display:flex; gap:6px; margin-bottom:12px; overflow-x:auto;">
                     <button class="qa-chip active" data-filter="all">الكل</button>
@@ -648,7 +648,7 @@
         <div class="modal-container glass-card" style="max-width: 400px; text-align: center;">
             <div class="modal-header">
                 <h3 id="modal-pomodoro-title"><i class="fa-solid fa-clock"></i> مؤقت التركيز (Pomofocus)</h3>
-                <button class="btn-close" id="btn-close-pomodoro"><i class="fa-solid fa-xmark"></i></button>
+                <button class="btn-close" id="btn-close-pomodoro" aria-label="إغلاق مؤقت التركيز"><i class="fa-solid fa-xmark"></i></button>
             </div>
             
             <div class="pomodoro-content" style="padding: 20px 0;">
@@ -695,7 +695,7 @@
         <div class="modal-container glass-card" style="max-width: 440px; padding: 25px;">
             <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <h3 style="margin: 0; font-size: 1.2rem; font-weight: 700; color: #fff;"><i class="fa-solid fa-key" style="color: #a855f7;"></i> إدارة وتغيير رمز المرور</h3>
-                <button class="btn-close" id="btn-close-change-pin" style="background: none; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
+                <button class="btn-close" id="btn-close-change-pin" aria-label="إغلاق نافذة تغيير الرمز" style="background: none; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer;"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="modal-body" style="padding: 10px 0;">
                 <div class="form-group" id="group-current-pin" style="margin-bottom: 14px;">
@@ -746,9 +746,9 @@
                 <button class="pin-key" data-num="7">7</button>
                 <button class="pin-key" data-num="8">8</button>
                 <button class="pin-key" data-num="9">9</button>
-                <button class="pin-key pin-key-util" id="pin-key-clear"><i class="fa-solid fa-trash-can"></i></button>
+                <button class="pin-key pin-key-util" id="pin-key-clear" aria-label="مسح الكل"><i class="fa-solid fa-trash-can"></i></button>
                 <button class="pin-key" data-num="0">0</button>
-                <button class="pin-key pin-key-util" id="pin-key-backspace"><i class="fa-solid fa-delete-left"></i></button>
+                <button class="pin-key pin-key-util" id="pin-key-backspace" aria-label="مسح الرقم الأخير"><i class="fa-solid fa-delete-left"></i></button>
             </div>
 
             <div style="margin-top: 22px; display: flex; align-items: center; justify-content: center; gap: 8px;">
@@ -778,14 +778,14 @@
 
             <form id="auth-form" onsubmit="return false;" style="text-align: right;">
                 <label style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 5px;">اسم المستخدم</label>
-                <input type="text" id="auth-username" class="auth-input-field" placeholder="أدخل اسم المستخدم" required dir="ltr">
+                <input type="text" id="auth-username" class="auth-input-field" placeholder="أدخل اسم المستخدم" required dir="ltr" autocomplete="username">
 
                 <label style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 5px;">كلمة المرور</label>
-                <input type="password" id="auth-password" class="auth-input-field" placeholder="أدخل كلمة المرور" required>
+                <input type="password" id="auth-password" class="auth-input-field" placeholder="أدخل كلمة المرور" required autocomplete="current-password">
 
                 <div id="auth-confirm-container" style="display: none;">
                     <label style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 5px;">تأكيد كلمة المرور</label>
-                    <input type="password" id="auth-confirm-password" class="auth-input-field" placeholder="أعد إدخال كلمة المرور">
+                    <input type="password" id="auth-confirm-password" class="auth-input-field" placeholder="أعد إدخال كلمة المرور" autocomplete="new-password">
                 </div>
 
                 <button type="button" id="btn-auth-submit" class="btn-primary btn-block btn-glow" style="margin-top: 8px; width: 100%; padding: 12px; font-size: 1rem;">
@@ -821,9 +821,9 @@
     <script src="js/components/data-manager.js?v=20261013_10"></script>
     <script src="js/components/auth-manager.js?v=20261013_10"></script>
     <script src="js/components/security-lock.js?v=20261111_05"></script>
-    <script src="js/components/daily-view.js?v=20261111_02"></script>
-    <script src="js/components/day-summary.js?v=20261013_10"></script>
-    <script src="js/app.js?v=20261111_05"></script>
+    <script src="js/components/day-summary.js?v=20261111_06"></script>
+    <script src="js/components/daily-view.js?v=20261111_06"></script>
+    <script src="js/app.js?v=20261111_06"></script>
 
     <!-- PWA Service Worker Registration -->
     <script>

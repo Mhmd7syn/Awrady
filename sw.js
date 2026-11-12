@@ -3,7 +3,7 @@
  * Provides offline caching, lightning-fast app shell loading, and network resilience.
  */
 
-const CACHE_NAME = "awrady-pwa-v33";
+const CACHE_NAME = "awrady-pwa-v34";
 
 const PRECACHE_ASSETS = [
     "./",
@@ -92,10 +92,10 @@ self.addEventListener("fetch", (event) => {
                 }
                 return networkResponse;
             }).catch(() => {
-                return caches.match(event.request).then((cached) => {
+                return caches.match(event.request, { ignoreSearch: true }).then((cached) => {
                     if (cached) return cached;
                     if (event.request.mode === "navigate") {
-                        return caches.match("./index.html");
+                        return caches.match("./index.html", { ignoreSearch: true });
                     }
                 });
             })
@@ -110,7 +110,7 @@ self.addEventListener("fetch", (event) => {
                 return cachedResponse;
             }
             return fetch(event.request).then((networkResponse) => {
-                if (!networkResponse || networkResponse.status !== 200) {
+                if (!networkResponse || (networkResponse.status !== 200 && networkResponse.type !== "opaque")) {
                     return networkResponse;
                 }
                 const responseToCache = networkResponse.clone();
@@ -118,6 +118,8 @@ self.addEventListener("fetch", (event) => {
                     cache.put(event.request, responseToCache).catch(() => {});
                 });
                 return networkResponse;
+            }).catch(() => {
+                return caches.match(event.request, { ignoreSearch: true });
             });
         })
     );

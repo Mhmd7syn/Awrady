@@ -90,7 +90,7 @@ window.logoutApp = function() {
     window.appData = appData;
     const todayEl = document.getElementById("header-today-score");
     if (todayEl) todayEl.textContent = "0%";
-    const container = document.getElementById("daily-tasks-container");
+    const container = document.getElementById("daily-tasks-grid");
     if (container) container.innerHTML = "";
 };
 
