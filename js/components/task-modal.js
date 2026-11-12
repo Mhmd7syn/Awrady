@@ -141,7 +141,7 @@ function saveTaskFromModal() {
         scheduleVal = checkedDays.length > 0 ? checkedDays.join(", ") : "Everyday";
     }
 
-    const parsedTarget = targetStr === "" ? 1 : Math.max(0.5, parseFloat(targetStr) || 1);
+    const parsedTarget = targetStr === "" ? 1 : Math.max(0.25, parseFloat(targetStr) || 1);
     const selectedDate = currentDateStr;
     const otDateInput = document.getElementById("task-onetime-date-input");
     const chosenOneTimeDate = (schedType === "OneTime" && otDateInput?.value) ? otDateInput.value : selectedDate;
