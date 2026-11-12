@@ -58,9 +58,6 @@ window.startApp = async function(username) {
     if (window.awradyAPI) {
         window.awradyAPI.setCurrentUser(username);
     }
-    if (window.securityLock) {
-        window.securityLock.init();
-    }
     await initData();
     if (!window._appControlsBound) {
         setupNavigation();

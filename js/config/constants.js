@@ -5,14 +5,11 @@ var APP_CONSTANTS = {
     STORAGE_KEY: "AWRAD_APP_DATA_V1",
     STORAGE_KEYS: {
         SESSION_USER: "AWRAD_AUTH_USER",
-        PIN_HASH: "AWRAD_PIN_HASH",
-        PIN_SESSION: "AWRAD_AUTH_SESSION",
         POMODORO: "AWRAD_POMO_STATE",
         USERS_DB: "AWRAD_USERS_DB"
     },
     HASH_SALTS: {
-        PASSWORD: "awrady_salt_v1",
-        PIN: "awrady_secure_salt_v1"
+        PASSWORD: "awrady_salt_v1"
     },
     DB: {
         TABLES: {
@@ -70,8 +67,6 @@ var APP_CONSTANTS = {
     LIMITS: {
         USERNAME_MIN: 3,
         PASSWORD_MIN: 4,
-        PIN_MIN: 4,
-        PIN_MAX: 6,
         POMO_WORK_MAX: 180,
         POMO_REST_MAX: 60,
         TIME_STEP_MIN: 15,
