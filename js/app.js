@@ -31,7 +31,6 @@ Object.defineProperty(window, "currentDateStr", {
     set: (v) => { currentDateStr = v; },
     configurable: true
 });
-let chartTimeRange = "all";
 let chartInstance = null;
 let editingTaskId = null;
 

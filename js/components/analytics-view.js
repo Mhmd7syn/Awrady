@@ -185,6 +185,9 @@ function initChart() {
             document.querySelectorAll(".chart-range-buttons .btn-range").forEach(b => b.classList.remove("active"));
             btn.classList.add("active");
             chartTimeRange = btn.getAttribute("data-range");
+            if (typeof window !== "undefined") {
+                window.chartTimeRange = chartTimeRange;
+            }
             updateChartAndAnalytics();
         });
     });
