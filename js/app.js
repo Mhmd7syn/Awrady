@@ -122,6 +122,23 @@ function loadLocalState() {
                             }
                         }
                     }
+                    // Clean up any empty ghost logs from local store
+                    for (const dateStr in appData.logs) {
+                        const log = appData.logs[dateStr];
+                        if (!log) {
+                            delete appData.logs[dateStr];
+                            continue;
+                        }
+                        const hasAchieved = log.taskProgress && Object.values(log.taskProgress).some(p => (Number(p?.achieved) || 0) > 0);
+                        const hasScore = (Number(log.total_score) || 0) > 0 || (Number(log.precomputedScore) || 0) > 0;
+                        const hasDisabled = Boolean(log.taskProgress && Object.values(log.taskProgress).some(p => p?.status === "disabled"));
+                        const hasExtras = Boolean(log.prayerExtras && Object.keys(log.prayerExtras).some(k => k !== "_meta"));
+                        const hasDirty = Boolean(log._dirty || (log._dirtyTasks && Object.keys(log._dirtyTasks).length > 0));
+
+                        if (!hasAchieved && !hasScore && !hasDisabled && !hasExtras && !hasDirty) {
+                            delete appData.logs[dateStr];
+                        }
+                    }
                 }
             }
         }
@@ -190,6 +207,16 @@ async function pushDayToCloud(dateStr) {
     _isSavingDay[dateStr] = true;
 
     try {
+        const hasDirtyTasks = Boolean(log._dirtyTasks && Object.keys(log._dirtyTasks).length > 0);
+        const hasAchieved = Boolean(log.taskProgress && Object.values(log.taskProgress).some(p => (Number(p?.achieved) || 0) > 0));
+        const hasDisabled = Boolean(log.taskProgress && Object.values(log.taskProgress).some(p => p?.status === "disabled"));
+        const hasExtras = Boolean(log.prayerExtras && Object.keys(log.prayerExtras).some(k => k !== "_meta"));
+
+        if (!hasDirtyTasks && !hasAchieved && !hasDisabled && !hasExtras) {
+            log._dirty = false;
+            return;
+        }
+
         const saveStartTime = Date.now();
         const snapshottedDirtyTasks = { ...(log._dirtyTasks || {}) };
 
@@ -435,15 +462,22 @@ function loadDefaultAppData() {
     });
 }
 
-function saveData(immediate = false) {
-    const curDate = currentDateStr;
-    if (!appData.logs) appData.logs = {};
-    if (!appData.logs[curDate]) appData.logs[curDate] = { taskProgress: {} };
-    if (!appData.logs[curDate].taskProgress) appData.logs[curDate].taskProgress = {};
+function saveData(immediate = false, targetDate = null) {
+    const curDate = targetDate || currentDateStr;
+    const log = appData.logs?.[curDate];
+    const hasActivity = Boolean(
+        log && (
+            (log._dirtyTasks && Object.keys(log._dirtyTasks).length > 0) ||
+            (log.taskProgress && Object.values(log.taskProgress).some(p => (Number(p?.achieved) || 0) > 0 || p?.status === "disabled")) ||
+            (log.prayerExtras && Object.keys(log.prayerExtras).some(k => k !== "_meta"))
+        )
+    );
 
-    appData.logs[curDate]._dirty = true;
-    delete appData.logs[curDate].precomputedScore;
-    delete appData.logs[curDate].totalHours;
+    if (hasActivity) {
+        log._dirty = true;
+        delete log.precomputedScore;
+        delete log.totalHours;
+    }
 
     // 1. Offline resilient local backup
     try {
@@ -454,7 +488,7 @@ function saveData(immediate = false) {
     } catch (_) {}
 
     // 2. Direct database persistence via AwradyAPI
-    if (window.awradyAPI?.client) {
+    if (window.awradyAPI?.client && hasActivity) {
         const executeDbSave = () => {
             pushDayToCloud(curDate);
         };

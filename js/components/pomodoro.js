@@ -610,7 +610,7 @@ function commitWorkMinutesToDisk(minutes, showAlert = false) {
         ScoringEngine.invalidateScoreCache(realTodayStr, appData);
 
         // Persist data immediately
-        saveData(true);
+        saveData(true, realTodayStr);
 
         // Update daily view & scores immediately
         renderDailyView();
