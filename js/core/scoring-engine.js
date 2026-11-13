@@ -66,6 +66,7 @@ class ScoringEngine {
         let reqWeightedScore = 0.0;
         let reqTotalWeight = 0.0;
         let bonusWeightedScore = 0.0;
+        let bonusTotalWeight = 0.0;
 
         const dateContext = {
             dayAbbrev: getDayOfWeekAbbrev(dateStr),
@@ -83,15 +84,31 @@ class ScoringEngine {
 
             if (isScheduled || (isBonus && val > 0)) {
                 const isTime = isTimeTask(task);
-                const rawTarget = (typeof getTaskDayTarget === "function")
-                    ? getTaskDayTarget(task, dateStr)
-                    : ((task.target && task.target > 0) ? task.target : 1);
+                let rawTarget = 1;
+
+                if (isBonus) {
+                    let bonusTarget = (task.target && Number(task.target) > 0) ? Number(task.target) : 0;
+                    if (bonusTarget <= 0 && task.dailyTargets) {
+                        const pos = Object.values(task.dailyTargets).map(Number).filter(v => v > 0);
+                        if (pos.length > 0) bonusTarget = pos[0];
+                    }
+                    rawTarget = bonusTarget > 0 ? bonusTarget : 1;
+                } else {
+                    const schedTarget = (typeof getTaskDayTarget === "function")
+                        ? getTaskDayTarget(task, dateStr)
+                        : ((task.target && task.target > 0) ? task.target : 1);
+                    rawTarget = schedTarget > 0 ? schedTarget : ((task.target && task.target > 0) ? task.target : 1);
+                }
+
                 const normTarget = isTime ? rawTarget * 60 : rawTarget;
                 const taskRatio = normTarget > 0 ? (val / normTarget) : 0;
                 const weight = ScoringEngine.getTaskWeightMinutes(task, rawTarget);
 
                 if (isBonus) {
-                    if (val > 0) bonusWeightedScore += taskRatio * weight;
+                    if (val > 0) {
+                        bonusWeightedScore += taskRatio * weight;
+                        bonusTotalWeight += weight;
+                    }
                 } else {
                     reqWeightedScore += taskRatio * weight;
                     reqTotalWeight += weight;
@@ -100,7 +117,7 @@ class ScoringEngine {
         });
 
         const calculatedScore = reqTotalWeight === 0
-            ? (bonusWeightedScore > 0 ? 1.0 : (Number(log.total_score ?? log.precomputedScore) || 0))
+            ? (bonusTotalWeight > 0 ? (bonusWeightedScore / bonusTotalWeight) : (Number(log.total_score ?? log.precomputedScore) || 0))
             : (reqWeightedScore + bonusWeightedScore) / reqTotalWeight;
         const calculatedHours = (reqWeightedScore + bonusWeightedScore) / 60;
 

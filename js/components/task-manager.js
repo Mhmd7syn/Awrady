@@ -364,6 +364,9 @@ function addBonusTaskToDate(taskId, dateStr) {
     if (!appData.logs[dateStr]._dirtyTasks) appData.logs[dateStr]._dirtyTasks = {};
     appData.logs[dateStr]._dirtyTasks[taskId] = Date.now();
     appData.logs[dateStr]._dirty = true;
+    if (typeof ScoringEngine !== "undefined") {
+        ScoringEngine.invalidateScoreCache(dateStr, appData);
+    }
     saveData();
     renderDailyView();
     updateDailyScoreSummary();
