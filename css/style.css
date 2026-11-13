@@ -1485,7 +1485,8 @@ body {
     transform: translateY(-1px);
 }
 
-.task-card.is-bonus-card {
+.task-card.is-bonus-card,
+.task-item-minimal.is-bonus-card {
     border-color: rgba(245, 158, 11, 0.35);
     background: linear-gradient(145deg, rgba(15, 23, 42, 0.8), rgba(245, 158, 11, 0.05));
 }
@@ -1597,6 +1598,11 @@ body {
 .task-item-minimal:hover {
     background: rgba(255, 255, 255, 0.06);
     border-color: rgba(255, 255, 255, 0.15);
+}
+
+.task-item-minimal.is-bonus-card:hover {
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.5);
 }
 
 /* Quick Add 2-Step Modal Styles */

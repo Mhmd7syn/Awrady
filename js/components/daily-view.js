@@ -201,7 +201,7 @@ function renderDailyView() {
                 card.setAttribute("data-task-id", task.id);
                 
                 const iconHtml = getCategoryIconHtml(task);
-                const bonusBadge = isBonus ? `<span class="tag-badge" style="font-size:0.7rem; background:rgba(245,158,11,0.2); color:#f59e0b; border-color:rgba(245,158,11,0.4);">بونص</span>` : "";
+                const bonusBadge = isBonus ? `<span class="tag-badge" style="font-size:0.7rem; background:rgba(245,158,11,0.2); color:#f59e0b; border:1px solid rgba(245,158,11,0.4);">بونص</span>` : "";
                 const isFastingTask = task.category === "صوم" || (task.schedule || "").includes("WhiteDays") || (task.name && (task.name.includes("صيام") || task.name.includes("صوم")));
                 const curDayAbbrev = getDayOfWeekAbbrev(currentDateStr);
                 const curHijri = getHijriDateDetails(currentDateStr);
@@ -249,12 +249,19 @@ function renderDailyView() {
 
             completedInCat.forEach(({ task, val, target }) => {
                 const pill = document.createElement("div");
-                pill.className = "task-item-minimal glass-card";
+                const tp = log?.taskProgress?.[task.id];
+                const isBonus = (tp && typeof tp === "object" && tp.status !== undefined)
+                    ? tp.status === "bonus"
+                    : (typeof ScheduleEngine !== "undefined"
+                        ? ScheduleEngine.isBonusTaskForDate(task, currentDateStr, appData, val)
+                        : Boolean(task.isBonus));
+
+                pill.className = `task-item-minimal glass-card ${isBonus ? 'is-bonus-card' : ''}`;
                 pill.setAttribute("data-task-id", task.id);
-                pill.style.cssText = "display:flex; flex-direction:column; padding:10px 14px; margin-bottom:8px; border-radius:10px; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); gap:6px;";
+                pill.style.cssText = `display:flex; flex-direction:column; padding:10px 14px; margin-bottom:8px; border-radius:10px; background:${isBonus ? 'rgba(245,158,11,0.08)' : 'rgba(16,185,129,0.08)'}; border:1px solid ${isBonus ? 'rgba(245,158,11,0.35)' : 'rgba(16,185,129,0.25)'}; gap:6px;`;
                 
                 const iconHtml = getCategoryIconHtml(task);
-                const overTarget = target > 0 && val > target;
+                const overTarget = !isBonus && target > 0 && val > target;
                 const rawTarget = task.target || 0;
                 const isTime = isTimeTask(task);
                 const isPrayer = isPrayerSelector(task);
@@ -263,23 +270,24 @@ function renderDailyView() {
                 if (isPrayer) {
                     targetStr = val === APP_CONSTANTS.PRAYER_VALUES.CONGREGATION ? "جماعة (100%)" : "منفرد (50%)";
                 } else {
-                    targetStr = rawTarget > 0 ? `${val}/${target} ${unitLabel}` : `${val}`;
+                    targetStr = (!isBonus && target > 0) ? `${val}/${target} ${unitLabel}` : `${val} ${unitLabel}`.trim();
                 }
                 const progressPct = target > 0 ? Math.min(100, Math.round((val / target) * 100)) : (val > 0 ? 100 : 0);
-                const barColor = overTarget ? "#f59e0b" : "#10b981";
+                const barColor = (isBonus || overTarget) ? "#f59e0b" : "#10b981";
                 const minControlsHtml = renderTaskControls(task, val, { compact: true });
                 const isFastingTask = task.category === "صوم" || (task.schedule || "").includes("WhiteDays") || (task.name && (task.name.includes("صيام") || task.name.includes("صوم")));
                 const curDayAbbrev = getDayOfWeekAbbrev(currentDateStr);
                 const curHijri = getHijriDateDetails(currentDateStr);
                 const isCoincidence = isFastingTask && (task.schedule || "").includes("WhiteDays") && (curDayAbbrev === "Mon" || curDayAbbrev === "Thu") && curHijri.isWhiteDay && !curHijri.isRamadan;
                 const coincidenceBadge = isCoincidence ? `<span class="tag-badge" style="font-size:0.7rem; background:rgba(16,185,129,0.2); color:#10b981; border:1px solid rgba(16,185,129,0.4); margin-right:4px;">اجتماع فضيلتين</span>` : "";
+                const bonusBadge = isBonus ? `<span class="tag-badge" style="font-size:0.7rem; background:rgba(245,158,11,0.2); color:#f59e0b; border:1px solid rgba(245,158,11,0.4); margin-right:4px;">بونص</span>` : "";
 
                 pill.innerHTML = `
                     <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
                         <div style="display:flex; align-items:center; gap:8px; cursor:pointer;" data-edit-id="${task.id}" title="انقر لتعديل الورد">
-                            <span style="color:#10b981;">${iconHtml}</span>
-                            <strong style="color:#fff; font-size:0.9rem;">${task.name}</strong> ${coincidenceBadge}
-                            <span class="task-target-str" style="font-size:0.8rem; color:#10b981; font-weight:700;">— ${targetStr}</span>
+                            <span style="color:${isBonus ? '#f59e0b' : '#10b981'};">${iconHtml}</span>
+                            <strong style="color:#fff; font-size:0.9rem;">${task.name}</strong> ${bonusBadge}${coincidenceBadge}
+                            <span class="task-target-str" style="font-size:0.8rem; color:${isBonus ? '#f59e0b' : '#10b981'}; font-weight:700;">— ${targetStr}</span>
                             <span class="over-target-badge-container">${overTarget ? '<span style="font-size:0.75rem; color:#f59e0b; background:rgba(245,158,11,0.15); padding:2px 6px; border-radius:8px;">⭐ تجاوز الهدف</span>' : ''}</span>
                         </div>
                         ${minControlsHtml}
@@ -613,8 +621,12 @@ function updateTaskCardInPlace(taskId, val, task = null) {
     const curDate = currentDateStr;
     const target = getTaskNormalizedTarget(task, curDate);
     const progressPct = target > 0 ? Math.min(100, Math.round((val / target) * 100)) : (val > 0 ? 100 : 0);
-    const overTarget = target > 0 && val > target;
-    const barColor = overTarget ? "#f59e0b" : "#10b981";
+    const log = (appData && appData.logs) ? appData.logs[curDate] : null;
+    const tp = log?.taskProgress?.[taskId];
+    const isBonus = card.classList.contains("is-bonus-card")
+        || (tp && typeof tp === "object" && tp.status !== undefined ? tp.status === "bonus" : (typeof ScheduleEngine !== "undefined" ? ScheduleEngine.isBonusTaskForDate(task, curDate, appData, val) : Boolean(task.isBonus)));
+    const overTarget = !isBonus && target > 0 && val > target;
+    const barColor = (isBonus || overTarget) ? "#f59e0b" : "#10b981";
 
     // 1. Update progress bar fill
     const progressBar = card.querySelector(".task-progress-bar-fill");
@@ -660,7 +672,7 @@ function updateTaskCardInPlace(taskId, val, task = null) {
         if (isPrayer) {
             targetStr = val === APP_CONSTANTS.PRAYER_VALUES.CONGREGATION ? "جماعة (100%)" : "منفرد (50%)";
         } else {
-            targetStr = rawTarget > 0 ? `${val}/${target} ${unitLabel}` : `${val}`;
+            targetStr = (!isBonus && target > 0) ? `${val}/${target} ${unitLabel}` : `${val} ${unitLabel}`.trim();
         }
         targetStrEl.textContent = `— ${targetStr}`;
     }

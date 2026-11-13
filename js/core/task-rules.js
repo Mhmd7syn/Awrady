@@ -213,6 +213,9 @@ function getTaskActionBtn(task, compact = false) {
 
 function renderTaskControls(task, val, { compact = false } = {}) {
     const actionBtn = getTaskActionBtn(task, compact);
+    const isBonus = (typeof ScheduleEngine !== "undefined" && typeof currentDateStr !== "undefined")
+        ? ScheduleEngine.isBonusTaskForDate(task, currentDateStr, typeof appData !== "undefined" ? appData : null)
+        : Boolean(task?.isBonus);
 
     if (isPrayerSelector(task)) {
         const pVals = APP_CONSTANTS.PRAYER_VALUES;
@@ -233,17 +236,20 @@ function renderTaskControls(task, val, { compact = false } = {}) {
         const minutes = val % 60;
 
         if (compact) {
+            const timeColor = isBonus ? "#f59e0b" : "#10b981";
+            const timeBorder = isBonus ? "rgba(245,158,11,0.35)" : "rgba(16,185,129,0.3)";
+            const pomoBg = isBonus ? "rgba(245,158,11,0.12)" : "rgba(16,185,129,0.12)";
             return `
                 <div class="task-controls" data-id="${task.id}" style="display:flex; align-items:center; gap:6px;">
-                    <div style="display:flex; align-items:center; background:rgba(0,0,0,0.3); border:1px solid rgba(16,185,129,0.3); border-radius:6px; padding:1px 4px;">
-                        <input type="number" class="input-time-hours" data-id="${task.id}" value="${hours}" min="0" max="24" style="width:28px; background:transparent; border:none; color:#10b981; font-weight:700; font-size:0.8rem; text-align:center;">
-                        <span style="font-size:0.7rem; color:#10b981;">س</span>
+                    <div style="display:flex; align-items:center; background:rgba(0,0,0,0.3); border:1px solid ${timeBorder}; border-radius:6px; padding:1px 4px;">
+                        <input type="number" class="input-time-hours" data-id="${task.id}" value="${hours}" min="0" max="24" style="width:28px; background:transparent; border:none; color:${timeColor}; font-weight:700; font-size:0.8rem; text-align:center;">
+                        <span style="font-size:0.7rem; color:${timeColor};">س</span>
                     </div>
-                    <div style="display:flex; align-items:center; background:rgba(0,0,0,0.3); border:1px solid rgba(16,185,129,0.3); border-radius:6px; padding:1px 4px;">
-                        <input type="number" class="input-time-minutes" data-id="${task.id}" value="${minutes}" min="0" max="59" step="5" style="width:28px; background:transparent; border:none; color:#10b981; font-weight:700; font-size:0.8rem; text-align:center;">
-                        <span style="font-size:0.7rem; color:#10b981;">د</span>
+                    <div style="display:flex; align-items:center; background:rgba(0,0,0,0.3); border:1px solid ${timeBorder}; border-radius:6px; padding:1px 4px;">
+                        <input type="number" class="input-time-minutes" data-id="${task.id}" value="${minutes}" min="0" max="59" step="5" style="width:28px; background:transparent; border:none; color:${timeColor}; font-weight:700; font-size:0.8rem; text-align:center;">
+                        <span style="font-size:0.7rem; color:${timeColor};">د</span>
                     </div>
-                    <button class="btn-step btn-pomo-trigger" data-id="${task.id}" data-name="${task.name}" style="padding:2px 6px; font-size:0.75rem; color:#10b981; border:1px solid rgba(16,185,129,0.3); background:rgba(16,185,129,0.12);" title="بدء مؤقت التركيز لهذه المهمة"><i class="fa-solid fa-stopwatch"></i></button>
+                    <button class="btn-step btn-pomo-trigger" data-id="${task.id}" data-name="${task.name}" style="padding:2px 6px; font-size:0.75rem; color:${timeColor}; border:1px solid ${timeBorder}; background:${pomoBg};" title="بدء مؤقت التركيز لهذه المهمة"><i class="fa-solid fa-stopwatch"></i></button>
                     <button class="btn-step btn-step-time" data-id="${task.id}" data-time-delta="15" style="padding:2px 6px; font-size:0.75rem;" title="زيادة 15 دقيقة كبونص">+15د</button>
                     <button class="btn-step btn-step-time" data-id="${task.id}" data-time-delta="-15" style="padding:2px 6px; font-size:0.75rem;" title="إنقاص 15 دقيقة">-15د</button>
                     ${actionBtn}
