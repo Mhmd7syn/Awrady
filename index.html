@@ -17,7 +17,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
     <!-- Supabase JS Client for 24/7 Cloud Sync -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.48.1/dist/umd/supabase.min.js"></script>
-    <link rel="stylesheet" href="css/style.css?v=20261112_05">
+    <link rel="stylesheet" href="css/style.css?v=20261113_04">
     <link rel="icon" type="image/x-icon" href="app-icon.ico">
 
     <!-- PWA & Mobile Web App Meta Tags -->
@@ -108,9 +108,6 @@
             </button>
             <button id="btn-open-header-pomo" style="display:flex; align-items:center; gap:6px; padding:8px 14px; border-radius:12px; background:rgba(16,185,129,0.12); color:#10b981; border:1px dashed rgba(16,185,129,0.5); font-family:inherit; font-weight:600; cursor:pointer; transition:all 0.2s ease;">
                 <i class="fa-solid fa-stopwatch"></i> <span>مؤقت التركيز</span>
-            </button>
-            <button id="btn-open-weekly-calc" style="display:flex; align-items:center; gap:6px; padding:8px 14px; border-radius:12px; background:rgba(245,158,11,0.12); color:#f59e0b; border:1px dashed rgba(245,158,11,0.5); font-family:inherit; font-weight:600; cursor:pointer; transition:all 0.2s ease;">
-                <i class="fa-solid fa-calendar-week"></i> <span>عرض الجدول الأسبوعي</span>
             </button>
         </nav>
     </header>
@@ -287,7 +284,10 @@
                         <i class="fa-solid fa-tags blue-text" style="color:#3b82f6;"></i> التصنيفات (<span id="count-categories">0</span>)
                     </button>
                 </div>
-                <div class="toolbar-buttons-group">
+                <div class="toolbar-buttons-group" style="display: flex; gap: 10px; align-items: center;">
+                    <button class="btn-secondary" id="btn-manager-weekly-schedule" style="display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:12px; font-weight:600; cursor:pointer;" title="عرض وتعديل جدول الساعات الأسبوعي">
+                        <i class="fa-solid fa-table-cells gold-text"></i> <span>الجدول الأسبوعي</span>
+                    </button>
                     <button class="btn-primary btn-glow" id="btn-open-add-task-modal">
                         <i class="fa-solid fa-plus"></i> مهمة جديدة
                     </button>
@@ -487,12 +487,12 @@
                 </div>
 
                 <div class="form-row">
-                    <div class="form-group half-width">
-                        <label for="task-target-input">الحد الأدنى اليومي المستهدف (Min_Count)</label>
+                    <div class="form-group half-width" id="task-target-group">
+                        <label for="task-target-input">الحد الأدنى المستهدف</label>
                         <input type="number" step="0.25" id="task-target-input" placeholder="17 ركعة، 15 دقيقة، 4 صفحات" min="0.25">
-                        <small class="hint-text">اترك الحقل فارغاً إذا كان مرتبطاً بمهمة أخرى (مثل صلاة فرض المنزل).</small>
+                        <small class="hint-text">الهدف المستهدف لهذا الورد.</small>
                     </div>
-                    <div class="form-group half-width">
+                    <div class="form-group half-width" id="task-subcategory-group">
                         <label for="task-subcategory-input">التصنيف الفرعي</label>
                         <select id="task-subcategory-input">
                             <option value="">-- لا يوجد --</option>
@@ -506,11 +506,7 @@
                     <div class="schedule-options-radio">
                         <label class="radio-card">
                             <input type="radio" name="schedule_type" value="Everyday" checked>
-                            <span><i class="fa-solid fa-repeat"></i> يومياً (Everyday)</span>
-                        </label>
-                        <label class="radio-card">
-                            <input type="radio" name="schedule_type" value="Weekdays">
-                            <span><i class="fa-solid fa-calendar-days"></i> أيام محددة بالأسبوع</span>
+                            <span><i class="fa-solid fa-repeat"></i> يومي (Daily)</span>
                         </label>
                         <label class="radio-card">
                             <input type="radio" name="schedule_type" value="WhiteDays">
@@ -526,14 +522,88 @@
                         </label>
                     </div>
 
-                    <div id="weekdays-selector-box" class="weekdays-selector hidden">
-                        <label class="weekday-check"><input type="checkbox" value="Sat"><span>السبت (Sat)</span></label>
-                        <label class="weekday-check"><input type="checkbox" value="Sun"><span>الأحد (Sun)</span></label>
-                        <label class="weekday-check"><input type="checkbox" value="Mon"><span>الإثنين (Mon)</span></label>
-                        <label class="weekday-check"><input type="checkbox" value="Tue"><span>الثلاثاء (Tue)</span></label>
-                        <label class="weekday-check"><input type="checkbox" value="Wed"><span>الأربعاء (Wed)</span></label>
-                        <label class="weekday-check"><input type="checkbox" value="Thu"><span>الخميس (Thu)</span></label>
-                        <label class="weekday-check"><input type="checkbox" value="Fri"><span>الجمعة (Fri)</span></label>
+                    <!-- Daily targets container (for Daily: uses daily targets dictionary) -->
+                    <div id="daily-targets-box" class="daily-targets-section">
+                        <div class="daily-targets-header" id="btn-toggle-daily-targets">
+                            <div class="daily-targets-header-left">
+                                <span class="collapse-icon"><i class="fa-solid fa-chevron-down"></i></span>
+                                <span class="daily-targets-title">
+                                    <i class="fa-solid fa-calendar-week gold-text"></i> أهداف أيام الأسبوع (Daily Targets)
+                                </span>
+                                <span class="daily-targets-badge" id="daily-targets-active-badge">7 / 7 أيام نشطة</span>
+                            </div>
+                            <div class="daily-targets-header-actions">
+                                <label class="daily-check-all-label">
+                                    <input type="checkbox" id="chk-daily-targets-all" checked>
+                                    <span>تحديد الكل</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="daily-targets-list" id="daily-targets-list">
+                            <div class="daily-target-row" data-day="Sat">
+                                <label class="daily-target-check">
+                                    <input type="checkbox" class="chk-day-active" data-day="Sat" checked>
+                                    <span class="day-label-text">السبت</span>
+                                </label>
+                                <div class="daily-target-input-wrap">
+                                    <input type="number" step="any" min="0" class="input-day-target" data-day="Sat" placeholder="الهدف">
+                                </div>
+                            </div>
+                            <div class="daily-target-row" data-day="Sun">
+                                <label class="daily-target-check">
+                                    <input type="checkbox" class="chk-day-active" data-day="Sun" checked>
+                                    <span class="day-label-text">الأحد</span>
+                                </label>
+                                <div class="daily-target-input-wrap">
+                                    <input type="number" step="any" min="0" class="input-day-target" data-day="Sun" placeholder="الهدف">
+                                </div>
+                            </div>
+                            <div class="daily-target-row" data-day="Mon">
+                                <label class="daily-target-check">
+                                    <input type="checkbox" class="chk-day-active" data-day="Mon" checked>
+                                    <span class="day-label-text">الإثنين</span>
+                                </label>
+                                <div class="daily-target-input-wrap">
+                                    <input type="number" step="any" min="0" class="input-day-target" data-day="Mon" placeholder="الهدف">
+                                </div>
+                            </div>
+                            <div class="daily-target-row" data-day="Tue">
+                                <label class="daily-target-check">
+                                    <input type="checkbox" class="chk-day-active" data-day="Tue" checked>
+                                    <span class="day-label-text">الثلاثاء</span>
+                                </label>
+                                <div class="daily-target-input-wrap">
+                                    <input type="number" step="any" min="0" class="input-day-target" data-day="Tue" placeholder="الهدف">
+                                </div>
+                            </div>
+                            <div class="daily-target-row" data-day="Wed">
+                                <label class="daily-target-check">
+                                    <input type="checkbox" class="chk-day-active" data-day="Wed" checked>
+                                    <span class="day-label-text">الأربعاء</span>
+                                </label>
+                                <div class="daily-target-input-wrap">
+                                    <input type="number" step="any" min="0" class="input-day-target" data-day="Wed" placeholder="الهدف">
+                                </div>
+                            </div>
+                            <div class="daily-target-row" data-day="Thu">
+                                <label class="daily-target-check">
+                                    <input type="checkbox" class="chk-day-active" data-day="Thu" checked>
+                                    <span class="day-label-text">الخميس</span>
+                                </label>
+                                <div class="daily-target-input-wrap">
+                                    <input type="number" step="any" min="0" class="input-day-target" data-day="Thu" placeholder="الهدف">
+                                </div>
+                            </div>
+                            <div class="daily-target-row" data-day="Fri">
+                                <label class="daily-target-check">
+                                    <input type="checkbox" class="chk-day-active" data-day="Fri" checked>
+                                    <span class="day-label-text">الجمعة</span>
+                                </label>
+                                <div class="daily-target-input-wrap">
+                                    <input type="number" step="any" min="0" class="input-day-target" data-day="Fri" placeholder="الهدف">
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div id="onetime-date-selector-box" class="form-group hidden" style="margin-top: 12px; background: rgba(245, 158, 11, 0.08); padding: 12px 14px; border-radius: 10px; border: 1px dashed rgba(245, 158, 11, 0.35);">
@@ -654,6 +724,63 @@
         </div>
     </div>
 
+    <!-- WEEKLY SCHEDULE MATRIX MODAL -->
+    <div id="weekly-hours-modal" class="modal-overlay hidden">
+        <div class="modal-container glass-card weekly-sheet-modal">
+            <div class="modal-header">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-calendar-week gold-text" style="font-size:1.2rem;"></i>
+                    <h3 style="margin:0;">جدول الساعات الأسبوعي (Weekly Schedule Sheet)</h3>
+                </div>
+                <button class="btn-close" id="btn-close-weekly-modal" aria-label="إغلاق الجدول الأسبوعي"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="modal-body weekly-sheet-body">
+                <!-- Filter Controls & Options -->
+                <div class="weekly-toolbar-filters">
+                    <div class="weekly-filter-item">
+                        <label for="chk-weekly-exclude-daily" class="weekly-toggle-label">
+                            <input type="checkbox" id="chk-weekly-exclude-daily">
+                            <span>استثناء المهام اليومية (Everyday)</span>
+                        </label>
+                    </div>
+                    <div class="weekly-filter-item">
+                        <div class="weekly-combobox-wrapper" id="weekly-category-combobox">
+                            <label style="font-size:0.85rem; color:#cbd5e1; margin-left:6px;">التصنيف:</label>
+                            <div class="weekly-combobox-anchor">
+                                <button type="button" class="weekly-combobox-btn" id="btn-weekly-cat-toggle" aria-expanded="false" aria-haspopup="true">
+                                    <span id="weekly-cat-btn-text">كل التصنيفات (All)</span>
+                                    <i class="fa-solid fa-chevron-down weekly-combobox-arrow"></i>
+                                </button>
+                                <div class="weekly-combobox-dropdown hidden" id="weekly-cat-dropdown">
+                                    <label class="weekly-combobox-option weekly-check-all-option">
+                                        <input type="checkbox" id="chk-weekly-cat-all" checked>
+                                        <span><strong>تحديد الكل (Check All)</strong></span>
+                                    </label>
+                                    <div class="weekly-combobox-divider"></div>
+                                    <div class="weekly-combobox-options" id="weekly-cat-options-list">
+                                        <!-- Dynamic category checkboxes -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-right:auto; display:flex; align-items:center; gap:10px;">
+                        <span id="weekly-save-feedback" class="weekly-feedback-text"></span>
+                        <button id="btn-weekly-save" class="btn-primary btn-glow btn-sm" style="display:flex; align-items:center; gap:6px; padding:6px 14px; font-size:0.88rem; cursor:pointer;">
+                            <i class="fa-solid fa-floppy-disk"></i> <span>حفظ وإعادة تحميل</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Interactive Matrix Sheet Container -->
+                <div class="weekly-sheet-container" id="weekly-sheet-table-container">
+                    <!-- Populated dynamically by weekly-modal.js -->
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- FULLSCREEN AUTHENTICATION GATEWAY (LOGIN / REGISTER) -->
     <div id="auth-overlay" class="auth-overlay">
         <div class="auth-card glass-card">
@@ -699,17 +826,17 @@
     <!-- Scripts -->
     <script src="js/config/constants.js?v=20261112_05"></script>
     <script src="js/config/default-data.js?v=20261013_10"></script>
-    <script src="js/api.js?v=20261111_05"></script>
+    <script src="js/api.js?v=20261113_01"></script>
     <script src="js/utils/date-utils.js?v=20261013_10"></script>
-    <script src="js/core/schedule-engine.js?v=20261112_01"></script>
-    <script src="js/core/scoring-engine.js?v=20261111_05"></script>
-    <script src="js/core/task-rules.js?v=20261111_02"></script>
+    <script src="js/core/schedule-engine.js?v=20261113_01"></script>
+    <script src="js/core/scoring-engine.js?v=20261113_01"></script>
+    <script src="js/core/task-rules.js?v=20261113_04"></script>
     <script src="js/components/pomodoro.js?v=20261112_03"></script>
     <script src="js/components/pomodoro-alerts.js?v=20261013_10"></script>
     <script src="js/components/nawafel-toast.js?v=20261113_01"></script>
-    <script src="js/components/weekly-modal.js?v=20261111_05"></script>
-    <script src="js/components/task-manager.js?v=20261111_05"></script>
-    <script src="js/components/task-modal.js?v=20261111_05"></script>
+    <script src="js/components/weekly-modal.js?v=20261113_04"></script>
+    <script src="js/components/task-manager.js?v=20261113_01"></script>
+    <script src="js/components/task-modal.js?v=20261113_07"></script>
     <script src="js/components/quick-add-modal.js?v=20261111_05"></script>
     <script src="js/components/category-manager.js?v=20261013_10"></script>
     <script src="js/components/analytics-view.js?v=20261113_01"></script>
@@ -717,8 +844,8 @@
     <script src="js/components/data-manager.js?v=20261112_05"></script>
     <script src="js/components/auth-manager.js?v=20261013_10"></script>
     <script src="js/components/day-summary.js?v=20261113_01"></script>
-    <script src="js/components/daily-view.js?v=20261113_01"></script>
-    <script src="js/app.js?v=20261113_01"></script>
+    <script src="js/components/daily-view.js?v=20261113_02"></script>
+    <script src="js/app.js?v=20261113_02"></script>
 
     <!-- PWA Service Worker Registration -->
     <script>

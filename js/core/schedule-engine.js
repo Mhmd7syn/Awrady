@@ -104,6 +104,12 @@ class ScheduleEngine {
             return sched.includes(dayAbbrev);
         }
 
+        if (typeof isEverydayOrSpecificDaysSchedule === "function" && isEverydayOrSpecificDaysSchedule(sched)) {
+            if (task.dailyTargets && task.dailyTargets[dayAbbrev] !== undefined) {
+                return Number(task.dailyTargets[dayAbbrev]) > 0;
+            }
+        }
+
         if (sched.includes("WhiteDays")) return hijriInfo.isWhiteDay;
         if (sched === "Everyday" || sched === "" || sched === "Weekdays") return true;
         if (sched === "Ramadan") return hijriInfo.isRamadan;

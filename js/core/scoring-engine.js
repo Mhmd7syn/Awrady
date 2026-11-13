@@ -7,11 +7,15 @@ class ScoringEngine {
     /**
      * Returns the time weight (in minutes) for a task used in weighted-average scoring
      * @param {Object} task 
+     * @param {number|null} [customTarget=null] Optional target override (e.g. daily target)
      * @returns {number} Weight in minutes
      */
-    static getTaskWeightMinutes(task) {
+    static getTaskWeightMinutes(task, customTarget = null) {
         if (!task) return 1;
-        const targetVal = (task.target && task.target > 0) ? task.target : 1;
+        const targetVal = customTarget !== null 
+            ? Number(customTarget) || 0 
+            : ((task.target && task.target > 0) ? task.target : 1);
+        if (targetVal <= 0) return 0;
 
         if (isTimeTask(task)) {
             return 60 * targetVal;
@@ -79,11 +83,12 @@ class ScoringEngine {
 
             if (isScheduled || (isBonus && val > 0)) {
                 const isTime = isTimeTask(task);
-                const rawTarget = (task.target && task.target > 0) ? task.target : 1;
-                const baseNormTarget = isTime ? rawTarget * 60 : rawTarget;
-                const normTarget = (!isBonus && tp && Number(tp.target) > 0) ? Number(tp.target) : baseNormTarget;
+                const rawTarget = (typeof getTaskDayTarget === "function")
+                    ? getTaskDayTarget(task, dateStr)
+                    : ((task.target && task.target > 0) ? task.target : 1);
+                const normTarget = isTime ? rawTarget * 60 : rawTarget;
                 const taskRatio = normTarget > 0 ? (val / normTarget) : 0;
-                const weight = ScoringEngine.getTaskWeightMinutes(task);
+                const weight = ScoringEngine.getTaskWeightMinutes(task, rawTarget);
 
                 if (isBonus) {
                     if (val > 0) bonusWeightedScore += taskRatio * weight;

@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS public.tasks (
     subcategory VARCHAR(100),
     target NUMERIC DEFAULT 1,
     schedule VARCHAR(100) DEFAULT 'Everyday',
+    daily_targets JSONB DEFAULT '{}'::jsonb NOT NULL,
     is_archived BOOLEAN DEFAULT FALSE,
     total_achieved NUMERIC DEFAULT 0 NOT NULL,
     total_hours NUMERIC DEFAULT 0 NOT NULL,
@@ -50,9 +51,9 @@ CREATE TABLE IF NOT EXISTS public.daily_progress (
     PRIMARY KEY (username, date)
 );
 
--- Ensure updated_at exists if tables were already created
+-- Ensure new columns exist if tables were already created
 ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL;
-ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS one_time_date DATE;
+ALTER TABLE public.tasks ADD COLUMN IF NOT EXISTS daily_targets JSONB DEFAULT '{}'::jsonb NOT NULL;
 ALTER TABLE public.daily_progress ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL;
 ALTER TABLE public.daily_progress ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL;
 

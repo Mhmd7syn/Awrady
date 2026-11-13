@@ -101,7 +101,8 @@ class AwradyAPI {
             totalHours: Number(r.total_hours) || 0,
             totalScore: Number(r.total_score) || 0,
             createdAt: r.created_at,
-            oneTimeDate: r.one_time_date || (r.schedule === "OneTime" ? (r.created_at ? r.created_at.slice(0, 10) : null) : null)
+            oneTimeDate: r.one_time_date || (r.schedule === "OneTime" ? (r.created_at ? r.created_at.slice(0, 10) : null) : null),
+            dailyTargets: r.daily_targets || null
         }));
     }
 
@@ -126,6 +127,9 @@ class AwradyAPI {
         if (otDate) {
             row.one_time_date = otDate;
         }
+        if (task.dailyTargets && typeof task.dailyTargets === "object") {
+            row.daily_targets = task.dailyTargets;
+        }
         return row;
     }
 
@@ -133,7 +137,14 @@ class AwradyAPI {
         if (!this.client) throw new Error("Supabase client not initialized");
         const tblTasks = APP_CONSTANTS.DB.TABLES.TASKS;
         const row = this._taskToRow(task);
-        const { data, error } = await this.client.from(tblTasks).upsert(row, { onConflict: "username, task_id" }).select();
+        let { data, error } = await this.client.from(tblTasks).upsert(row, { onConflict: "username, task_id" }).select();
+        if (error && error.message && (error.message.includes("daily_targets") || error.message.includes("column"))) {
+            const fallbackRow = { ...row };
+            delete fallbackRow.daily_targets;
+            const res = await this.client.from(tblTasks).upsert(fallbackRow, { onConflict: "username, task_id" }).select();
+            if (res.error) throw res.error;
+            return res.data?.[0] || null;
+        }
         if (error) throw error;
         return data?.[0] || null;
     }
@@ -143,7 +154,17 @@ class AwradyAPI {
         if (!Array.isArray(tasks) || tasks.length === 0) return [];
         const tblTasks = APP_CONSTANTS.DB.TABLES.TASKS;
         const rows = tasks.map(t => this._taskToRow(t));
-        const { data, error } = await this.client.from(tblTasks).upsert(rows, { onConflict: "username, task_id" }).select();
+        let { data, error } = await this.client.from(tblTasks).upsert(rows, { onConflict: "username, task_id" }).select();
+        if (error && error.message && (error.message.includes("daily_targets") || error.message.includes("column"))) {
+            const fallbackRows = rows.map(r => {
+                const copy = { ...r };
+                delete copy.daily_targets;
+                return copy;
+            });
+            const res = await this.client.from(tblTasks).upsert(fallbackRows, { onConflict: "username, task_id" }).select();
+            if (res.error) throw res.error;
+            return res.data || [];
+        }
         if (error) throw error;
         return data || [];
     }

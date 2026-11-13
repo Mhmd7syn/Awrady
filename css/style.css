@@ -1807,3 +1807,475 @@ body {
     border: 1px solid rgba(16, 185, 129, 0.35);
     color: #86efac;
 }
+
+/* ============================================================================
+ * WEEKLY SCHEDULE MATRIX / SPREADSHEET VIEW
+ * ============================================================================ */
+.weekly-sheet-modal {
+    max-width: 1050px !important;
+    width: 95vw;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    padding: 20px 24px;
+}
+
+.weekly-sheet-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 10px 0 0 0;
+    overflow: hidden;
+}
+
+.weekly-toolbar-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    background: rgba(15, 23, 42, 0.6);
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.weekly-filter-item {
+    display: flex;
+    align-items: center;
+}
+
+.weekly-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 0.88rem;
+    color: #e2e8f0;
+    user-select: none;
+}
+
+.weekly-toggle-label input[type="checkbox"] {
+    cursor: pointer;
+    accent-color: #10b981;
+    width: 16px;
+    height: 16px;
+}
+
+.weekly-combobox-wrapper {
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+.weekly-combobox-anchor {
+    position: relative;
+}
+
+.weekly-combobox-btn {
+    background: rgba(15, 23, 42, 0.95);
+    color: #f8fafc;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.weekly-combobox-btn:hover,
+.weekly-combobox-btn.active {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.12);
+}
+
+.weekly-combobox-arrow {
+    font-size: 0.75rem;
+    transition: transform 0.2s ease;
+}
+
+.weekly-combobox-btn.active .weekly-combobox-arrow {
+    transform: rotate(180deg);
+}
+
+.weekly-combobox-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    min-width: 210px;
+    max-height: 250px;
+    overflow-y: auto;
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+    z-index: 100;
+    padding: 6px 0;
+}
+
+.weekly-combobox-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: #e2e8f0;
+    user-select: none;
+    transition: background 0.15s ease;
+}
+
+.weekly-combobox-option:hover {
+    background: rgba(16, 185, 129, 0.15);
+    color: #fff;
+}
+
+.weekly-combobox-option input[type="checkbox"] {
+    cursor: pointer;
+    accent-color: #10b981;
+    width: 15px;
+    height: 15px;
+    margin: 0;
+}
+
+.weekly-combobox-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 4px 0;
+}
+
+.weekly-sheet-container {
+    overflow: auto;
+    max-height: 58vh;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(10, 15, 29, 0.7);
+}
+
+.weekly-matrix-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.88rem;
+    text-align: center;
+}
+
+.weekly-matrix-table th,
+.weekly-matrix-table td {
+    padding: 8px 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.weekly-matrix-table th {
+    background: rgba(15, 23, 42, 0.98);
+    color: #cbd5e1;
+    font-weight: 700;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    white-space: nowrap;
+}
+
+.weekly-matrix-table th.today-col {
+    color: #10b981;
+    border-bottom: 2px solid #10b981;
+}
+
+.weekly-matrix-table .col-task {
+    position: sticky;
+    right: 0;
+    background: rgba(15, 23, 42, 0.98);
+    z-index: 4;
+    text-align: right;
+    min-width: 140px;
+    max-width: 200px;
+    padding-right: 12px;
+}
+
+.weekly-matrix-table th.col-task {
+    z-index: 7;
+}
+
+.weekly-matrix-table .col-cat {
+    min-width: 85px;
+    white-space: nowrap;
+}
+
+.weekly-matrix-table .col-total {
+    background: rgba(16, 185, 129, 0.06);
+    font-weight: 700;
+    color: #10b981;
+    min-width: 85px;
+}
+
+.weekly-matrix-table .col-percent {
+    background: rgba(245, 158, 11, 0.06);
+    font-weight: 700;
+    color: #f59e0b;
+    min-width: 75px;
+}
+
+.weekly-matrix-table tr.summary-row td {
+    background: rgba(16, 185, 129, 0.14) !important;
+    font-weight: 800;
+    color: #f8fafc;
+    border-top: 2px solid #10b981;
+    position: sticky;
+    bottom: 0;
+    z-index: 6;
+}
+
+.weekly-matrix-table tr.summary-row td.col-task {
+    z-index: 8;
+}
+
+.weekly-sheet-cell-input {
+    width: 52px;
+    max-width: 100%;
+    text-align: center;
+    padding: 5px 3px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 0.88rem;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.weekly-sheet-cell-input:focus {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.15);
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+}
+
+.weekly-sheet-cell-input.modified {
+    border-color: #f59e0b;
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+}
+
+.weekly-sheet-cell-input.zero-val {
+    opacity: 0.4;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.weekly-sheet-cell-input.zero-val:focus {
+    opacity: 1;
+}
+
+.weekly-feedback-text {
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: opacity 0.3s ease;
+}
+
+/* ============================================================================
+ * TASK MODAL - DAILY TARGETS VERTICAL COLLAPSIBLE LIST
+ * ============================================================================ */
+.daily-targets-section {
+    margin-top: 14px;
+    background: rgba(15, 23, 42, 0.6);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    overflow: hidden;
+    transition: border-color 0.2s ease;
+}
+
+.daily-targets-section:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.daily-targets-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.03);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s ease;
+}
+
+.daily-targets-header:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.daily-targets-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.daily-targets-header-left .collapse-icon {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    transition: transform 0.25s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+}
+
+.daily-targets-section.collapsed .collapse-icon {
+    transform: rotate(90deg);
+}
+
+.daily-targets-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #e2e8f0;
+}
+
+.daily-targets-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    transition: all 0.2s ease;
+}
+
+.daily-targets-header-actions {
+    display: flex;
+    align-items: center;
+}
+
+.daily-check-all-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #cbd5e1;
+    cursor: pointer;
+    user-select: none;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.2s ease;
+}
+
+.daily-check-all-label:hover {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.35);
+    color: #fff;
+}
+
+.daily-check-all-label input[type="checkbox"] {
+    accent-color: #10b981;
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+    margin: 0;
+}
+
+.daily-targets-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 14px 12px;
+    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease, padding 0.3s ease;
+    max-height: 550px;
+    opacity: 1;
+    overflow: hidden;
+}
+
+.daily-targets-section.collapsed .daily-targets-list {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.daily-target-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 12px;
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.daily-target-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.daily-target-row.disabled {
+    opacity: 0.4;
+    background: rgba(0, 0, 0, 0.2);
+    border-color: rgba(255, 255, 255, 0.03);
+}
+
+.daily-target-row:focus-within {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.08);
+}
+
+.daily-target-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #e2e8f0;
+    cursor: pointer;
+    user-select: none;
+    margin: 0;
+}
+
+.daily-target-check input[type="checkbox"] {
+    accent-color: #10b981;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    margin: 0;
+}
+
+.daily-target-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.daily-target-input-wrap .input-day-target {
+    width: 90px;
+    text-align: center;
+    padding: 5px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(15, 23, 42, 0.85);
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.daily-target-input-wrap .input-day-target:focus {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.15);
+}
+
+.daily-target-input-wrap .input-day-target:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    background: rgba(0, 0, 0, 0.3);
+}

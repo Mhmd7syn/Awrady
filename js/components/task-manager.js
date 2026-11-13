@@ -33,6 +33,16 @@ function setupTaskManager() {
         });
     });
 
+    // Weekly schedule sheet modal from manager toolbar
+    const btnWeeklySheet = document.getElementById("btn-manager-weekly-schedule");
+    if (btnWeeklySheet) {
+        btnWeeklySheet.addEventListener("click", () => {
+            if (typeof showWeeklyHoursModal === "function") {
+                showWeeklyHoursModal();
+            }
+        });
+    }
+
     // Add task modal
     const openAddBtn = document.getElementById("btn-open-add-task-modal");
     if (openAddBtn) {
@@ -54,25 +64,8 @@ function setupTaskManager() {
     
     document.querySelectorAll('input[name="schedule_type"]').forEach(radio => {
         radio.addEventListener("change", (e) => {
-            const box = document.getElementById("weekdays-selector-box");
-            const otBox = document.getElementById("onetime-date-selector-box");
-            if (box) {
-                if (e.target.value === "Weekdays") {
-                    box.classList.remove("hidden");
-                } else {
-                    box.classList.add("hidden");
-                }
-            }
-            if (otBox) {
-                if (e.target.value === "OneTime") {
-                    otBox.classList.remove("hidden");
-                    const otDateInput = document.getElementById("task-onetime-date-input");
-                    if (otDateInput && !otDateInput.value) {
-                        otDateInput.value = currentDateStr;
-                    }
-                } else {
-                    otBox.classList.add("hidden");
-                }
+            if (typeof updateTaskModalScheduleUI === "function") {
+                updateTaskModalScheduleUI(e.target.value);
             }
         });
     });
@@ -199,7 +192,11 @@ function createTaskRowElement(task, isArchived) {
     }
 
     const displayType = isPrayerSelector(task) ? 'صلاة فريضة' : getTaskUnit(task);
-    const targetText = task.target ? `🎯 الهدف: ${task.target} ${displayType}` : `🏷️ وحدة: ${displayType}`;
+    const hasDailyTargets = Boolean(task.dailyTargets && Object.keys(task.dailyTargets).length > 0);
+    const uniqueTargets = hasDailyTargets ? Array.from(new Set(Object.values(task.dailyTargets).map(Number))) : [];
+    const targetText = hasDailyTargets && uniqueTargets.length > 1
+        ? `🎯 الهدف: مخصص أسبوعياً (${displayType})`
+        : (task.target ? `🎯 الهدف: ${task.target} ${displayType}` : `🏷️ وحدة: ${displayType}`);
 
     const catBadgeText = task.subcategory ? `${task.category} - ${task.subcategory}` : (task.category || 'عام');
     const otBadge = isOt ? `<span class="badge" style="font-size:0.75rem; background:rgba(245,158,11,0.18); color:#f59e0b; border:1px solid rgba(245,158,11,0.35);"><i class="fa-solid fa-bolt"></i> لمرة واحدة</span>` : '';

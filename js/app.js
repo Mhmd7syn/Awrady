@@ -32,7 +32,6 @@ Object.defineProperty(window, "currentDateStr", {
     configurable: true
 });
 let chartInstance = null;
-let editingTaskId = null;
 
 function getUserStorageKey() {
     const u = (window.awradyAPI?.currentUser || (window.authManager && window.authManager.getCurrentUser()) || APP_CONSTANTS.GUEST_USER).toLowerCase();
@@ -244,7 +243,7 @@ async function pushDayToCloud(dateStr) {
                 const status = isDisabled ? "disabled" : ((isExplicitBonus || (!isScheduled && val > 0)) ? "bonus" : "scheduled");
                 const normTarget = (status === "bonus" || status === "disabled")
                     ? 0
-                    : ((existing && Number(existing.target) > 0) ? Number(existing.target) : getTaskNormalizedTarget(t, dateStr));
+                    : getTaskNormalizedTarget(t, dateStr);
 
                 const { hours: _h, score: _s, ...cleanExisting } = existing || {};
                 taskProgress[t.id] = {
@@ -351,6 +350,24 @@ async function initData() {
             const allProgress = results[1].status === "fulfilled" ? results[1].value : null;
 
             if (tasks && tasks.length > 0) {
+                // Preserve local dailyTargets if server didn't return them (e.g. column not yet in remote DB)
+                const localDailyMap = {};
+                (appData.tasks || []).forEach(t => {
+                    if (t.dailyTargets && Object.keys(t.dailyTargets).length > 0) {
+                        localDailyMap[t.id] = t.dailyTargets;
+                    }
+                });
+                try {
+                    const backupMap = JSON.parse(localStorage.getItem("awrady_tasks_daily_targets") || "{}");
+                    Object.assign(localDailyMap, backupMap);
+                } catch (_) {}
+
+                tasks.forEach(t => {
+                    if ((!t.dailyTargets || Object.keys(t.dailyTargets).length === 0) && localDailyMap[t.id]) {
+                        t.dailyTargets = localDailyMap[t.id];
+                    }
+                });
+
                 const serverTaskIds = new Set(tasks.map(t => t.id));
                 const localNewTasks = (appData.tasks || []).filter(t => !serverTaskIds.has(t.id));
                 appData.tasks = [...tasks, ...localNewTasks];
@@ -414,6 +431,9 @@ async function initData() {
                             totalHours: Number(row.total_hours) || 0,
                             totalScore: Number(row.total_score) || 0
                         };
+                        if (row.daily_targets) {
+                            fields.dailyTargets = row.daily_targets;
+                        }
                         const task = appData.tasks.find(t => t.id === row.task_id);
                         if (task) {
                             Object.assign(task, fields);
@@ -532,13 +552,6 @@ function setupNavigation() {
     if (btnHeaderPomo) {
         btnHeaderPomo.addEventListener("click", () => {
             openPomodoroModal();
-        });
-    }
-
-    const btnHeaderWeekly = document.getElementById("btn-open-weekly-calc");
-    if (btnHeaderWeekly) {
-        btnHeaderWeekly.addEventListener("click", () => {
-            showWeeklyHoursModal(true);
         });
     }
 }

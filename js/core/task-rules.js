@@ -34,6 +34,68 @@ function isTimeTask(task) {
 }
 
 /**
+ * Checks if a task schedule is 'Everyday' or 'specific days' (recurring weekly weekdays).
+ * Returns false for 'OneTime', 'WhiteDays', 'Ramadan', or other special schedules.
+ * @param {string} schedule
+ * @returns {boolean}
+ */
+function isEverydayOrSpecificDaysSchedule(schedule) {
+    if (!schedule) return true;
+    const s = schedule.trim();
+    if (s === "Everyday" || s === "Daily" || s === "Weekdays" || s === "") return true;
+    if (s === "OneTime" || s === "WhiteDays" || s === "Ramadan") return false;
+    return ["Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri"].some(d => s.includes(d));
+}
+
+/**
+ * Focuses positively on whether a task is an active daily scheduled task.
+ * @param {Object} task
+ * @returns {boolean}
+ */
+function isDailyScheduledTask(task) {
+    if (!task || task.isArchived) return false;
+    return isEverydayOrSpecificDaysSchedule(task.schedule);
+}
+
+/**
+ * Resolves the effective target for a task on a specific day or date.
+ * If the schedule is Everyday or specific days, it uses the dailyTargets dictionary.
+ * Else (OneTime, WhiteDays, Ramadan, etc.), it uses the scalar task.target column.
+ * @param {Object} task
+ * @param {string} dayOrDateKey Day abbreviation (e.g. "Sat") or Date string ("YYYY-MM-DD")
+ * @returns {number} Target units
+ */
+function getTaskDayTarget(task, dayOrDateKey = null) {
+    if (!task) return 0;
+    const sched = task.schedule || "Everyday";
+
+    // If schedule is Everyday or specific days, use dailyTargets dictionary
+    if (isEverydayOrSpecificDaysSchedule(sched)) {
+        const dayKey = (dayOrDateKey && dayOrDateKey.length > 3)
+            ? (typeof getDayOfWeekAbbrev === "function" ? getDayOfWeekAbbrev(dayOrDateKey) : "")
+            : (dayOrDateKey || "");
+
+        if (dayKey && task.dailyTargets && task.dailyTargets[dayKey] !== undefined) {
+            return Math.round((Number(task.dailyTargets[dayKey]) || 0) * 100) / 100;
+        }
+
+        let isScheduled = false;
+        const s = sched.trim();
+        if (s === "Everyday" || s === "" || s === "Weekdays") {
+            isScheduled = true;
+        } else if (dayKey) {
+            isScheduled = s.includes(dayKey);
+        } else {
+            isScheduled = true;
+        }
+        return isScheduled ? Math.round((Number(task.target) || 1) * 100) / 100 : 0;
+    }
+
+    // Else (OneTime, WhiteDays, Ramadan, etc.) -> use scalar task.target column
+    return Math.round((Number(task.target) || 1) * 100) / 100;
+}
+
+/**
  * Returns normalized target in comparable units (minutes for time tasks, raw count otherwise)
  * @param {Object} task
  * @param {string|null} [dateStr=null]
@@ -41,19 +103,20 @@ function isTimeTask(task) {
  */
 function getTaskNormalizedTarget(task, dateStr = null) {
     if (!task) return 0;
-    if (dateStr && typeof window !== "undefined" && window.appData?.logs?.[dateStr]) {
-        const log = window.appData.logs[dateStr];
-        const tp = log.taskProgress?.[task.id];
-        if (tp && typeof tp === "object") {
-            if (tp.status === "bonus" || tp.status === "disabled") return 0;
-            const savedTarget = Number(tp.target);
-            if (!isNaN(savedTarget) && savedTarget > 0) return savedTarget;
-        }
-    }
     if (dateStr && typeof ScheduleEngine !== "undefined" && ScheduleEngine.isBonusTaskForDate(task, dateStr)) {
         return 0;
     }
-    const target = task.target || 0;
+
+    const sched = task.schedule || "Everyday";
+    let target = 0;
+
+    if (isEverydayOrSpecificDaysSchedule(sched)) {
+        target = dateStr ? getTaskDayTarget(task, dateStr) : (Number(task.target) || 1);
+    } else {
+        // Else: use scalar task.target column
+        target = Number(task.target) || 1;
+    }
+
     if (isTimeTask(task)) {
         return target * 60;
     }
@@ -386,4 +449,6 @@ if (typeof window !== "undefined") {
     window.rowToLog = rowToLog;
     window.renderTaskControls = renderTaskControls;
     window.getCategoryIconHtml = getCategoryIconHtml;
+    window.isEverydayOrSpecificDaysSchedule = isEverydayOrSpecificDaysSchedule;
+    window.isDailyScheduledTask = isDailyScheduledTask;
 }

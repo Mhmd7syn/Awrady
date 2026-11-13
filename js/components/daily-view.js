@@ -207,7 +207,7 @@ function renderDailyView() {
                 const curHijri = getHijriDateDetails(currentDateStr);
                 const isCoincidence = isFastingTask && (task.schedule || "").includes("WhiteDays") && (curDayAbbrev === "Mon" || curDayAbbrev === "Thu") && curHijri.isWhiteDay && !curHijri.isRamadan;
                 const coincidenceBadge = isCoincidence ? `<span class="tag-badge" style="font-size:0.7rem; background:rgba(16,185,129,0.2); color:#10b981; border:1px solid rgba(16,185,129,0.4); margin-right:4px;">اجتماع فضيلتين: ${curDayAbbrev === "Mon" ? "الإثنين" : "الخميس"} والبيض</span>` : "";
-                const rawTarget = task.target || 0;
+                const rawTarget = typeof getTaskDayTarget === "function" ? getTaskDayTarget(task, currentDateStr) : (task.target || 0);
                 const unit = getTaskUnit(task);
                 const targetDisplay = rawTarget > 0 ? `(${rawTarget} ${unit})` : '';
                 const controlsHtml = renderTaskControls(task, val, { compact: false });
@@ -262,7 +262,7 @@ function renderDailyView() {
                 
                 const iconHtml = getCategoryIconHtml(task);
                 const overTarget = !isBonus && target > 0 && val > target;
-                const rawTarget = task.target || 0;
+                const rawTarget = typeof getTaskDayTarget === "function" ? getTaskDayTarget(task, currentDateStr) : (task.target || 0);
                 const isTime = isTimeTask(task);
                 const isPrayer = isPrayerSelector(task);
                 const unitLabel = isTime ? "دقيقة" : getTaskUnit(task);
@@ -417,9 +417,7 @@ function attachTaskControlListeners(grid) {
         const task = (appData.tasks || []).find(t => t.id === taskId);
         const existingProgress = appData.logs[currentDateStr].taskProgress[taskId];
         const prevTotal = Number(existingProgress?.achieved) || 0;
-        const normTarget = (existingProgress && Number(existingProgress.target) > 0)
-            ? Number(existingProgress.target)
-            : (task ? getTaskNormalizedTarget(task, currentDateStr) : 0);
+        const normTarget = task ? getTaskNormalizedTarget(task, currentDateStr) : 0;
         const status = existingProgress?.status || (task && ScheduleEngine.isTaskScheduledForDate(task, currentDateStr, appData, newTotal) ? "scheduled" : (newTotal > 0 ? "bonus" : "scheduled"));
 
         const { hours: _h, score: _s, ...cleanExisting } = existingProgress || {};
@@ -671,7 +669,7 @@ function updateTaskCardInPlace(taskId, val, task = null) {
     // 5. Update completed minimal card labels if present
     const targetStrEl = card.querySelector(".task-target-str");
     if (targetStrEl) {
-        const rawTarget = task.target || 0;
+        const rawTarget = typeof getTaskDayTarget === "function" ? getTaskDayTarget(task, curDate) : (task.target || 0);
         const isTime = isTimeTask(task);
         const isPrayer = isPrayerSelector(task);
         const unitLabel = isTime ? "دقيقة" : getTaskUnit(task);
@@ -713,9 +711,7 @@ function setTaskVal(taskId, val) {
     const task = (appData.tasks || []).find(t => t.id === taskId);
     const existingProgress = appData.logs[currentDateStr].taskProgress[taskId];
     const prevVal = Number(existingProgress?.achieved) || 0;
-    const normTarget = (existingProgress && Number(existingProgress.target) > 0)
-        ? Number(existingProgress.target)
-        : (task ? getTaskNormalizedTarget(task, currentDateStr) : 0);
+    const normTarget = task ? getTaskNormalizedTarget(task, currentDateStr) : 0;
     const status = existingProgress?.status || (task && ScheduleEngine.isTaskScheduledForDate(task, currentDateStr, appData, val) ? "scheduled" : (val > 0 ? "bonus" : "scheduled"));
 
     const { hours: _h, score: _s, ...cleanExisting } = existingProgress || {};
