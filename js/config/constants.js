@@ -88,7 +88,7 @@ var APP_CONSTANTS = {
             defaultUnit: "ركعة",
             defaultEstimatedMinutes: 5,
             subcategories: [
-                { name: "فرض", defaultUnit: "صلاة", defaultEstimatedMinutes: 15 },
+                { name: "فرض", defaultUnit: "صلاة", defaultEstimatedMinutes: 20 },
                 { name: "نوافل"},
                 { name: "قيام ليل"}
             ]
