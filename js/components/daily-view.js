@@ -371,7 +371,12 @@ function attachTaskControlListeners(grid) {
             const taskId = btn.getAttribute("data-id");
             const valStr = btn.getAttribute("data-prayer-val");
             if (taskId && valStr !== null) {
-                setTaskVal(taskId, parseFloat(valStr));
+                const targetVal = parseFloat(valStr);
+                const curVal = getTaskVal(taskId);
+                setTaskVal(taskId, targetVal);
+                if (targetVal > 0 && curVal === targetVal && isObligatoryPrayerTask(taskId)) {
+                    checkAndShowNawafelPrompt(taskId);
+                }
             }
         });
     });

@@ -13,8 +13,8 @@ function setupNawafelToast() {
     const btnPlus = document.getElementById("btn-nawafel-plus");
     const btnMinus = document.getElementById("btn-nawafel-minus");
     const toggleAzkar = document.getElementById("toggle-azkar-prayer");
-    const btnSave = document.getElementById("btn-nawafel-save");
-    const btnCancel = document.getElementById("btn-nawafel-cancel");
+    const btnClose = document.getElementById("btn-close-nawafel");
+    const overlay = document.getElementById("nawafel-toast-overlay");
 
     const step = APP_CONSTANTS.LIMITS.NAWAFEL_STEP;
     if (btnPlus) {
@@ -22,6 +22,7 @@ function setupNawafelToast() {
             tempNawafelCount += step;
             const counter = document.getElementById("nawafel-counter-val");
             if (counter) counter.textContent = tempNawafelCount;
+            savePrayerExtras(false);
         });
     }
 
@@ -30,17 +31,37 @@ function setupNawafelToast() {
             if (tempNawafelCount >= step) tempNawafelCount -= step;
             const counter = document.getElementById("nawafel-counter-val");
             if (counter) counter.textContent = tempNawafelCount;
+            savePrayerExtras(false);
         });
     }
 
     if (toggleAzkar) {
         toggleAzkar.addEventListener("change", (e) => {
             tempAzkarChecked = e.target.checked;
+            savePrayerExtras(false);
         });
     }
 
-    if (btnSave) btnSave.addEventListener("click", savePrayerExtras);
-    if (btnCancel) btnCancel.addEventListener("click", hideNawafelPrompt);
+    if (btnClose) {
+        btnClose.addEventListener("click", hideNawafelPrompt);
+    }
+
+    if (overlay) {
+        overlay.addEventListener("click", (e) => {
+            if (e.target === overlay) {
+                hideNawafelPrompt();
+            }
+        });
+    }
+
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+            const toast = document.getElementById("nawafel-toast-overlay");
+            if (toast && !toast.classList.contains("hidden")) {
+                hideNawafelPrompt();
+            }
+        }
+    });
 }
 
 function checkAndShowNawafelPrompt(prayerTaskId) {
@@ -78,9 +99,9 @@ function hideNawafelPrompt() {
     if (toast) toast.classList.add("hidden");
 }
 
-function savePrayerExtras() {
+function savePrayerExtras(autoClose = false) {
     try {
-        if (window.appData) {
+        if (window.appData && currentPrayerTaskId) {
             const curDateStr = currentDateStr;
 
             if (!window.appData.logs[curDateStr]) {
@@ -129,7 +150,9 @@ function savePrayerExtras() {
     } catch (err) {
         console.error("Error saving prayer extras:", err);
     } finally {
-        hideNawafelPrompt();
+        if (autoClose) {
+            hideNawafelPrompt();
+        }
     }
 }
 
