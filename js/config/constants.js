@@ -42,6 +42,7 @@ var APP_CONSTANTS = {
         ALONE: 0.5,
         MISSED: 0
     },
+    PRAYER_ORDER: ["الفجر", "الضحى", "الظهر", "العصر", "المغرب", "العشاء", "السنن الرواتب", "الوتر", "قيام ليل"],
     TASK_IDS: {
         FARD: ["task_fajr", "task_dhuhr", "task_asr", "task_maghrib", "task_isha"],
         SUNNAH: "task_sunnah",

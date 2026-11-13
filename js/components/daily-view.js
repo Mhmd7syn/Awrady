@@ -316,6 +316,13 @@ function renderDailyView() {
 
 function renderDisabledSection(grid, disabledTasks) {
     if (!disabledTasks || disabledTasks.length === 0) return;
+    const sortedDisabled = [...disabledTasks].sort((a, b) => {
+        if (a.category === "صلاة" && b.category === "صلاة") {
+            return (typeof getPrayerSortIndex === "function" ? getPrayerSortIndex(a) : 0) - (typeof getPrayerSortIndex === "function" ? getPrayerSortIndex(b) : 0);
+        }
+        return 0;
+    });
+
     const disabledSection = document.createElement("div");
     disabledSection.className = "disabled-tasks-section";
     disabledSection.style.cssText = "grid-column: 1 / -1; margin-top: 20px; width: 100%;";
@@ -324,7 +331,7 @@ function renderDisabledSection(grid, disabledTasks) {
     const disabledGrid = document.createElement("div");
     disabledGrid.style.cssText = "display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px;";
 
-    disabledTasks.forEach(task => {
+    sortedDisabled.forEach(task => {
         const pill = document.createElement("div");
         pill.className = "task-item-minimal glass-card";
         pill.style.cssText = "display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-radius:8px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06);";

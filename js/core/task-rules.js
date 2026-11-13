@@ -108,6 +108,52 @@ function isObligatoryPrayerTask(taskId, appDataRef = null) {
 }
 
 /**
+ * Chronological order of daily prayers
+ */
+const PRAYER_ORDER = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.PRAYER_ORDER)
+    ? APP_CONSTANTS.PRAYER_ORDER
+    : ["الفجر", "الضحى", "الظهر", "العصر", "المغرب", "العشاء", "السنن الرواتب", "الوتر", "قيام ليل"];
+
+/**
+ * Returns a 0-based chronological sort index for a prayer task
+ * @param {Object} task
+ * @returns {number}
+ */
+function getPrayerSortIndex(task) {
+    if (!task) return 999;
+    const name = (task.name || "").trim();
+
+    // 1. Exact match in canonical list
+    const exactIdx = PRAYER_ORDER.indexOf(name);
+    if (exactIdx !== -1) return exactIdx;
+
+    // 2. ID-based matching for standard IDs
+    const id = task.id || "";
+    if (id === "task_fajr") return 0;
+    if (id === "task_duha") return 1;
+    if (id === "task_dhuhr") return 2;
+    if (id === "task_asr") return 3;
+    if (id === "task_maghrib") return 4;
+    if (id === "task_isha") return 5;
+    if (id === "task_sunnah") return 6;
+    if (id === "task_witr") return 7;
+    if (id === "task_qiyam") return 8;
+
+    // 3. Keyword / partial matching
+    if (name.includes("فجر")) return 0;
+    if (name.includes("ضحى")) return 1;
+    if (name.includes("ظهر")) return 2;
+    if (name.includes("عصر")) return 3;
+    if (name.includes("مغرب")) return 4;
+    if (name.includes("عشاء")) return 5;
+    if (name.includes("سنن") || name.includes("رواتب")) return 6;
+    if (name.includes("وتر")) return 7;
+    if (name.includes("قيام") || name.includes("تهجد") || name.includes("تراويح")) return 8;
+
+    return 100;
+}
+
+/**
  * Groups an array of tasks or task items into a Map keyed by category name,
  * with pre-organized subcategory maps and generalTasks.
  * @param {Array} tasks
@@ -154,6 +200,15 @@ function groupTasksByCategory(tasks) {
             group.generalTasks.push(item);
         }
     });
+
+    const prayerGroup = map.get("صلاة");
+    if (prayerGroup) {
+        prayerGroup.tasks.sort((a, b) => getPrayerSortIndex(a.task || a) - getPrayerSortIndex(b.task || b));
+        prayerGroup.subMap.forEach(subList => {
+            subList.sort((a, b) => getPrayerSortIndex(a.task || a) - getPrayerSortIndex(b.task || b));
+        });
+        prayerGroup.generalTasks.sort((a, b) => getPrayerSortIndex(a.task || a) - getPrayerSortIndex(b.task || b));
+    }
 
     return map;
 }
@@ -325,6 +380,8 @@ if (typeof window !== "undefined") {
     window.isTaskCompleted = isTaskCompleted;
     window.isPrayerSelector = isPrayerSelector;
     window.isObligatoryPrayerTask = isObligatoryPrayerTask;
+    window.PRAYER_ORDER = PRAYER_ORDER;
+    window.getPrayerSortIndex = getPrayerSortIndex;
     window.groupTasksByCategory = groupTasksByCategory;
     window.rowToLog = rowToLog;
     window.renderTaskControls = renderTaskControls;
