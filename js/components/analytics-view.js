@@ -192,6 +192,10 @@ function initChart() {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    mode: "index",
+                    intersect: false
+                },
                 onClick: (event, elements, chart) => {
                     if (!elements || !elements.length) return;
                     const datasetIndex = elements[0].datasetIndex ?? 0;
@@ -237,9 +241,11 @@ function initChart() {
                                 const ds = context.dataset;
                                 const rawVal = ds?.rawHours?.[context.dataIndex];
                                 const val = context.parsed.y;
-                                if (rawVal !== undefined && (chartTimeRange === "30" || chartTimeRange === "all") && rawVal !== val) {
+                                if (rawVal !== undefined && chartTimeRange !== "7" && rawVal !== val) {
+                                    const windowDays = ds?.smoothingDays || 7;
+                                    const windowLabel = windowDays <= 10 ? `${windowDays} أيام` : `${windowDays} يوماً`;
                                     return [
-                                        `المعدل السلس (7 أيام): ${val} ساعة`,
+                                        `المعدل السلس (${windowLabel}): ${val} ساعة`,
                                         `إنجاز اليوم الفعلي: ${rawVal} ساعة`
                                     ];
                                 }
@@ -310,6 +316,127 @@ function applyCenteredMovingAverage(data, radius = 3) {
             rawHours: item.hours
         };
     });
+}
+
+/**
+ * Computes per-point radii so that only local minima, local maxima, and series boundaries
+ * display visible markers. Eliminates cluttered continuous dots along slopes on long smoothed series
+ * while keeping all days hoverable and clickable.
+ * @param {number[]} values Array of data values (e.g. smoothed daily hours)
+ * @param {number} [activeRadius=4] Radius for local extrema points
+ * @returns {number[]} Array of radii corresponding to each data point
+ */
+function getExtremaPointRadii(values, activeRadius = 4) {
+    if (!Array.isArray(values) || values.length === 0) return [];
+    const n = values.length;
+    if (n <= 7) {
+        return new Array(n).fill(activeRadius);
+    }
+
+    const radii = new Array(n).fill(0);
+
+    // 1. Group consecutive equal or near-equal values into plateaus
+    const segments = [];
+    let idx = 0;
+    while (idx < n) {
+        const start = idx;
+        const val = values[idx];
+        while (idx + 1 < n && Math.abs(values[idx + 1] - val) < 0.05) {
+            idx++;
+        }
+        const end = idx;
+        const mid = Math.floor((start + end) / 2);
+        segments.push({ start, end, mid, val });
+        idx++;
+    }
+
+    const numSegs = segments.length;
+    const winRadius = n > 60 ? 3 : (n > 25 ? 2 : 1);
+    const candidates = [];
+
+    for (let s = 0; s < numSegs; s++) {
+        const cur = segments[s];
+
+        // Boundary: first point of series
+        if (s === 0) {
+            if (numSegs > 1) {
+                const nextVal = segments[1].val;
+                if (cur.val > nextVal + 0.1) {
+                    candidates.push({ index: cur.start, val: cur.val, type: "MAX" });
+                } else if (cur.val < nextVal - 0.1) {
+                    candidates.push({ index: cur.start, val: cur.val, type: "MIN" });
+                }
+            }
+            continue;
+        }
+
+        // Boundary: last point of series (today)
+        if (s === numSegs - 1) {
+            const prevVal = segments[s - 1].val;
+            if (cur.val > prevVal + 0.1) {
+                candidates.push({ index: cur.end, val: cur.val, type: "MAX" });
+            } else if (cur.val < prevVal - 0.1) {
+                candidates.push({ index: cur.end, val: cur.val, type: "MIN" });
+            }
+            continue;
+        }
+
+        const prevVal = segments[s - 1].val;
+        const nextVal = segments[s + 1].val;
+
+        const isMax = cur.val > prevVal && cur.val > nextVal;
+        const isMin = cur.val < prevVal && cur.val < nextVal;
+
+        if (isMax || isMin) {
+            const winStart = Math.max(0, cur.mid - winRadius);
+            const winEnd = Math.min(n - 1, cur.mid + winRadius);
+
+            let isExtremumInWindow = true;
+            for (let j = winStart; j <= winEnd; j++) {
+                if (isMax && values[j] > cur.val) {
+                    isExtremumInWindow = false;
+                    break;
+                }
+                if (isMin && values[j] < cur.val) {
+                    isExtremumInWindow = false;
+                    break;
+                }
+            }
+
+            if (isExtremumInWindow) {
+                candidates.push({
+                    index: cur.mid,
+                    val: cur.val,
+                    type: isMax ? "MAX" : "MIN"
+                });
+            }
+        }
+    }
+
+    // Post-filter: prevent adjacent clustered points (< 2 indices apart)
+    const filtered = [];
+    for (const cand of candidates) {
+        if (filtered.length === 0) {
+            filtered.push(cand);
+        } else {
+            const last = filtered[filtered.length - 1];
+            if (cand.index - last.index < 2) {
+                if (cand.type === "MAX" && last.type === "MAX") {
+                    if (cand.val > last.val) filtered[filtered.length - 1] = cand;
+                } else if (cand.type === "MIN" && last.type === "MIN") {
+                    if (cand.val < last.val) filtered[filtered.length - 1] = cand;
+                }
+            } else {
+                filtered.push(cand);
+            }
+        }
+    }
+
+    for (const item of filtered) {
+        radii[item.index] = activeRadius;
+    }
+
+    return radii;
 }
 
 /**
@@ -424,9 +551,12 @@ function updateChartAndAnalytics() {
     });
 
     let chartData = fullDataList;
+    let smoothingDays = 0;
 
-    if (chartTimeRange === "30" || chartTimeRange === "all") {
-        chartData = applyCenteredMovingAverage(fullDataList, 3);
+    if (chartTimeRange !== "7") {
+        const dynamicRadius = Math.min(10, Math.max(1, Math.round(fullDataList.length * (1 / 30))));
+        smoothingDays = (dynamicRadius * 2) + 1;
+        chartData = applyCenteredMovingAverage(fullDataList, dynamicRadius);
     }
 
     const labels = chartData.map(item => item.label);
@@ -439,7 +569,9 @@ function updateChartAndAnalytics() {
         chartInstance.data.datasets[0].data = dataPoints;
         chartInstance.data.datasets[0].rawDates = rawDates;
         chartInstance.data.datasets[0].rawHours = rawHours;
-        chartInstance.data.datasets[0].pointRadius = chartData.length > 35 ? (window.innerWidth < 500 ? 0 : 2) : 4;
+        chartInstance.data.datasets[0].smoothingDays = smoothingDays;
+        const activeRadius = (typeof window !== "undefined" && window.innerWidth < 500) ? 3 : 4;
+        chartInstance.data.datasets[0].pointRadius = getExtremaPointRadii(dataPoints, activeRadius);
         chartInstance.data.datasets[0].pointHoverRadius = 7;
         chartInstance.data.datasets[0].pointHitRadius = 10;
         chartInstance.update();
@@ -464,4 +596,5 @@ if (typeof window !== "undefined") {
     window.initChart = initChart;
     window.downsampleLTTB = downsampleLTTB;
     window.applyCenteredMovingAverage = applyCenteredMovingAverage;
+    window.getExtremaPointRadii = getExtremaPointRadii;
 }
