@@ -68,16 +68,8 @@ function checkAndShowNawafelPrompt(prayerTaskId) {
     currentPrayerTaskId = prayerTaskId;
     const curDateStr = currentDateStr;
     
-    if (window.appData && !window.appData.logs[curDateStr]) {
-        window.appData.logs[curDateStr] = { taskProgress: {} };
-    }
-    
-    if (window.appData && !window.appData.logs[curDateStr].prayerExtras) {
-        window.appData.logs[curDateStr].prayerExtras = {};
-    }
-
-    const log = window.appData ? window.appData.logs[curDateStr] : null;
-    const extras = (log && log.prayerExtras && log.prayerExtras[prayerTaskId]) || { nawafel: 0, azkar: false };
+    const log = window.appData?.logs?.[curDateStr] || null;
+    const extras = log?.prayerExtras?.[prayerTaskId] || { nawafel: 0, azkar: false };
     
     tempNawafelCount = extras.nawafel;
     tempAzkarChecked = extras.azkar;
@@ -103,27 +95,31 @@ function savePrayerExtras(autoClose = false) {
     try {
         if (window.appData && currentPrayerTaskId) {
             const curDateStr = currentDateStr;
-
-            if (!window.appData.logs[curDateStr]) {
-                window.appData.logs[curDateStr] = { taskProgress: {} };
-            }
-            if (!window.appData.logs[curDateStr].prayerExtras) {
-                window.appData.logs[curDateStr].prayerExtras = {};
-            }
-
             const prayerId = currentPrayerTaskId;
-            const oldExtras = window.appData.logs[curDateStr].prayerExtras[prayerId] || { nawafel: 0, azkar: false };
+            const curLog = window.appData?.logs?.[curDateStr] || null;
+            const oldExtras = curLog?.prayerExtras?.[prayerId] || { nawafel: 0, azkar: false };
 
             const nawafelDiff = tempNawafelCount - oldExtras.nawafel;
             const azkarDiff = (tempAzkarChecked ? 1 : 0) - (oldExtras.azkar ? 1 : 0);
 
-            window.appData.logs[curDateStr].prayerExtras[prayerId] = {
+            if (nawafelDiff === 0 && azkarDiff === 0 && (!curLog || !curLog.prayerExtras?.[prayerId])) {
+                return;
+            }
+
+            const log = typeof ensureDayRecord === "function"
+                ? ensureDayRecord(curDateStr)
+                : (window.appData.logs[curDateStr] || (window.appData.logs[curDateStr] = { taskProgress: {}, prayerExtras: {} }));
+
+            if (!log.prayerExtras) {
+                log.prayerExtras = {};
+            }
+
+            log.prayerExtras[prayerId] = {
                 nawafel: tempNawafelCount,
                 azkar: tempAzkarChecked
             };
 
-            const curLog = window.appData.logs[curDateStr];
-            curLog._dirty = true;
+            log._dirty = true;
 
             const sunnahId = APP_CONSTANTS.TASK_IDS.SUNNAH;
             const azkarId = APP_CONSTANTS.TASK_IDS.PRAYER_AZKAR;

@@ -407,15 +407,16 @@ function attachTaskControlListeners(grid) {
         const m = Math.max(0, Math.min(59, parseInt(minutesEl ? minutesEl.value : input.value, 10) || 0));
         const newTotal = (h * 60) + m;
 
-        if (!appData.logs[currentDateStr]) appData.logs[currentDateStr] = { taskProgress: {} };
-        if (!appData.logs[currentDateStr].taskProgress) appData.logs[currentDateStr].taskProgress = {};
-        if (!appData.logs[currentDateStr]._dirtyTasks) appData.logs[currentDateStr]._dirtyTasks = {};
-        appData.logs[currentDateStr]._dirtyTasks[taskId] = Date.now();
-        appData.logs[currentDateStr]._dirty = true;
+        const log = typeof ensureDayRecord === "function"
+            ? ensureDayRecord(currentDateStr)
+            : (appData.logs[currentDateStr] || (appData.logs[currentDateStr] = { taskProgress: {} }));
+        if (!log._dirtyTasks) log._dirtyTasks = {};
+        log._dirtyTasks[taskId] = Date.now();
+        log._dirty = true;
         ScoringEngine.invalidateScoreCache(currentDateStr, appData);
 
         const task = (appData.tasks || []).find(t => t.id === taskId);
-        const existingProgress = appData.logs[currentDateStr].taskProgress[taskId];
+        const existingProgress = log.taskProgress[taskId];
         const prevTotal = Number(existingProgress?.achieved) || 0;
         const normTarget = task ? getTaskNormalizedTarget(task, currentDateStr) : 0;
         const status = existingProgress?.status || (task && ScheduleEngine.isTaskScheduledForDate(task, currentDateStr, appData, newTotal) ? "scheduled" : (newTotal > 0 ? "bonus" : "scheduled"));
@@ -534,8 +535,9 @@ function attachTaskControlListeners(grid) {
 }
 
 function toggleDeactivateTaskForDate(taskId, dateStr) {
-    if (!appData.logs[dateStr]) appData.logs[dateStr] = { taskProgress: {} };
-    const log = appData.logs[dateStr];
+    const log = typeof ensureDayRecord === "function"
+        ? ensureDayRecord(dateStr)
+        : (appData.logs[dateStr] || (appData.logs[dateStr] = { taskProgress: {} }));
     if (!log.taskProgress) log.taskProgress = {};
     const task = (appData.tasks || []).find(t => t.id === taskId);
     const tp = log.taskProgress[taskId];
@@ -695,27 +697,24 @@ function updateTaskCardInPlace(taskId, val, task = null) {
 }
 
 function setTaskVal(taskId, val) {
-    if (!appData.logs[currentDateStr]) {
-        appData.logs[currentDateStr] = { taskProgress: {} };
+    const log = typeof ensureDayRecord === "function"
+        ? ensureDayRecord(currentDateStr)
+        : (appData.logs[currentDateStr] || (appData.logs[currentDateStr] = { taskProgress: {} }));
+    if (!log._dirtyTasks) {
+        log._dirtyTasks = {};
     }
-    if (!appData.logs[currentDateStr].taskProgress) {
-        appData.logs[currentDateStr].taskProgress = {};
-    }
-    if (!appData.logs[currentDateStr]._dirtyTasks) {
-        appData.logs[currentDateStr]._dirtyTasks = {};
-    }
-    appData.logs[currentDateStr]._dirtyTasks[taskId] = Date.now();
-    appData.logs[currentDateStr]._dirty = true;
+    log._dirtyTasks[taskId] = Date.now();
+    log._dirty = true;
     ScoringEngine.invalidateScoreCache(currentDateStr, appData);
 
     const task = (appData.tasks || []).find(t => t.id === taskId);
-    const existingProgress = appData.logs[currentDateStr].taskProgress[taskId];
+    const existingProgress = log.taskProgress[taskId];
     const prevVal = Number(existingProgress?.achieved) || 0;
     const normTarget = task ? getTaskNormalizedTarget(task, currentDateStr) : 0;
     const status = existingProgress?.status || (task && ScheduleEngine.isTaskScheduledForDate(task, currentDateStr, appData, val) ? "scheduled" : (val > 0 ? "bonus" : "scheduled"));
 
     const { hours: _h, score: _s, ...cleanExisting } = existingProgress || {};
-    appData.logs[currentDateStr].taskProgress[taskId] = {
+    log.taskProgress[taskId] = {
         ...cleanExisting,
         target: normTarget,
         achieved: val,

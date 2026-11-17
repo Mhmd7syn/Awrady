@@ -351,23 +351,24 @@ function deleteForever(id) {
 }
 
 function addBonusTaskToDate(taskId, dateStr) {
-    if (!appData.logs[dateStr]) appData.logs[dateStr] = { taskProgress: {} };
-    if (!appData.logs[dateStr].taskProgress) appData.logs[dateStr].taskProgress = {};
+    const log = typeof ensureDayRecord === "function"
+        ? ensureDayRecord(dateStr)
+        : (appData.logs[dateStr] || (appData.logs[dateStr] = { taskProgress: {} }));
 
-    appData.logs[dateStr].taskProgress[taskId] = {
+    log.taskProgress[taskId] = {
         target: 0,
         achieved: 0,
         status: "bonus",
         _explicit: true
     };
 
-    if (!appData.logs[dateStr]._dirtyTasks) appData.logs[dateStr]._dirtyTasks = {};
-    appData.logs[dateStr]._dirtyTasks[taskId] = Date.now();
-    appData.logs[dateStr]._dirty = true;
+    if (!log._dirtyTasks) log._dirtyTasks = {};
+    log._dirtyTasks[taskId] = Date.now();
+    log._dirty = true;
     if (typeof ScoringEngine !== "undefined") {
         ScoringEngine.invalidateScoreCache(dateStr, appData);
     }
-    saveData();
+    saveData(true, dateStr);
     renderDailyView();
     updateDailyScoreSummary();
     updateHeaderTodayScore();

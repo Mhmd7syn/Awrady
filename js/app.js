@@ -38,6 +38,38 @@ function getUserStorageKey() {
     return `${STORAGE_KEY}_${u}`;
 }
 
+function ensureDayRecord(dateStr) {
+    if (!appData) return null;
+    if (!appData.logs) appData.logs = {};
+    if (!appData.logs[dateStr]) {
+        appData.logs[dateStr] = {
+            taskProgress: {},
+            prayerExtras: {}
+        };
+        const dateContext = {
+            dayAbbrev: typeof getDayOfWeekAbbrev === "function" ? getDayOfWeekAbbrev(dateStr) : "",
+            hijriInfo: typeof getHijriDateDetails === "function" ? getHijriDateDetails(dateStr) : null
+        };
+        (appData.tasks || []).forEach(t => {
+            if (t.isArchived) return;
+            if (typeof ScheduleEngine !== "undefined" && ScheduleEngine.isTaskScheduledForDate(t, dateStr, appData, 0, dateContext)) {
+                const normTarget = typeof getTaskNormalizedTarget === "function" ? getTaskNormalizedTarget(t, dateStr) : (Number(t.target) || 1);
+                appData.logs[dateStr].taskProgress[t.id] = {
+                    target: normTarget,
+                    achieved: 0,
+                    status: "scheduled"
+                };
+            }
+        });
+    }
+    if (!appData.logs[dateStr].taskProgress) appData.logs[dateStr].taskProgress = {};
+    if (!appData.logs[dateStr].prayerExtras) appData.logs[dateStr].prayerExtras = {};
+    return appData.logs[dateStr];
+}
+if (typeof window !== "undefined") {
+    window.ensureDayRecord = ensureDayRecord;
+}
+
 // ============================================================================
 // INITIALIZATION & STATE MANAGEMENT
 // ============================================================================
@@ -93,6 +125,7 @@ let _dbSaveTimer = null;
 const _isSavingDay = {};
 const _queuedSaveDay = {};
 const _lastSavedCloudTimestamp = {};
+const _dbCheckedDates = new Set();
 
 function loadLocalState() {
     try {
@@ -128,10 +161,11 @@ function loadLocalState() {
                         const hasAchieved = log.taskProgress && Object.values(log.taskProgress).some(p => (Number(p?.achieved) || 0) > 0);
                         const hasScore = (Number(log.total_score) || 0) > 0 || (Number(log.precomputedScore) || 0) > 0;
                         const hasDisabled = Boolean(log.taskProgress && Object.values(log.taskProgress).some(p => p?.status === "disabled"));
-                        const hasExtras = Boolean(log.prayerExtras && Object.keys(log.prayerExtras).some(k => k !== "_meta"));
+                        const hasBonus = Boolean(log.taskProgress && Object.values(log.taskProgress).some(p => p?.status === "bonus" || p?._explicit));
+                        const hasExtras = Boolean(log.prayerExtras && Object.values(log.prayerExtras).some(v => (Number(v?.nawafel) || 0) > 0 || Boolean(v?.azkar)));
                         const hasDirty = Boolean(log._dirty || (log._dirtyTasks && Object.keys(log._dirtyTasks).length > 0));
 
-                        if (!hasAchieved && !hasScore && !hasDisabled && !hasExtras && !hasDirty) {
+                        if (!hasAchieved && !hasScore && !hasDisabled && !hasBonus && !hasExtras && !hasDirty) {
                             delete appData.logs[dateStr];
                         }
                     }
@@ -206,9 +240,10 @@ async function pushDayToCloud(dateStr) {
         const hasDirtyTasks = Boolean(log._dirtyTasks && Object.keys(log._dirtyTasks).length > 0);
         const hasAchieved = Boolean(log.taskProgress && Object.values(log.taskProgress).some(p => (Number(p?.achieved) || 0) > 0));
         const hasDisabled = Boolean(log.taskProgress && Object.values(log.taskProgress).some(p => p?.status === "disabled"));
-        const hasExtras = Boolean(log.prayerExtras && Object.keys(log.prayerExtras).some(k => k !== "_meta"));
+        const hasBonus = Boolean(log.taskProgress && Object.values(log.taskProgress).some(p => p?.status === "bonus" || p?._explicit));
+        const hasExtras = Boolean(log.prayerExtras && Object.values(log.prayerExtras).some(v => (Number(v?.nawafel) || 0) > 0 || Boolean(v?.azkar)));
 
-        if (!hasDirtyTasks && !hasAchieved && !hasDisabled && !hasExtras) {
+        if (!hasDirtyTasks && !hasAchieved && !hasDisabled && !hasBonus && !hasExtras) {
             log._dirty = false;
             return;
         }
@@ -380,8 +415,18 @@ async function initData() {
 
             if (allProgress && allProgress.length > 0) {
                 allProgress.forEach(row => {
-                    const localLog = appData.logs[row.date];
-                    appData.logs[row.date] = localLog ? mergeDayLog(localLog, row) : rowToLog(row);
+                    const tp = row.task_progress || {};
+                    const pe = row.prayer_extras || {};
+                    const hasAchieved = Object.values(tp).some(p => (Number(p?.achieved) || 0) > 0);
+                    const hasDisabled = Object.values(tp).some(p => p?.status === "disabled");
+                    const hasBonus = Object.values(tp).some(p => p?.status === "bonus" || p?._explicit);
+                    const hasExtras = Object.values(pe).some(v => (Number(v?.nawafel) || 0) > 0 || Boolean(v?.azkar));
+                    const hasScore = (Number(row.total_score) || 0) > 0 || (Number(row.total_hours) || 0) > 0;
+
+                    if (hasAchieved || hasDisabled || hasBonus || hasExtras || hasScore) {
+                        const localLog = appData.logs[row.date];
+                        appData.logs[row.date] = localLog ? mergeDayLog(localLog, row) : rowToLog(row);
+                    }
                 });
             }
 
@@ -485,8 +530,8 @@ function saveData(immediate = false, targetDate = null) {
     const hasActivity = Boolean(
         log && (
             (log._dirtyTasks && Object.keys(log._dirtyTasks).length > 0) ||
-            (log.taskProgress && Object.values(log.taskProgress).some(p => (Number(p?.achieved) || 0) > 0 || p?.status === "disabled")) ||
-            (log.prayerExtras && Object.keys(log.prayerExtras).some(k => k !== "_meta"))
+            (log.taskProgress && Object.values(log.taskProgress).some(p => (Number(p?.achieved) || 0) > 0 || p?.status === "disabled" || p?.status === "bonus" || p?._explicit)) ||
+            (log.prayerExtras && Object.values(log.prayerExtras).some(v => (Number(v?.nawafel) || 0) > 0 || Boolean(v?.azkar)))
         )
     );
 
@@ -566,8 +611,9 @@ async function switchActiveDate(newDate) {
     renderDailyView();
 
     // 2. Non-blocking cloud fetch in background
-    if (window.awradyAPI?.client && (!appData.logs[currentDateStr] || !appData.logs[currentDateStr]._loadedFromDB)) {
+    if (window.awradyAPI?.client && !_dbCheckedDates.has(currentDateStr) && (!appData.logs?.[currentDateStr] || !appData.logs[currentDateStr]._loadedFromDB)) {
         const targetDate = currentDateStr;
+        _dbCheckedDates.add(targetDate);
         try {
             const dayProgress = await window.awradyAPI.getDayProgress(targetDate);
             if (!appData.logs) appData.logs = {};
@@ -576,17 +622,13 @@ async function switchActiveDate(newDate) {
                 appData.logs[targetDate] = localLog
                     ? mergeDayLog(localLog, dayProgress)
                     : rowToLog(dayProgress);
-            } else {
-                if (!appData.logs[targetDate]) {
-                    appData.logs[targetDate] = { taskProgress: {}, prayerExtras: {}, _loadedFromDB: true };
-                } else {
-                    appData.logs[targetDate]._loadedFromDB = true;
-                }
-            }
 
-            // Re-render only if the user is still viewing this date
-            if (currentDateStr === targetDate) {
-                renderDailyView();
+                // Re-render only if the user is still viewing this date
+                if (currentDateStr === targetDate) {
+                    renderDailyView();
+                }
+            } else if (appData.logs[targetDate]) {
+                appData.logs[targetDate]._loadedFromDB = true;
             }
         } catch (_) {}
     }

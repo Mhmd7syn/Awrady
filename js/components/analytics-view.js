@@ -20,17 +20,58 @@ function getRecordedDates() {
         const hasPositiveAchieved = log.taskProgress && Object.values(log.taskProgress).some(p => (Number(p?.achieved) || 0) > 0);
         const hasScore = (Number(log.total_score) || 0) > 0 || (Number(log.precomputedScore) || 0) > 0;
         const hasDisabled = Boolean(log.taskProgress && Object.values(log.taskProgress).some(p => p?.status === "disabled"));
-        const hasPrayerExtras = Boolean(log.prayerExtras && Object.values(log.prayerExtras).some(v => Boolean(v)));
-        return hasPositiveAchieved || hasScore || hasDisabled || hasPrayerExtras;
+        const hasBonus = Boolean(log.taskProgress && Object.values(log.taskProgress).some(p => p?.status === "bonus" && (Number(p?.achieved) || 0) > 0));
+        const hasPrayerExtras = Boolean(
+            log.prayerExtras &&
+            Object.values(log.prayerExtras).some(v => (Number(v?.nawafel) || 0) > 0 || Boolean(v?.azkar))
+        );
+        return hasPositiveAchieved || hasScore || hasDisabled || hasBonus || hasPrayerExtras;
     }).sort();
 }
 
+function shiftDateDays(dateStr, days) {
+    if (typeof addDays === "function") {
+        return addDays(dateStr, days);
+    }
+    const d = new Date(dateStr.includes("T") ? dateStr : dateStr + "T12:00:00");
+    d.setDate(d.getDate() + days);
+    return (typeof getLocalTodayString === "function") ? getLocalTodayString(d) : d.toISOString().slice(0, 10);
+}
+
+function generateDateRange(startDate, endDate) {
+    if (!startDate || !endDate || startDate > endDate) return [];
+    const dates = [];
+    let current = startDate;
+    while (current <= endDate) {
+        dates.push(current);
+        current = shiftDateDays(current, 1);
+    }
+    return dates;
+}
+
 function getSelectedDates() {
-    const allDates = getRecordedDates();
-    if (typeof chartTimeRange === "undefined" || chartTimeRange === "all") return allDates;
-    const daysLimit = parseInt(chartTimeRange, 10);
-    if (isNaN(daysLimit) || daysLimit <= 0) return allDates;
-    return allDates.slice(-daysLimit);
+    const recordedDates = getRecordedDates();
+    if (!recordedDates || recordedDates.length === 0) return [];
+
+    const todayStr = typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().slice(0, 10);
+    const earliestDate = recordedDates[0];
+
+    const getBoundedStart = (daysLimit) => {
+        const theoreticalStart = shiftDateDays(todayStr, -(daysLimit - 1));
+        // Never start before the user's first recorded day
+        return theoreticalStart < earliestDate ? earliestDate : theoreticalStart;
+    };
+
+    if (chartTimeRange === "7") {
+        return generateDateRange(getBoundedStart(7), todayStr);
+    }
+
+    if (chartTimeRange === "30") {
+        return generateDateRange(getBoundedStart(30), todayStr);
+    }
+
+    // "all": continuous calendar days from earliest record to today
+    return generateDateRange(earliestDate, todayStr);
 }
 
 function calculateScoreForDates(dates) {
@@ -83,13 +124,17 @@ function updateAnalyticsHeroMetrics(selectedDates = null) {
 
     if (elAnalyticsSub) {
         if (currentRange === "all") {
-            elAnalyticsSub.textContent = `السجل التراكمي لكافة الأيام (${allDates.length} يوماً)`;
+            elAnalyticsSub.textContent = `السجل التراكمي لكافة الأيام (${activeDates.length} يوماً)`;
         } else if (currentRange === "7") {
-            elAnalyticsSub.textContent = `بناءً على ${activeDates.length} ${activeDates.length === 1 ? 'يوم' : (activeDates.length <= 10 ? 'أيام' : 'يوماً')} في آخر 7 أيام`;
+            elAnalyticsSub.textContent = activeDates.length >= 7
+                ? `بناءً على آخر 7 أيام متتالية`
+                : `بناءً على ${activeDates.length} أيام مسجلة منذ الانضمام`;
         } else if (currentRange === "30") {
-            elAnalyticsSub.textContent = `بناءً على ${activeDates.length} ${activeDates.length === 1 ? 'يوم' : (activeDates.length <= 10 ? 'أيام' : 'يوماً')} في آخر 30 يوماً`;
+            elAnalyticsSub.textContent = activeDates.length >= 30
+                ? `بناءً على آخر 30 يوماً متتالياً`
+                : `بناءً على ${activeDates.length} يوماً منذ بدء الاستخدام`;
         } else {
-            elAnalyticsSub.textContent = `بناءً على ${activeDates.length} يوماً مسجلاً في هذه الفترة`;
+            elAnalyticsSub.textContent = `بناءً على ${activeDates.length} يوماً في هذه الفترة`;
         }
     }
 }
@@ -135,7 +180,8 @@ function initChart() {
                     backgroundColor: gradient,
                     borderWidth: 3,
                     fill: true,
-                    tension: 0.35,
+                    tension: 0.3,
+                    cubicInterpolationMode: 'monotone',
                     pointBackgroundColor: "#f59e0b",
                     pointBorderColor: "#fff",
                     pointRadius: 4,
@@ -172,10 +218,6 @@ function initChart() {
                 },
                 plugins: {
                     legend: { display: false },
-                    zoom: {
-                        pan: { enabled: true, mode: 'x' },
-                        zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' }
-                    },
                     tooltip: {
                         backgroundColor: "rgba(6, 11, 9, 0.9)",
                         titleFont: { family: "Cairo", size: 14, weight: "bold" },
@@ -192,7 +234,16 @@ function initChart() {
                                 return rawDate ? `${rawDate} (${item.label})` : item.label;
                             },
                             label: function (context) {
-                                return `ساعات الإنجاز: ${context.parsed.y} ساعة`;
+                                const ds = context.dataset;
+                                const rawVal = ds?.rawHours?.[context.dataIndex];
+                                const val = context.parsed.y;
+                                if (rawVal !== undefined && (chartTimeRange === "30" || chartTimeRange === "all") && rawVal !== val) {
+                                    return [
+                                        `المعدل السلس (7 أيام): ${val} ساعة`,
+                                        `إنجاز اليوم الفعلي: ${rawVal} ساعة`
+                                    ];
+                                }
+                                return `ساعات الإنجاز: ${val} ساعة`;
                             }
                         }
                     }
@@ -229,8 +280,42 @@ function initChart() {
 }
 
 /**
+ * Smooths time-series daily data using a centered moving average with an adaptive boundary window.
+ * Uses a centered window of [i - radius, i + radius] (e.g. radius=3 for a 7-day window).
+ * At boundaries (such as today or the first recorded dates), it adaptively averages whatever
+ * days are currently available within that radius to avoid cutting off recent data.
+ * @param {Array<{dateStr: string, label: string, hours: number}>} data
+ * @param {number} radius Window radius (default 3, for a 7-day window)
+ * @returns {Array<{dateStr: string, label: string, hours: number, rawHours: number}>}
+ */
+function applyCenteredMovingAverage(data, radius = 3) {
+    if (!data || data.length === 0) return [];
+    if (radius <= 0 || data.length <= 1) {
+        return data.map(item => ({ ...item, rawHours: item.hours }));
+    }
+
+    return data.map((item, idx) => {
+        const start = Math.max(0, idx - radius);
+        const end = Math.min(data.length - 1, idx + radius);
+        let sum = 0;
+        let count = 0;
+        for (let j = start; j <= end; j++) {
+            sum += data[j].hours;
+            count++;
+        }
+        const smoothedHours = count > 0 ? Math.round((sum / count) * 10) / 10 : item.hours;
+        return {
+            ...item,
+            hours: smoothedHours,
+            rawHours: item.hours
+        };
+    });
+}
+
+/**
  * Downsamples time-series data using Largest Triangle Three Buckets (LTTB) algorithm.
  * Guarantees that first and last points are kept, and significant peaks/valleys are retained.
+ * Retained for use with percentage / completion rate charts (Issue #21).
  * @param {Array<{dateStr: string, label: string, hours: number}>} data
  * @param {number} threshold
  * @returns {Array<{dateStr: string, label: string, hours: number}>}
@@ -338,23 +423,23 @@ function updateChartAndAnalytics() {
         }
     });
 
-    // Automatic undersampling: target 30 points (or 15 points on mobile screens < 500px)
-    const maxPoints = window.innerWidth < APP_CONSTANTS.UI.MOBILE_BREAKPOINT ? APP_CONSTANTS.UI.CHART_MAX_POINTS_MOBILE : APP_CONSTANTS.UI.CHART_MAX_POINTS;
     let chartData = fullDataList;
 
-    if (fullDataList.length > maxPoints) {
-        chartData = downsampleLTTB(fullDataList, maxPoints);
+    if (chartTimeRange === "30" || chartTimeRange === "all") {
+        chartData = applyCenteredMovingAverage(fullDataList, 3);
     }
 
     const labels = chartData.map(item => item.label);
     const dataPoints = chartData.map(item => item.hours);
     const rawDates = chartData.map(item => item.dateStr);
+    const rawHours = chartData.map(item => item.rawHours !== undefined ? item.rawHours : item.hours);
 
     if (chartInstance) {
         chartInstance.data.labels = labels;
         chartInstance.data.datasets[0].data = dataPoints;
         chartInstance.data.datasets[0].rawDates = rawDates;
-        chartInstance.data.datasets[0].pointRadius = 4;
+        chartInstance.data.datasets[0].rawHours = rawHours;
+        chartInstance.data.datasets[0].pointRadius = chartData.length > 35 ? (window.innerWidth < 500 ? 0 : 2) : 4;
         chartInstance.data.datasets[0].pointHoverRadius = 7;
         chartInstance.data.datasets[0].pointHitRadius = 10;
         chartInstance.update();
@@ -377,4 +462,6 @@ if (typeof window !== "undefined") {
     window.updateAnalyticsHeroMetrics = updateAnalyticsHeroMetrics;
     window.getSelectedDates = getSelectedDates;
     window.initChart = initChart;
+    window.downsampleLTTB = downsampleLTTB;
+    window.applyCenteredMovingAverage = applyCenteredMovingAverage;
 }

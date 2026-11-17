@@ -561,11 +561,11 @@ function commitWorkMinutesToDisk(minutes) {
     const appData = getActiveAppData();
 
     if (PomodoroTimer.taskId && appData) {
-        if (!appData.logs) appData.logs = {};
-        if (!appData.logs[realTodayStr]) appData.logs[realTodayStr] = { taskProgress: {} };
-        if (!appData.logs[realTodayStr].taskProgress) appData.logs[realTodayStr].taskProgress = {};
+        const log = typeof ensureDayRecord === "function"
+            ? ensureDayRecord(realTodayStr)
+            : (appData.logs[realTodayStr] || (appData.logs[realTodayStr] = { taskProgress: {} }));
 
-        const existingProgress = appData.logs[realTodayStr].taskProgress[PomodoroTimer.taskId];
+        const existingProgress = log.taskProgress[PomodoroTimer.taskId];
         const currentVal = Number(existingProgress?.achieved) || 0;
         const newVal = currentVal + minutes;
         const task = (appData.tasks || []).find(t => t.id === PomodoroTimer.taskId);
@@ -575,15 +575,15 @@ function commitWorkMinutesToDisk(minutes) {
         const status = existingProgress?.status || (task && ScheduleEngine.isTaskScheduledForDate(task, realTodayStr, appData, newVal) ? "scheduled" : (newVal > 0 ? "bonus" : "scheduled"));
 
         const { hours: _h, score: _s, ...cleanExisting } = existingProgress || {};
-        appData.logs[realTodayStr].taskProgress[PomodoroTimer.taskId] = {
+        log.taskProgress[PomodoroTimer.taskId] = {
             ...cleanExisting,
             target: normTarget,
             achieved: newVal,
             status
         };
-        if (!appData.logs[realTodayStr]._dirtyTasks) appData.logs[realTodayStr]._dirtyTasks = {};
-        appData.logs[realTodayStr]._dirtyTasks[PomodoroTimer.taskId] = Date.now();
-        appData.logs[realTodayStr]._dirty = true;
+        if (!log._dirtyTasks) log._dirtyTasks = {};
+        log._dirtyTasks[PomodoroTimer.taskId] = Date.now();
+        log._dirty = true;
         ScoringEngine.invalidateScoreCache(realTodayStr, appData);
 
         // Persist data immediately
