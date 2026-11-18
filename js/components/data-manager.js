@@ -151,10 +151,13 @@ function setupDataManagement() {
                 appData.logs = {};
                 try {
                     localStorage.setItem(getUserStorageKey(), JSON.stringify(appData));
+                    if ((window.awradyAPI?.currentUser || "").toLowerCase() === APP_CONSTANTS.GUEST_USER) {
+                        localStorage.setItem(APP_CONSTANTS.STORAGE_KEY, JSON.stringify(appData));
+                    }
                 } catch (_) {}
                 if (window.awradyAPI?.client && !window.awradyAPI.isGuest?.()) {
                     try {
-                        await window.awradyAPI.client.from(APP_CONSTANTS.DB.TABLES.PROGRESS).delete().eq("user_id", window.awradyAPI.currentUserId);
+                        await window.awradyAPI.clearAllProgress();
                     } catch (e) {
                         console.warn("[AwradyAPI] Reset progress sync error:", e);
                     }
@@ -169,13 +172,21 @@ function setupDataManagement() {
     if (btnResetData) {
         btnResetData.addEventListener("click", async () => {
             if (confirm("هل أنت متأكد من إعادة ضبط التعديلات واستعادة البيانات والمهام الافتراضية للنظام؟")) {
+                if (typeof _dbSaveTimer !== "undefined" && _dbSaveTimer) {
+                    clearTimeout(_dbSaveTimer);
+                }
                 loadDefaultAppData();
+                try {
+                    localStorage.removeItem("awrady_tasks_daily_targets");
+                    localStorage.removeItem(APP_CONSTANTS.STORAGE_KEY);
+                    localStorage.removeItem(`${APP_CONSTANTS.STORAGE_KEY}_${APP_CONSTANTS.GUEST_USER}`);
+                } catch (_) {}
                 saveData(true);
-                if (window.awradyAPI?.client) {
+                if (window.awradyAPI?.client && !window.awradyAPI.isGuest?.()) {
                     try {
-                        await window.awradyAPI.saveTasks(appData.tasks || []);
+                        await window.awradyAPI.resetToDefaults(DEFAULT_TASKS);
                     } catch (e) {
-                        console.warn("[AwradyAPI] Reset tasks sync error:", e);
+                        console.warn("[AwradyAPI] Reset data sync error:", e);
                     }
                 }
                 alert("🔄 تم إعادة ضبط التطبيق بنجاح على البيانات الافتراضية!");

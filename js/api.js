@@ -40,7 +40,12 @@ class AwradyAPI {
     }
 
     isGuest() {
-        return !this.currentUserId || this.currentUser === APP_CONSTANTS.GUEST_USER;
+        const uid = this.getEffectiveUserId();
+        return !uid || this.currentUser === APP_CONSTANTS.GUEST_USER;
+    }
+
+    getEffectiveUserId() {
+        return this.currentUserId || (typeof localStorage !== "undefined" ? localStorage.getItem("AWRAD_AUTH_UID") : null);
     }
 
     setCurrentUser(username, userId = null) {
@@ -70,18 +75,20 @@ class AwradyAPI {
     }
 
     async ensureUserExists() {
-        if (!this.client || this.isGuest() || !this.currentUserId) return;
+        const uid = this.getEffectiveUserId();
+        if (!this.client || this.isGuest() || !uid) return;
         try {
             const tblUsers = APP_CONSTANTS.DB.TABLES.USERS;
             await this.client.from(tblUsers).upsert(
-                { id: this.currentUserId, username: this.currentUser },
+                { id: uid, username: this.currentUser },
                 { onConflict: "id", ignoreDuplicates: true }
             );
         } catch (_) {}
     }
 
     _setupRealtimeSync() {
-        if (!this.client || this.isGuest() || !this.currentUserId) return;
+        const uid = this.getEffectiveUserId();
+        if (!this.client || this.isGuest() || !uid) return;
         if (this._syncChannel) {
             try {
                 this.client.removeChannel(this._syncChannel);
@@ -89,10 +96,10 @@ class AwradyAPI {
             this._syncChannel = null;
         }
 
-        const channelName = `${APP_CONSTANTS.DB.CHANNEL}_${this.currentUserId}_${Date.now()}`;
+        const channelName = `${APP_CONSTANTS.DB.CHANNEL}_${uid}_${Date.now()}`;
         const tblProgress = APP_CONSTANTS.DB.TABLES.PROGRESS;
         const tblTasks = APP_CONSTANTS.DB.TABLES.TASKS;
-        const filter = `user_id=eq.${this.currentUserId}`;
+        const filter = `user_id=eq.${uid}`;
 
         this._syncChannel = this.client
             .channel(channelName)
@@ -112,8 +119,10 @@ class AwradyAPI {
 
     async getTasks(includeArchived = false) {
         if (!this.client || this.isGuest()) return [];
+        const uid = this.getEffectiveUserId();
+        if (!uid) return [];
         const tblTasks = APP_CONSTANTS.DB.TABLES.TASKS;
-        let query = this.client.from(tblTasks).select("*").eq("user_id", this.currentUserId);
+        let query = this.client.from(tblTasks).select("*").eq("user_id", uid);
         if (!includeArchived) query = query.eq("is_archived", false);
         const { data, error } = await query.order("created_at", { ascending: true });
         if (error) throw error;
@@ -135,7 +144,7 @@ class AwradyAPI {
     }
 
     _taskToRow(task) {
-        const uid = this.currentUserId || localStorage.getItem("AWRAD_AUTH_UID") || null;
+        const uid = this.getEffectiveUserId();
         const row = {
             user_id: uid,
             username: this.currentUser,
@@ -201,27 +210,43 @@ class AwradyAPI {
 
     async purgeTask(taskId) {
         if (!this.client || this.isGuest()) return true;
+        const uid = this.getEffectiveUserId();
+        if (!uid) return true;
         const tblTasks = APP_CONSTANTS.DB.TABLES.TASKS;
-        const { error } = await this.client.from(tblTasks).delete().eq("user_id", this.currentUserId).eq("task_id", taskId);
+        const { error } = await this.client.from(tblTasks).delete().eq("user_id", uid).eq("task_id", taskId);
+        if (error) throw error;
+        return true;
+    }
+
+    async clearAllTasks() {
+        if (!this.client || this.isGuest()) return true;
+        const uid = this.getEffectiveUserId();
+        if (!uid) return true;
+        const tblTasks = APP_CONSTANTS.DB.TABLES.TASKS;
+        const { error } = await this.client.from(tblTasks).delete().eq("user_id", uid);
         if (error) throw error;
         return true;
     }
 
     async getDayProgress(dateStr) {
         if (!this.client || this.isGuest()) return null;
+        const uid = this.getEffectiveUserId();
+        if (!uid) return null;
         const tblProgress = APP_CONSTANTS.DB.TABLES.PROGRESS;
-        const { data, error } = await this.client.from(tblProgress).select("*").eq("user_id", this.currentUserId).eq("date", dateStr).maybeSingle();
+        const { data, error } = await this.client.from(tblProgress).select("*").eq("user_id", uid).eq("date", dateStr).maybeSingle();
         if (error) throw error;
         return data || null;
     }
 
     async getAllProgress() {
         if (!this.client || this.isGuest()) return [];
+        const uid = this.getEffectiveUserId();
+        if (!uid) return [];
         const tblProgress = APP_CONSTANTS.DB.TABLES.PROGRESS;
         const { data, error } = await this.client
             .from(tblProgress)
             .select("date, total_score, total_hours, task_progress, prayer_extras, updated_at")
-            .eq("user_id", this.currentUserId)
+            .eq("user_id", uid)
             .order("date", { ascending: true });
         if (error) throw error;
         return data || [];
@@ -229,7 +254,7 @@ class AwradyAPI {
 
     async saveDayProgress(dateStr, taskProgress, prayerExtras = {}, totals = {}) {
         if (!this.client || this.isGuest()) return null;
-        const uid = this.currentUserId || localStorage.getItem("AWRAD_AUTH_UID") || null;
+        const uid = this.getEffectiveUserId();
         const tblProgress = APP_CONSTANTS.DB.TABLES.PROGRESS;
         const row = {
             user_id: uid,
@@ -247,10 +272,32 @@ class AwradyAPI {
 
     async deleteDayProgress(dateStr) {
         if (!this.client || this.isGuest()) return true;
+        const uid = this.getEffectiveUserId();
+        if (!uid) return true;
         const tblProgress = APP_CONSTANTS.DB.TABLES.PROGRESS;
-        const { error } = await this.client.from(tblProgress).delete().eq("user_id", this.currentUserId).eq("date", dateStr);
+        const { error } = await this.client.from(tblProgress).delete().eq("user_id", uid).eq("date", dateStr);
         if (error) throw error;
         return true;
+    }
+
+    async clearAllProgress() {
+        if (!this.client || this.isGuest()) return true;
+        const uid = this.getEffectiveUserId();
+        if (!uid) return true;
+        const tblProgress = APP_CONSTANTS.DB.TABLES.PROGRESS;
+        const { error } = await this.client.from(tblProgress).delete().eq("user_id", uid);
+        if (error) throw error;
+        return true;
+    }
+
+    async resetToDefaults(defaultTasks = []) {
+        if (!this.client || this.isGuest()) return [];
+        await this.clearAllProgress();
+        await this.clearAllTasks();
+        if (Array.isArray(defaultTasks) && defaultTasks.length > 0) {
+            return await this.saveTasks(defaultTasks);
+        }
+        return [];
     }
 }
 

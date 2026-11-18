@@ -547,6 +547,7 @@ function loadDefaultAppData() {
         enumerable: false,
         configurable: true
     });
+    window.appData = appData;
 }
 
 function saveData(immediate = false, targetDate = null) {
