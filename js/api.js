@@ -46,7 +46,15 @@ class AwradyAPI {
     setCurrentUser(username, userId = null) {
         const cleanUser = (username || APP_CONSTANTS.GUEST_USER).toLowerCase().trim();
         this.currentUser = cleanUser;
-        this.currentUserId = userId || (cleanUser === APP_CONSTANTS.GUEST_USER ? null : this.currentUserId);
+        if (cleanUser === APP_CONSTANTS.GUEST_USER) {
+            this.currentUserId = null;
+        } else if (userId) {
+            this.currentUserId = userId;
+        } else if (!this.currentUserId) {
+            this.currentUserId = localStorage.getItem("AWRAD_AUTH_UID") || 
+                                 (window.authManager && window.authManager.getCurrentUserId?.()) || 
+                                 null;
+        }
 
         if (this.client) {
             if (this.isGuest()) {
@@ -127,8 +135,9 @@ class AwradyAPI {
     }
 
     _taskToRow(task) {
+        const uid = this.currentUserId || localStorage.getItem("AWRAD_AUTH_UID") || null;
         const row = {
-            user_id: this.currentUserId,
+            user_id: uid,
             username: this.currentUser,
             task_id: task.id,
             name: task.name,
@@ -220,9 +229,10 @@ class AwradyAPI {
 
     async saveDayProgress(dateStr, taskProgress, prayerExtras = {}, totals = {}) {
         if (!this.client || this.isGuest()) return null;
+        const uid = this.currentUserId || localStorage.getItem("AWRAD_AUTH_UID") || null;
         const tblProgress = APP_CONSTANTS.DB.TABLES.PROGRESS;
         const row = {
-            user_id: this.currentUserId,
+            user_id: uid,
             username: this.currentUser,
             date: dateStr,
             task_progress: taskProgress || {},

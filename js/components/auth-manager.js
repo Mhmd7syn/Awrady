@@ -7,6 +7,7 @@
 class AuthManager {
     constructor() {
         this.SESSION_KEY = APP_CONSTANTS.STORAGE_KEYS.SESSION_USER;
+        this.SESSION_UID_KEY = "AWRAD_AUTH_UID";
         this.GUEST_USER = APP_CONSTANTS.GUEST_USER;
         this.currentUser = null;
         this.currentUserId = null;
@@ -32,22 +33,23 @@ class AuthManager {
     }
 
     getCurrentUserId() {
-        return this.currentUserId || null;
+        return this.currentUserId || localStorage.getItem(this.SESSION_UID_KEY) || null;
     }
 
     isLoggedIn() {
         return Boolean(this.getCurrentUser());
     }
 
-    init() {
+    async init() {
         if (window.awradyAPI && !window.awradyAPI.client) {
             window.awradyAPI.init();
         }
         this._bindEvents();
 
-        const savedUser = localStorage.getItem(this.SESSION_KEY);
-        if (savedUser === this.GUEST_USER) {
-            this.currentUser = this.GUEST_USER;
+        this.currentUser = localStorage.getItem(this.SESSION_KEY);
+        this.currentUserId = localStorage.getItem(this.SESSION_UID_KEY);
+
+        if (this.currentUser === this.GUEST_USER) {
             this.currentUserId = null;
             if (window.awradyAPI) {
                 window.awradyAPI.setCurrentUser(this.GUEST_USER, null);
@@ -59,28 +61,28 @@ class AuthManager {
 
         const client = window.awradyAPI?.client;
         if (client?.auth) {
-            client.auth.getSession().then(({ data: { session } }) => {
+            try {
+                const { data: { session } } = await client.auth.getSession();
                 if (session?.user) {
                     this.currentUserId = session.user.id;
                     this.currentUser = session.user.user_metadata?.username || session.user.email?.split("@")[0] || session.user.id;
                     localStorage.setItem(this.SESSION_KEY, this.currentUser);
+                    localStorage.setItem(this.SESSION_UID_KEY, this.currentUserId);
                     if (window.awradyAPI) {
                         window.awradyAPI.setCurrentUser(this.currentUser, this.currentUserId);
                     }
                     this.hide();
                     this.updateUI();
-                } else if (!savedUser) {
-                    this.show();
+                    return true;
                 }
-            }).catch(() => {
-                if (!savedUser) this.show();
-            });
+            } catch (_) {}
 
             client.auth.onAuthStateChange((event, session) => {
                 if (event === "SIGNED_OUT") {
                     this.currentUser = null;
                     this.currentUserId = null;
                     localStorage.removeItem(this.SESSION_KEY);
+                    localStorage.removeItem(this.SESSION_UID_KEY);
                     if (window.awradyAPI) {
                         window.awradyAPI.setCurrentUser(this.GUEST_USER, null);
                     }
@@ -90,6 +92,7 @@ class AuthManager {
                     this.currentUserId = session.user.id;
                     this.currentUser = session.user.user_metadata?.username || session.user.email?.split("@")[0] || session.user.id;
                     localStorage.setItem(this.SESSION_KEY, this.currentUser);
+                    localStorage.setItem(this.SESSION_UID_KEY, this.currentUserId);
                     if (window.awradyAPI) {
                         window.awradyAPI.setCurrentUser(this.currentUser, this.currentUserId);
                     }
@@ -99,8 +102,7 @@ class AuthManager {
             });
         }
 
-        if (savedUser) {
-            this.currentUser = savedUser;
+        if (this.currentUser) {
             this.hide();
             this.updateUI();
             return true;
@@ -283,15 +285,20 @@ class AuthManager {
         this.currentUser = username;
         this.currentUserId = userId;
         localStorage.setItem(this.SESSION_KEY, username);
+        if (userId) {
+            localStorage.setItem(this.SESSION_UID_KEY, userId);
+        } else {
+            localStorage.removeItem(this.SESSION_UID_KEY);
+        }
         if (window.awradyAPI) {
             window.awradyAPI.setCurrentUser(username, userId);
         }
         this.showMsg("تم الدخول بنجاح!", false);
-        setTimeout(() => {
+        setTimeout(async () => {
             this.hide();
             this.updateUI();
             if (typeof window.startApp === "function") {
-                window.startApp(username);
+                await window.startApp(username);
             }
         }, 300);
     }
@@ -305,6 +312,7 @@ class AuthManager {
             } catch (_) {}
         }
         localStorage.removeItem(this.SESSION_KEY);
+        localStorage.removeItem(this.SESSION_UID_KEY);
         this.currentUser = null;
         this.currentUserId = null;
         if (window.awradyAPI) {

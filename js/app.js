@@ -73,21 +73,21 @@ if (typeof window !== "undefined") {
 // ============================================================================
 // INITIALIZATION & STATE MANAGEMENT
 // ============================================================================
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     setupDataManagement();
     if (window.authManager) {
-        window.authManager.init();
+        await window.authManager.init();
         if (window.authManager.isLoggedIn()) {
-            window.startApp(window.authManager.getCurrentUser());
+            await window.startApp(window.authManager.getCurrentUser());
         }
     } else {
-        window.startApp(APP_CONSTANTS.GUEST_USER);
+        await window.startApp(APP_CONSTANTS.GUEST_USER);
     }
 });
 
 window.startApp = async function(username) {
     if (window.awradyAPI) {
-        const uid = window.authManager?.getCurrentUserId?.() || null;
+        const uid = window.authManager?.getCurrentUserId?.() || localStorage.getItem("AWRAD_AUTH_UID") || null;
         window.awradyAPI.setCurrentUser(username, uid);
     }
     await initData();
