@@ -8,9 +8,6 @@ var APP_CONSTANTS = {
         POMODORO: "AWRAD_POMO_STATE",
         USERS_DB: "AWRAD_USERS_DB"
     },
-    HASH_SALTS: {
-        PASSWORD: "awrady_salt_v1"
-    },
     DB: {
         TABLES: {
             USERS: "users",
@@ -67,7 +64,7 @@ var APP_CONSTANTS = {
     RAMADAN_MONTH: 9,
     LIMITS: {
         USERNAME_MIN: 3,
-        PASSWORD_MIN: 4,
+        PASSWORD_MIN: 6,
         POMO_WORK_MAX: 180,
         POMO_REST_MAX: 60,
         TIME_STEP_MIN: 15,

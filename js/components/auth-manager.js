@@ -1,50 +1,106 @@
 /**
  * Awrady Dashboard - Authentication Gateway Component
+ * Native Supabase Auth integration with Row-Level Security (RLS) support
+ * and local storage Guest Mode retention.
  */
 
 class AuthManager {
     constructor() {
         this.SESSION_KEY = APP_CONSTANTS.STORAGE_KEYS.SESSION_USER;
-        this.LOCAL_KEY = APP_CONSTANTS.STORAGE_KEYS.USERS_DB;
-        this.SALT = APP_CONSTANTS.HASH_SALTS.PASSWORD;
         this.GUEST_USER = APP_CONSTANTS.GUEST_USER;
         this.currentUser = null;
+        this.currentUserId = null;
         this.mode = "login"; // "login" | "register"
     }
 
-    async hashPassword(password) {
-        const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(this.SALT + password));
-        return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    _formatEmail(input) {
+        const trimmed = (input || "").trim().toLowerCase();
+        if (trimmed.includes("@")) return trimmed;
+        const safe = trimmed.replace(/[^a-z0-9._-]/g, "");
+        return `${safe || "user"}.awrady@gmail.com`;
+    }
+
+    _extractUsername(input, metadata) {
+        if (metadata?.username) return metadata.username;
+        const trimmed = (input || "").trim();
+        if (trimmed.includes("@")) return trimmed.split("@")[0];
+        return trimmed;
     }
 
     getCurrentUser() {
-        return localStorage.getItem(this.SESSION_KEY) || null;
+        return this.currentUser || localStorage.getItem(this.SESSION_KEY) || null;
+    }
+
+    getCurrentUserId() {
+        return this.currentUserId || null;
     }
 
     isLoggedIn() {
         return Boolean(this.getCurrentUser());
     }
 
-    getLocalUsers() {
-        try { return JSON.parse(localStorage.getItem(this.LOCAL_KEY)) || {}; } catch (_) { return {}; }
-    }
-
-    saveLocalUser(username, hash) {
-        try {
-            const u = this.getLocalUsers();
-            u[username] = hash;
-            localStorage.setItem(this.LOCAL_KEY, JSON.stringify(u));
-        } catch (_) {}
-    }
-
     init() {
         if (window.awradyAPI && !window.awradyAPI.client) {
             window.awradyAPI.init();
         }
-        this.currentUser = this.getCurrentUser();
         this._bindEvents();
 
-        if (this.isLoggedIn()) {
+        const savedUser = localStorage.getItem(this.SESSION_KEY);
+        if (savedUser === this.GUEST_USER) {
+            this.currentUser = this.GUEST_USER;
+            this.currentUserId = null;
+            if (window.awradyAPI) {
+                window.awradyAPI.setCurrentUser(this.GUEST_USER, null);
+            }
+            this.hide();
+            this.updateUI();
+            return true;
+        }
+
+        const client = window.awradyAPI?.client;
+        if (client?.auth) {
+            client.auth.getSession().then(({ data: { session } }) => {
+                if (session?.user) {
+                    this.currentUserId = session.user.id;
+                    this.currentUser = session.user.user_metadata?.username || session.user.email?.split("@")[0] || session.user.id;
+                    localStorage.setItem(this.SESSION_KEY, this.currentUser);
+                    if (window.awradyAPI) {
+                        window.awradyAPI.setCurrentUser(this.currentUser, this.currentUserId);
+                    }
+                    this.hide();
+                    this.updateUI();
+                } else if (!savedUser) {
+                    this.show();
+                }
+            }).catch(() => {
+                if (!savedUser) this.show();
+            });
+
+            client.auth.onAuthStateChange((event, session) => {
+                if (event === "SIGNED_OUT") {
+                    this.currentUser = null;
+                    this.currentUserId = null;
+                    localStorage.removeItem(this.SESSION_KEY);
+                    if (window.awradyAPI) {
+                        window.awradyAPI.setCurrentUser(this.GUEST_USER, null);
+                    }
+                    this.show();
+                    this.updateUI();
+                } else if (session?.user && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
+                    this.currentUserId = session.user.id;
+                    this.currentUser = session.user.user_metadata?.username || session.user.email?.split("@")[0] || session.user.id;
+                    localStorage.setItem(this.SESSION_KEY, this.currentUser);
+                    if (window.awradyAPI) {
+                        window.awradyAPI.setCurrentUser(this.currentUser, this.currentUserId);
+                    }
+                    this.hide();
+                    this.updateUI();
+                }
+            });
+        }
+
+        if (savedUser) {
+            this.currentUser = savedUser;
             this.hide();
             this.updateUI();
             return true;
@@ -132,25 +188,29 @@ class AuthManager {
         const pwdInput = document.getElementById("auth-password");
         const confirmInput = document.getElementById("auth-confirm-password");
 
-        const username = (userInput?.value || "").toLowerCase().trim();
+        const rawInput = (userInput?.value || "").trim();
         const password = pwdInput?.value || "";
 
         const minUserLen = APP_CONSTANTS.LIMITS.USERNAME_MIN;
         const minPwdLen = APP_CONSTANTS.LIMITS.PASSWORD_MIN;
-        const tblUsers = APP_CONSTANTS.DB.TABLES.USERS;
 
-        if (!username || username.length < minUserLen) {
-            return this.showMsg(`اسم المستخدم يجب أن يكون ${minUserLen} أحرف على الأقل.`);
+        if (!rawInput || rawInput.length < minUserLen) {
+            return this.showMsg(`اسم المستخدم أو البريد الإلكتروني يجب أن يكون ${minUserLen} أحرف على الأقل.`);
         }
         if (!password || password.length < minPwdLen) {
             return this.showMsg(`كلمة المرور يجب أن تكون ${minPwdLen} أحرف على الأقل.`);
         }
 
-        const hash = await this.hashPassword(password);
         if (window.awradyAPI && !window.awradyAPI.client) {
             window.awradyAPI.init();
         }
         const client = window.awradyAPI?.client;
+        if (!client || !client.auth) {
+            return this.showMsg("تعذر الاتصال بخدمة المصادقة السحابية.");
+        }
+
+        const email = this._formatEmail(rawInput);
+        const username = this._extractUsername(rawInput);
 
         if (this.mode === "register") {
             const confirmPwd = confirmInput?.value || "";
@@ -158,89 +218,73 @@ class AuthManager {
                 return this.showMsg("كلمة المرور وتأكيد كلمة المرور غير متطابقتين.");
             }
 
-            // Check if username already exists locally
-            const localUsers = this.getLocalUsers();
-            if (localUsers[username]) {
-                return this.showMsg("اسم المستخدم مسجل مسبقاً، يرجى اختيار اسم آخر.");
-            }
+            try {
+                const { data, error } = await client.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        data: { username }
+                    }
+                });
 
-            // Check if username already exists in Cloud (Supabase)
-            if (client) {
-                try {
-                    const { data: existing, error } = await client.from(tblUsers).select("username").eq("username", username).maybeSingle();
-                    if (!error && existing) {
-                        return this.showMsg("اسم المستخدم مسجل مسبقاً، يرجى اختيار اسم آخر.");
+                if (error) {
+                    if (error.message.includes("already registered") || error.message.includes("User already registered")) {
+                        return this.showMsg("اسم المستخدم مسجل مسبقاً، يمكنك تسجيل الدخول به.");
                     }
-                    if (!error) {
-                        await client.from(tblUsers).insert([{ username, password_hash: hash }]);
+                    if (error.message.includes("rate limit") || error.message.includes("rate_limit")) {
+                        return this.showMsg("تم تجاوز حد إرسال الإيميلات. يرجى إيقاف خاصية 'Confirm email' في لوحة Supabase.");
                     }
-                } catch (e) {
-                    console.warn("[Auth] Cloud register fallback:", e.message);
+                    if (error.message.includes("Password should be")) {
+                        return this.showMsg(`كلمة المرور ضعيفة: ${error.message}`);
+                    }
+                    return this.showMsg(error.message || "حدث خطأ أثناء إنشاء الحساب.");
                 }
-            }
 
-            this.saveLocalUser(username, hash);
-            this.loginSuccess(username);
+                const uid = data.user?.id || null;
+                const displayName = data.user?.user_metadata?.username || username;
+                this.loginSuccess(displayName, uid);
+
+            } catch (e) {
+                this.showMsg("فشل الاتصال بخادم المصادقة: " + (e.message || ""));
+            }
 
         } else {
-            let valid = false;
-            let cloudChecked = false;
+            try {
+                const { data, error } = await client.auth.signInWithPassword({
+                    email,
+                    password
+                });
 
-            if (client) {
-                try {
-                    const { data: user, error } = await client.from(tblUsers).select("*").eq("username", username).maybeSingle();
-                    if (!error) {
-                        cloudChecked = true;
-                        if (user) {
-                            if (!user.password_hash || user.password_hash === hash) {
-                                valid = true;
-                            } else {
-                                return this.showMsg("كلمة المرور غير صحيحة.");
-                            }
-                        } else {
-                            const localUsers = this.getLocalUsers();
-                            if (!localUsers[username] && username !== this.GUEST_USER) {
-                                return this.showMsg("اسم المستخدم غير مسجل، يرجى إنشاء حساب جديد.");
-                            }
-                        }
+                if (error) {
+                    if (error.message.includes("Invalid login credentials")) {
+                        return this.showMsg("البريد الإلكتروني أو كلمة المرور غير صحيحة. (إذا كنت تسجل لأول مرة، يرجى التبديل إلى تبويب 'إنشاء حساب جديد').");
                     }
-                } catch (e) {
-                    console.warn("[Auth] Cloud login check fallback:", e.message);
-                }
-            }
-
-            if (!valid) {
-                const localUsers = this.getLocalUsers();
-                if (localUsers[username]) {
-                    if (localUsers[username] === hash) {
-                        valid = true;
-                    } else {
-                        return this.showMsg("كلمة المرور غير صحيحة.");
+                    if (error.message.includes("Email not confirmed")) {
+                        return this.showMsg("البريد الإلكتروني لم يتم تأكيده. يرجى إيقاف خاصية 'Confirm email' في لوحة تحكم Supabase.");
                     }
-                } else if (username === this.GUEST_USER) {
-                    valid = true;
-                } else if (!cloudChecked) {
-                    return this.showMsg("اسم المستخدم غير مسجل، يرجى إنشاء حساب جديد.");
+                    return this.showMsg(error.message || "فشل تسجيل الدخول.");
                 }
-            }
 
-            if (!valid) {
-                return this.showMsg("اسم المستخدم أو كلمة المرور غير صحيحة.");
-            }
+                const uid = data.user?.id || null;
+                const displayName = data.user?.user_metadata?.username || username;
+                this.loginSuccess(displayName, uid);
 
-            this.loginSuccess(username);
+            } catch (e) {
+                this.showMsg("فشل الاتصال بخادم المصادقة: " + (e.message || ""));
+            }
         }
     }
 
     loginAsGuest() {
-        this.loginSuccess(this.GUEST_USER);
+        this.loginSuccess(this.GUEST_USER, null);
     }
 
-    loginSuccess(username) {
+    loginSuccess(username, userId = null) {
         this.currentUser = username;
+        this.currentUserId = userId;
         localStorage.setItem(this.SESSION_KEY, username);
         if (window.awradyAPI) {
-            window.awradyAPI.setCurrentUser(username);
+            window.awradyAPI.setCurrentUser(username, userId);
         }
         this.showMsg("تم الدخول بنجاح!", false);
         setTimeout(() => {
@@ -252,12 +296,19 @@ class AuthManager {
         }, 300);
     }
 
-    logout() {
+    async logout() {
         if (!confirm("هل أنت متأكد من رغبتك في تسجيل الخروج؟")) return;
+        const client = window.awradyAPI?.client;
+        if (client?.auth) {
+            try {
+                await client.auth.signOut();
+            } catch (_) {}
+        }
         localStorage.removeItem(this.SESSION_KEY);
         this.currentUser = null;
+        this.currentUserId = null;
         if (window.awradyAPI) {
-            window.awradyAPI.setCurrentUser(this.GUEST_USER);
+            window.awradyAPI.setCurrentUser(this.GUEST_USER, null);
         }
         this.show();
         this.updateUI();

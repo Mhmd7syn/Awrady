@@ -87,7 +87,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
 window.startApp = async function(username) {
     if (window.awradyAPI) {
-        window.awradyAPI.setCurrentUser(username);
+        const uid = window.authManager?.getCurrentUserId?.() || null;
+        window.awradyAPI.setCurrentUser(username, uid);
     }
     await initData();
     if (!window._appControlsBound) {
@@ -129,7 +130,20 @@ const _dbCheckedDates = new Set();
 
 function loadLocalState() {
     try {
-        const localSaved = localStorage.getItem(getUserStorageKey()) || localStorage.getItem(STORAGE_KEY);
+        let localSaved = localStorage.getItem(getUserStorageKey()) || localStorage.getItem(STORAGE_KEY);
+        if (!localSaved) {
+            // Fallback to legacy guest store or existing local data to preserve progress across auth upgrade
+            localSaved = localStorage.getItem(`${STORAGE_KEY}_${APP_CONSTANTS.GUEST_USER}`);
+            if (!localSaved) {
+                for (let i = 0; i < localStorage.length; i++) {
+                    const k = localStorage.key(i);
+                    if (k && k.startsWith(STORAGE_KEY) && !k.endsWith(APP_CONSTANTS.STORAGE_KEYS.POMODORO)) {
+                        localSaved = localStorage.getItem(k);
+                        if (localSaved) break;
+                    }
+                }
+            }
+        }
         if (localSaved) {
             const parsed = JSON.parse(localSaved);
             if (parsed) {
@@ -409,6 +423,9 @@ async function initData() {
                 if (localNewTasks.length > 0) {
                     localNewTasks.forEach(t => window.awradyAPI.saveTask(t).catch(() => {}));
                 }
+            } else if (tasks && tasks.length === 0 && appData.tasks && appData.tasks.length > 0 && !window.awradyAPI.isGuest?.()) {
+                // Auto-upload local tasks to Supabase for newly authenticated user
+                window.awradyAPI.saveTasks(appData.tasks).catch(() => {});
             }
 
             if (!appData.logs) appData.logs = {};
@@ -428,6 +445,14 @@ async function initData() {
                         appData.logs[row.date] = localLog ? mergeDayLog(localLog, row) : rowToLog(row);
                     }
                 });
+            } else if (allProgress && allProgress.length === 0 && appData.logs && Object.keys(appData.logs).length > 0 && !window.awradyAPI.isGuest?.()) {
+                // Auto-upload local progress history to Supabase for newly authenticated user
+                for (const dateStr in appData.logs) {
+                    const log = appData.logs[dateStr];
+                    if (log && ((log.precomputedScore || 0) > 0 || Object.keys(log.taskProgress || {}).length > 0)) {
+                        pushDayToCloud(dateStr);
+                    }
+                }
             }
 
             // Sync all dirty/pending offline days up to Supabase now that we are connected

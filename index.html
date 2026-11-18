@@ -795,13 +795,13 @@
             <div id="auth-msg" class="auth-msg"></div>
 
             <form id="auth-form" onsubmit="return false;" style="text-align: right;">
-                <label style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 5px;">اسم المستخدم</label>
-                <input type="text" id="auth-username" class="auth-input-field" placeholder="أدخل اسم المستخدم" required dir="ltr" autocomplete="username">
+                <label style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 5px;">اسم المستخدم أو البريد الإلكتروني</label>
+                <input type="text" id="auth-username" class="auth-input-field" placeholder="أدخل اسم المستخدم أو البريد الإلكتروني" required dir="ltr" autocomplete="username">
 
-                <label style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 5px;">كلمة المرور</label>
-                <input type="password" id="auth-password" class="auth-input-field" placeholder="أدخل كلمة المرور" required autocomplete="current-password">
+                <label style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 5px; margin-top: 10px;">كلمة المرور</label>
+                <input type="password" id="auth-password" class="auth-input-field" placeholder="أدخل كلمة المرور (6 أحرف على الأقل)" required autocomplete="current-password">
 
-                <div id="auth-confirm-container" style="display: none;">
+                <div id="auth-confirm-container" style="display: none; margin-top: 10px;">
                     <label style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 5px;">تأكيد كلمة المرور</label>
                     <input type="password" id="auth-confirm-password" class="auth-input-field" placeholder="أعد إدخال كلمة المرور" autocomplete="new-password">
                 </div>
@@ -819,9 +819,9 @@
 
 
     <!-- Scripts -->
-    <script src="js/config/constants.js?v=20261112_05"></script>
+    <script src="js/config/constants.js?v=20261118_01"></script>
     <script src="js/config/default-data.js?v=20261013_10"></script>
-    <script src="js/api.js?v=20261113_01"></script>
+    <script src="js/api.js?v=20261118_01"></script>
     <script src="js/utils/date-utils.js?v=20261013_10"></script>
     <script src="js/core/schedule-engine.js?v=20261113_01"></script>
     <script src="js/core/scoring-engine.js?v=20261113_02"></script>
@@ -836,11 +836,11 @@
     <script src="js/components/category-manager.js?v=20261013_10"></script>
     <script src="js/components/analytics-view.js?v=20261118_03"></script>
     <script src="js/components/analytics-breakdown.js?v=20261111_03"></script>
-    <script src="js/components/data-manager.js?v=20261112_05"></script>
-    <script src="js/components/auth-manager.js?v=20261013_10"></script>
+    <script src="js/components/data-manager.js?v=20261118_01"></script>
+    <script src="js/components/auth-manager.js?v=20261118_05"></script>
     <script src="js/components/day-summary.js?v=20261113_02"></script>
     <script src="js/components/daily-view.js?v=20261117_02"></script>
-    <script src="js/app.js?v=20261117_02"></script>
+    <script src="js/app.js?v=20261118_02"></script>
 
     <!-- PWA Service Worker Registration -->
     <script>

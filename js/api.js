@@ -7,6 +7,7 @@ class AwradyAPI {
     constructor() {
         this.client = null;
         this.currentUser = APP_CONSTANTS.GUEST_USER;
+        this.currentUserId = null;
         this._listeners = new Set();
         this._syncChannel = null;
     }
@@ -14,7 +15,6 @@ class AwradyAPI {
     init() {
         const url = APP_CONSTANTS.SUPABASE.URL;
         const key = APP_CONSTANTS.SUPABASE.ANON_KEY;
-        this.currentUser = (window.authManager && window.authManager.getCurrentUser()) || APP_CONSTANTS.GUEST_USER;
 
         if (!url || !key || !window.supabase?.createClient) {
             console.error("[AwradyAPI] Supabase client credentials missing.");
@@ -24,8 +24,13 @@ class AwradyAPI {
         try {
             if (!this.client) {
                 this.client = window.supabase.createClient(url, key);
-                this.ensureUserExists();
-                this._setupRealtimeSync();
+                this.client.auth.getSession().then(({ data: { session } }) => {
+                    if (session?.user) {
+                        this.currentUserId = session.user.id;
+                        this.currentUser = session.user.user_metadata?.username || session.user.email?.split("@")[0] || session.user.id;
+                        this._setupRealtimeSync();
+                    }
+                }).catch(() => {});
             }
             return true;
         } catch (e) {
@@ -34,26 +39,41 @@ class AwradyAPI {
         }
     }
 
-    setCurrentUser(username) {
+    isGuest() {
+        return !this.currentUserId || this.currentUser === APP_CONSTANTS.GUEST_USER;
+    }
+
+    setCurrentUser(username, userId = null) {
         const cleanUser = (username || APP_CONSTANTS.GUEST_USER).toLowerCase().trim();
-        if (this.currentUser === cleanUser && this._syncChannel) return;
         this.currentUser = cleanUser;
+        this.currentUserId = userId || (cleanUser === APP_CONSTANTS.GUEST_USER ? null : this.currentUserId);
+
         if (this.client) {
-            this.ensureUserExists(cleanUser);
-            this._setupRealtimeSync();
+            if (this.isGuest()) {
+                if (this._syncChannel) {
+                    try { this.client.removeChannel(this._syncChannel); } catch (_) {}
+                    this._syncChannel = null;
+                }
+            } else {
+                this.ensureUserExists();
+                this._setupRealtimeSync();
+            }
         }
     }
 
-    async ensureUserExists(username = this.currentUser) {
-        if (!this.client || !username) return;
+    async ensureUserExists() {
+        if (!this.client || this.isGuest() || !this.currentUserId) return;
         try {
             const tblUsers = APP_CONSTANTS.DB.TABLES.USERS;
-            await this.client.from(tblUsers).upsert({ username }, { onConflict: "username", ignoreDuplicates: true });
+            await this.client.from(tblUsers).upsert(
+                { id: this.currentUserId, username: this.currentUser },
+                { onConflict: "id", ignoreDuplicates: true }
+            );
         } catch (_) {}
     }
 
     _setupRealtimeSync() {
-        if (!this.client) return;
+        if (!this.client || this.isGuest() || !this.currentUserId) return;
         if (this._syncChannel) {
             try {
                 this.client.removeChannel(this._syncChannel);
@@ -61,10 +81,10 @@ class AwradyAPI {
             this._syncChannel = null;
         }
 
-        const channelName = `${APP_CONSTANTS.DB.CHANNEL}_${this.currentUser}_${Date.now()}`;
+        const channelName = `${APP_CONSTANTS.DB.CHANNEL}_${this.currentUserId}_${Date.now()}`;
         const tblProgress = APP_CONSTANTS.DB.TABLES.PROGRESS;
         const tblTasks = APP_CONSTANTS.DB.TABLES.TASKS;
-        const filter = `username=eq.${this.currentUser}`;
+        const filter = `user_id=eq.${this.currentUserId}`;
 
         this._syncChannel = this.client
             .channel(channelName)
@@ -83,9 +103,9 @@ class AwradyAPI {
     }
 
     async getTasks(includeArchived = false) {
-        if (!this.client) throw new Error("Supabase client not initialized");
+        if (!this.client || this.isGuest()) return [];
         const tblTasks = APP_CONSTANTS.DB.TABLES.TASKS;
-        let query = this.client.from(tblTasks).select("*").eq("username", this.currentUser);
+        let query = this.client.from(tblTasks).select("*").eq("user_id", this.currentUserId);
         if (!includeArchived) query = query.eq("is_archived", false);
         const { data, error } = await query.order("created_at", { ascending: true });
         if (error) throw error;
@@ -108,6 +128,7 @@ class AwradyAPI {
 
     _taskToRow(task) {
         const row = {
+            user_id: this.currentUserId,
             username: this.currentUser,
             task_id: task.id,
             name: task.name,
@@ -134,14 +155,14 @@ class AwradyAPI {
     }
 
     async saveTask(task) {
-        if (!this.client) throw new Error("Supabase client not initialized");
+        if (!this.client || this.isGuest()) return null;
         const tblTasks = APP_CONSTANTS.DB.TABLES.TASKS;
         const row = this._taskToRow(task);
-        let { data, error } = await this.client.from(tblTasks).upsert(row, { onConflict: "username, task_id" }).select();
+        let { data, error } = await this.client.from(tblTasks).upsert(row, { onConflict: "user_id, task_id" }).select();
         if (error && error.message && (error.message.includes("daily_targets") || error.message.includes("column"))) {
             const fallbackRow = { ...row };
             delete fallbackRow.daily_targets;
-            const res = await this.client.from(tblTasks).upsert(fallbackRow, { onConflict: "username, task_id" }).select();
+            const res = await this.client.from(tblTasks).upsert(fallbackRow, { onConflict: "user_id, task_id" }).select();
             if (res.error) throw res.error;
             return res.data?.[0] || null;
         }
@@ -150,18 +171,18 @@ class AwradyAPI {
     }
 
     async saveTasks(tasks) {
-        if (!this.client) throw new Error("Supabase client not initialized");
+        if (!this.client || this.isGuest()) return [];
         if (!Array.isArray(tasks) || tasks.length === 0) return [];
         const tblTasks = APP_CONSTANTS.DB.TABLES.TASKS;
         const rows = tasks.map(t => this._taskToRow(t));
-        let { data, error } = await this.client.from(tblTasks).upsert(rows, { onConflict: "username, task_id" }).select();
+        let { data, error } = await this.client.from(tblTasks).upsert(rows, { onConflict: "user_id, task_id" }).select();
         if (error && error.message && (error.message.includes("daily_targets") || error.message.includes("column"))) {
             const fallbackRows = rows.map(r => {
                 const copy = { ...r };
                 delete copy.daily_targets;
                 return copy;
             });
-            const res = await this.client.from(tblTasks).upsert(fallbackRows, { onConflict: "username, task_id" }).select();
+            const res = await this.client.from(tblTasks).upsert(fallbackRows, { onConflict: "user_id, task_id" }).select();
             if (res.error) throw res.error;
             return res.data || [];
         }
@@ -170,37 +191,38 @@ class AwradyAPI {
     }
 
     async purgeTask(taskId) {
-        if (!this.client) throw new Error("Supabase client not initialized");
+        if (!this.client || this.isGuest()) return true;
         const tblTasks = APP_CONSTANTS.DB.TABLES.TASKS;
-        const { error } = await this.client.from(tblTasks).delete().eq("username", this.currentUser).eq("task_id", taskId);
+        const { error } = await this.client.from(tblTasks).delete().eq("user_id", this.currentUserId).eq("task_id", taskId);
         if (error) throw error;
         return true;
     }
 
     async getDayProgress(dateStr) {
-        if (!this.client) throw new Error("Supabase client not initialized");
+        if (!this.client || this.isGuest()) return null;
         const tblProgress = APP_CONSTANTS.DB.TABLES.PROGRESS;
-        const { data, error } = await this.client.from(tblProgress).select("*").eq("username", this.currentUser).eq("date", dateStr).maybeSingle();
+        const { data, error } = await this.client.from(tblProgress).select("*").eq("user_id", this.currentUserId).eq("date", dateStr).maybeSingle();
         if (error) throw error;
         return data || null;
     }
 
     async getAllProgress() {
-        if (!this.client) throw new Error("Supabase client not initialized");
+        if (!this.client || this.isGuest()) return [];
         const tblProgress = APP_CONSTANTS.DB.TABLES.PROGRESS;
         const { data, error } = await this.client
             .from(tblProgress)
             .select("date, total_score, total_hours, task_progress, prayer_extras, updated_at")
-            .eq("username", this.currentUser)
+            .eq("user_id", this.currentUserId)
             .order("date", { ascending: true });
         if (error) throw error;
         return data || [];
     }
 
     async saveDayProgress(dateStr, taskProgress, prayerExtras = {}, totals = {}) {
-        if (!this.client) throw new Error("Supabase client not initialized");
+        if (!this.client || this.isGuest()) return null;
         const tblProgress = APP_CONSTANTS.DB.TABLES.PROGRESS;
         const row = {
+            user_id: this.currentUserId,
             username: this.currentUser,
             date: dateStr,
             task_progress: taskProgress || {},
@@ -208,15 +230,15 @@ class AwradyAPI {
             total_score: Number(totals.totalScore ?? totals.total_score) || 0,
             total_hours: Number(totals.totalHours ?? totals.total_hours) || 0
         };
-        const { data, error } = await this.client.from(tblProgress).upsert(row, { onConflict: "username, date" }).select();
+        const { data, error } = await this.client.from(tblProgress).upsert(row, { onConflict: "user_id, date" }).select();
         if (error) throw error;
         return data?.[0] || null;
     }
 
     async deleteDayProgress(dateStr) {
-        if (!this.client) throw new Error("Supabase client not initialized");
+        if (!this.client || this.isGuest()) return true;
         const tblProgress = APP_CONSTANTS.DB.TABLES.PROGRESS;
-        const { error } = await this.client.from(tblProgress).delete().eq("username", this.currentUser).eq("date", dateStr);
+        const { error } = await this.client.from(tblProgress).delete().eq("user_id", this.currentUserId).eq("date", dateStr);
         if (error) throw error;
         return true;
     }

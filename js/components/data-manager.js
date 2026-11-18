@@ -152,9 +152,9 @@ function setupDataManagement() {
                 try {
                     localStorage.setItem(getUserStorageKey(), JSON.stringify(appData));
                 } catch (_) {}
-                if (window.awradyAPI?.client) {
+                if (window.awradyAPI?.client && !window.awradyAPI.isGuest?.()) {
                     try {
-                        await window.awradyAPI.client.from(APP_CONSTANTS.DB.TABLES.PROGRESS).delete().eq("username", window.awradyAPI.currentUser);
+                        await window.awradyAPI.client.from(APP_CONSTANTS.DB.TABLES.PROGRESS).delete().eq("user_id", window.awradyAPI.currentUserId);
                     } catch (e) {
                         console.warn("[AwradyAPI] Reset progress sync error:", e);
                     }
