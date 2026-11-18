@@ -76,15 +76,10 @@ function getSelectedDates() {
 
 function calculateScoreForDates(dates) {
     if (!dates || dates.length === 0) return { avgPercent: 0, count: 0 };
-    const todayStr = typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().slice(0, 10);
     let sumScores = 0;
     let count = 0;
     dates.forEach(d => {
         const score = ScoringEngine.calculateDayScore(d, appData, false);
-        // Exclude in-progress ongoing day with 0 score so it does not pull down the average
-        if (d === todayStr && score <= 0) {
-            return;
-        }
         sumScores += score;
         count++;
     });
@@ -94,13 +89,12 @@ function calculateScoreForDates(dates) {
 
 function updateAnalyticsHeroMetrics(selectedDates = null) {
     const allDates = getRecordedDates();
-    const activeDates = selectedDates || getSelectedDates();
+    const currentRange = (typeof chartTimeRange !== "undefined") ? chartTimeRange : "all";
+    const targetDates = (currentRange === "all") ? allDates : (selectedDates || getSelectedDates());
 
     const elHeroTitle = document.getElementById("analytics-hero-title");
     const elAnalyticsVal = document.getElementById("analytics-alltime-val");
     const elAnalyticsSub = document.getElementById("analytics-alltime-sub");
-
-    const currentRange = (typeof chartTimeRange !== "undefined") ? chartTimeRange : "all";
 
     if (elHeroTitle) {
         if (currentRange === "7") {
@@ -112,29 +106,29 @@ function updateAnalyticsHeroMetrics(selectedDates = null) {
         }
     }
 
-    if (activeDates.length === 0) {
+    if (targetDates.length === 0) {
         if (elAnalyticsVal) elAnalyticsVal.textContent = "0%";
         if (elAnalyticsSub) elAnalyticsSub.textContent = "لم يتم تسجيل أيام بعد";
         return;
     }
 
-    const { avgPercent } = calculateScoreForDates(activeDates);
+    const { avgPercent } = calculateScoreForDates(targetDates);
 
     if (elAnalyticsVal) elAnalyticsVal.textContent = `${avgPercent}%`;
 
     if (elAnalyticsSub) {
         if (currentRange === "all") {
-            elAnalyticsSub.textContent = `السجل التراكمي لكافة الأيام (${activeDates.length} يوماً)`;
+            elAnalyticsSub.textContent = "السجل التراكمي لكافة الأيام";
         } else if (currentRange === "7") {
-            elAnalyticsSub.textContent = activeDates.length >= 7
+            elAnalyticsSub.textContent = targetDates.length >= 7
                 ? `بناءً على آخر 7 أيام متتالية`
-                : `بناءً على ${activeDates.length} أيام مسجلة منذ الانضمام`;
+                : `بناءً على ${targetDates.length} أيام مسجلة منذ الانضمام`;
         } else if (currentRange === "30") {
-            elAnalyticsSub.textContent = activeDates.length >= 30
+            elAnalyticsSub.textContent = targetDates.length >= 30
                 ? `بناءً على آخر 30 يوماً متتالياً`
-                : `بناءً على ${activeDates.length} يوماً منذ بدء الاستخدام`;
+                : `بناءً على ${targetDates.length} يوماً منذ بدء الاستخدام`;
         } else {
-            elAnalyticsSub.textContent = `بناءً على ${activeDates.length} يوماً في هذه الفترة`;
+            elAnalyticsSub.textContent = `بناءً على ${targetDates.length} يوماً في هذه الفترة`;
         }
     }
 }
