@@ -175,6 +175,12 @@ function setupDataManagement() {
                 if (typeof _dbSaveTimer !== "undefined" && _dbSaveTimer) {
                     clearTimeout(_dbSaveTimer);
                 }
+                if ("caches" in window) {
+                    try {
+                        const keys = await caches.keys();
+                        await Promise.all(keys.map(k => caches.delete(k)));
+                    } catch (_) {}
+                }
                 loadDefaultAppData();
                 try {
                     localStorage.removeItem("awrady_tasks_daily_targets");
