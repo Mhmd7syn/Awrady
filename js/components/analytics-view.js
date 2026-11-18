@@ -62,11 +62,20 @@ function getSelectedDates() {
         return theoreticalStart < earliestDate ? earliestDate : theoreticalStart;
     };
 
-    if (chartTimeRange === "7") {
+    const totalDays = Math.round((new Date(todayStr + "T12:00:00") - new Date(earliestDate + "T12:00:00")) / 86400000) + 1;
+
+    let effectiveRange = chartTimeRange;
+    if (totalDays <= 7) {
+        effectiveRange = "7";
+    } else if (totalDays <= 30 && chartTimeRange === "all") {
+        effectiveRange = "30";
+    }
+
+    if (effectiveRange === "7") {
         return generateDateRange(getBoundedStart(7), todayStr);
     }
 
-    if (chartTimeRange === "30") {
+    if (effectiveRange === "30") {
         return generateDateRange(getBoundedStart(30), todayStr);
     }
 
@@ -235,8 +244,8 @@ function initChart() {
                                 const ds = context.dataset;
                                 const rawVal = ds?.rawHours?.[context.dataIndex];
                                 const val = context.parsed.y;
-                                if (rawVal !== undefined && chartTimeRange !== "7" && rawVal !== val) {
-                                    const windowDays = ds?.smoothingDays || 7;
+                                if (rawVal !== undefined && (ds?.smoothingDays > 1) && rawVal !== val) {
+                                    const windowDays = ds?.smoothingDays;
                                     const windowLabel = windowDays <= 10 ? `${windowDays} أيام` : `${windowDays} يوماً`;
                                     return [
                                         `المعدل السلس (${windowLabel}): ${val} ساعة`,
@@ -544,14 +553,9 @@ function updateChartAndAnalytics() {
         }
     });
 
-    let chartData = fullDataList;
-    let smoothingDays = 0;
-
-    if (chartTimeRange !== "7") {
-        const dynamicRadius = Math.min(10, Math.max(1, Math.round(fullDataList.length * (1 / 30))));
-        smoothingDays = (dynamicRadius * 2) + 1;
-        chartData = applyCenteredMovingAverage(fullDataList, dynamicRadius);
-    }
+    const dynamicRadius = Math.min(10, Math.round(fullDataList.length * (1 / 30)));
+    const smoothingDays = (dynamicRadius * 2) + 1;
+    const chartData = applyCenteredMovingAverage(fullDataList, dynamicRadius);
 
     const labels = chartData.map(item => item.label);
     const dataPoints = chartData.map(item => item.hours);
