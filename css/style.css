@@ -751,12 +751,18 @@ body {
     align-items: center;
     justify-content: space-between;
     gap: 16px;
+    position: relative;
+    overflow: hidden;
     transition: var(--transition);
 }
 
 .breakdown-card:hover {
     border-color: rgba(255, 255, 255, 0.2);
     background: rgba(18, 30, 25, 0.8);
+}
+
+.breakdown-card:hover .breakdown-bottom-fill {
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.55);
 }
 
 .breakdown-info {
@@ -783,20 +789,63 @@ body {
     align-items: center;
 }
 
-.breakdown-bar-section {
-    flex: 1;
+.breakdown-metrics-display {
     display: flex;
     align-items: center;
-    gap: 12px;
-    max-width: 240px;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.breakdown-hours-val {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--emerald-primary);
+    font-family: var(--font-ui);
+    line-height: 1;
+}
+
+.breakdown-separator {
+    display: inline-block;
+    width: 1px;
+    height: 13px;
+    background: rgba(255, 255, 255, 0.22);
+    flex-shrink: 0;
+    border-radius: 1px;
 }
 
 .breakdown-pct {
     font-size: 1.15rem;
     font-weight: 800;
     font-family: var(--font-ui);
-    min-width: 44px;
-    text-align: left;
+    line-height: 1;
+}
+
+.breakdown-bottom-track {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+}
+
+.breakdown-bottom-fill {
+    position: absolute;
+    bottom: 0;
+    inset-inline-start: 0;
+    right: 0;
+    height: 100%;
+    background: linear-gradient(to left, var(--emerald-primary), var(--gold-primary));
+    box-shadow: 0 0 6px rgba(16, 185, 129, 0.35);
+    border-radius: 2px;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[dir="ltr"] .breakdown-bottom-fill {
+    right: auto;
+    left: 0;
+    background: linear-gradient(to right, var(--emerald-primary), var(--gold-primary));
 }
 
 .breakdown-header-row {

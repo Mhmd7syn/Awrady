@@ -105,6 +105,7 @@ function renderTaskBreakdown(allDates) {
         if (catTasks.length === 0) return;
 
         let catSumPct = 0;
+        let catSumHours = 0;
 
         const catCard = document.createElement("div");
         catCard.className = "manager-cat-group";
@@ -125,9 +126,24 @@ function renderTaskBreakdown(allDates) {
             let activeTimes = 0;
             let sumRatio = 0;
             let scheduledDaysCount = 0;
+            let taskTotalHours = 0;
 
             const targetDate = task.oneTimeDate || (task.createdAt ? task.createdAt.slice(0, 10) : null);
             const archiveCutoff = task.archivedAt || null;
+
+            const computeTaskHours = (taskObj, val, date) => {
+                if (val <= 0) return 0;
+                const isTime = typeof isTimeTask === "function" && isTimeTask(taskObj);
+                if (isTime) return val / 60;
+                const tgt = getTaskNormalizedTarget(taskObj, date);
+                const baseTgt = (taskObj.target && taskObj.target > 0) ? taskObj.target : 1;
+                const effectiveTgt = tgt > 0 ? tgt : baseTgt;
+                const weightMinutes = (typeof ScoringEngine !== "undefined" && typeof ScoringEngine.getTaskWeightMinutes === "function")
+                    ? ScoringEngine.getTaskWeightMinutes(taskObj, effectiveTgt)
+                    : 1;
+                const ratio = Math.min(1.0, val / effectiveTgt);
+                return (ratio * weightMinutes) / 60;
+            };
 
             // Check if task has any past logged entries (for legacy tasks without explicit cutoff dates)
             let taskHasAnyLogs = false;
@@ -179,6 +195,7 @@ function renderTaskBreakdown(allDates) {
                         const baseTgt = (task.target && task.target > 0) ? (isTimeTask(task) ? task.target * 60 : task.target) : 1;
                         const effectiveTgt = tgt > 0 ? tgt : baseTgt;
                         sumRatio += Math.min(1.0, val / effectiveTgt);
+                        taskTotalHours += computeTaskHours(task, val, d);
                     }
                 } else if (val > 0) {
                     // Strictly additive bonus entry: never increments scheduledDaysCount
@@ -187,6 +204,7 @@ function renderTaskBreakdown(allDates) {
                     const baseTgt = (task.target && task.target > 0) ? (isTimeTask(task) ? task.target * 60 : task.target) : 1;
                     const effectiveTgt = tgt > 0 ? tgt : baseTgt;
                     sumRatio += Math.min(1.0, val / effectiveTgt);
+                    taskTotalHours += computeTaskHours(task, val, d);
                 }
             });
 
@@ -204,6 +222,7 @@ function renderTaskBreakdown(allDates) {
                         const baseTgt = (task.target && task.target > 0) ? (isTimeTask(task) ? task.target * 60 : task.target) : 1;
                         const effectiveTgt = tgt > 0 ? tgt : baseTgt;
                         sumRatio += Math.min(1.0, val / effectiveTgt);
+                        taskTotalHours += computeTaskHours(task, val, targetDate);
                     }
                 }
             }
@@ -211,6 +230,8 @@ function renderTaskBreakdown(allDates) {
             const effectiveTotalDays = scheduledDaysCount > 0 ? scheduledDaysCount : (activeTimes > 0 ? activeTimes : 0);
             const consistencyPct = effectiveTotalDays > 0 ? Math.min(100, Math.round((sumRatio / effectiveTotalDays) * 100)) : 0;
             catSumPct += consistencyPct;
+            catSumHours += taskTotalHours;
+            const formattedHours = Math.round(taskTotalHours * 10) / 10;
             const iconHtml = getCategoryIconHtml(task);
             const statusBadgeHtml = `<span class="breakdown-status-badge ${statusCfg.badgeClass}"><i class="fa-solid ${statusCfg.icon}"></i> ${statusCfg.label}</span>`;
 
@@ -230,17 +251,17 @@ function renderTaskBreakdown(allDates) {
                         ${statusBadgeHtml}
                     </div>
                     <div class="breakdown-meta">
-                        <span>${activeTimes} / ${effectiveTotalDays} يوم</span>
-                        <span>•</span>
-                        <span>${task.type || "مهمة"}</span>
+                        <span>${activeTimes} من ${effectiveTotalDays} يوم</span>
                         ${metaExtra}
                     </div>
                 </div>
-                <div class="breakdown-bar-section">
-                    <div class="task-progress-bar-bg" style="height:6px; flex:1;">
-                        <div class="task-progress-bar-fill" style="width: ${Math.min(100, consistencyPct)}%;"></div>
-                    </div>
+                <div class="breakdown-metrics-display">
+                    <span class="breakdown-hours-val">${formattedHours} س</span>
+                    <span class="breakdown-separator"></span>
                     <span class="breakdown-pct ${consistencyPct >= APP_CONSTANTS.UI.SCORE_THRESHOLDS.GOLD ? 'gold-text' : (consistencyPct >= 65 ? 'emerald-text' : (consistencyPct >= 35 ? 'gold-text' : ''))}">${consistencyPct}%</span>
+                </div>
+                <div class="breakdown-bottom-track">
+                    <div class="breakdown-bottom-fill" style="width: ${Math.min(100, consistencyPct)}%;"></div>
                 </div>
             `;
             return card;
@@ -280,6 +301,7 @@ function renderTaskBreakdown(allDates) {
         }
 
         const catAvgPct = catTasks.length > 0 ? Math.round(catSumPct / catTasks.length) : 0;
+        const catHoursFormatted = Math.round(catSumHours * 10) / 10;
 
         catHeader.innerHTML = `
             <div class="manager-cat-header-title">
@@ -287,7 +309,7 @@ function renderTaskBreakdown(allDates) {
                 <span>${catGroupData.label || catGroupData.name}</span>
             </div>
             <div style="display:flex; gap:10px; align-items:center;">
-                <span class="manager-cat-count-badge" style="background:rgba(59,130,246,0.15); color:#60a5fa; border-color:rgba(59,130,246,0.3);">الالتزام: ${catAvgPct}%</span>
+                <span class="manager-cat-count-badge" style="background:rgba(59,130,246,0.15); color:#60a5fa; border-color:rgba(59,130,246,0.3);">${catHoursFormatted > 0 ? `${catHoursFormatted} س • ` : ''}الالتزام: ${catAvgPct}%</span>
                 <span class="manager-cat-count-badge">${catTasks.length} ${catTasks.length === 1 ? 'مهمة' : (catTasks.length <= 10 ? 'مهام' : 'مهمة')}</span>
             </div>
         `;
