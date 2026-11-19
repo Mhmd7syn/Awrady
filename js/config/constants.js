@@ -105,7 +105,9 @@ var APP_CONSTANTS = {
         { name: "استماع", icon: "fa-headphones", defaultUnit: "ساعة", defaultEstimatedMinutes: 60 },
         { name: "شغل", icon: "fa-briefcase", defaultUnit: "ساعة", defaultEstimatedMinutes: 60 },
         { name: "مذاكرة", icon: "fa-graduation-cap", defaultUnit: "ساعة", defaultEstimatedMinutes: 60 },
-        { name: "خروج", icon: "fa-person-walking", defaultUnit: "ساعة", defaultEstimatedMinutes: 60 }
+        { name: "خروج", icon: "fa-person-walking", defaultUnit: "ساعة", defaultEstimatedMinutes: 60 },
+        { name: "أعمال منزلية", icon: "fa-broom", defaultUnit: "ساعة", defaultEstimatedMinutes: 60 },
+        { name: "أخرى", icon: "fa-shapes", defaultUnit: "ساعة", defaultEstimatedMinutes: 60 }
     ]
 };
 
