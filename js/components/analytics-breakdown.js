@@ -141,7 +141,7 @@ function renderTaskBreakdown(allDates) {
                 const weightMinutes = (typeof ScoringEngine !== "undefined" && typeof ScoringEngine.getTaskWeightMinutes === "function")
                     ? ScoringEngine.getTaskWeightMinutes(taskObj, effectiveTgt)
                     : 1;
-                const ratio = Math.min(1.0, val / effectiveTgt);
+                const ratio = val / effectiveTgt;
                 return (ratio * weightMinutes) / 60;
             };
 
@@ -194,7 +194,7 @@ function renderTaskBreakdown(allDates) {
                         const tgt = getTaskNormalizedTarget(task, d);
                         const baseTgt = (task.target && task.target > 0) ? (isTimeTask(task) ? task.target * 60 : task.target) : 1;
                         const effectiveTgt = tgt > 0 ? tgt : baseTgt;
-                        sumRatio += Math.min(1.0, val / effectiveTgt);
+                        sumRatio += val / effectiveTgt;
                         taskTotalHours += computeTaskHours(task, val, d);
                     }
                 } else if (val > 0) {
@@ -203,7 +203,7 @@ function renderTaskBreakdown(allDates) {
                     const tgt = getTaskNormalizedTarget(task, d);
                     const baseTgt = (task.target && task.target > 0) ? (isTimeTask(task) ? task.target * 60 : task.target) : 1;
                     const effectiveTgt = tgt > 0 ? tgt : baseTgt;
-                    sumRatio += Math.min(1.0, val / effectiveTgt);
+                    sumRatio += val / effectiveTgt;
                     taskTotalHours += computeTaskHours(task, val, d);
                 }
             });
@@ -221,14 +221,14 @@ function renderTaskBreakdown(allDates) {
                         const tgt = getTaskNormalizedTarget(task, targetDate);
                         const baseTgt = (task.target && task.target > 0) ? (isTimeTask(task) ? task.target * 60 : task.target) : 1;
                         const effectiveTgt = tgt > 0 ? tgt : baseTgt;
-                        sumRatio += Math.min(1.0, val / effectiveTgt);
+                        sumRatio += val / effectiveTgt;
                         taskTotalHours += computeTaskHours(task, val, targetDate);
                     }
                 }
             }
 
             const effectiveTotalDays = scheduledDaysCount > 0 ? scheduledDaysCount : (activeTimes > 0 ? activeTimes : 0);
-            const consistencyPct = effectiveTotalDays > 0 ? Math.min(100, Math.round((sumRatio / effectiveTotalDays) * 100)) : 0;
+            const consistencyPct = effectiveTotalDays > 0 ? Math.round((sumRatio / effectiveTotalDays) * 100) : 0;
             catSumPct += consistencyPct;
             catSumHours += taskTotalHours;
             const formattedHours = Math.round(taskTotalHours * 10) / 10;

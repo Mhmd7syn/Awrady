@@ -195,7 +195,7 @@ function renderDailyView() {
                     : (typeof ScheduleEngine !== "undefined"
                         ? ScheduleEngine.isBonusTaskForDate(task, currentDateStr, appData, val)
                         : Boolean(task.isBonus));
-                const progressPct = target > 0 ? Math.min(100, Math.round((val / target) * 100)) : (val > 0 ? 100 : 0);
+                const progressPct = target > 0 ? Math.round((val / target) * 100) : (val > 0 ? 100 : 0);
                 
                 card.className = `task-card glass-card ${isBonus ? 'is-bonus-card' : ''}`;
                 card.setAttribute("data-task-id", task.id);
@@ -224,7 +224,7 @@ function renderDailyView() {
                     </div>
 
                     <div class="task-progress-bar-bg">
-                        <div class="task-progress-bar-fill" style="width: ${progressPct}%"></div>
+                        <div class="task-progress-bar-fill" style="width: ${Math.min(100, progressPct)}%"></div>
                     </div>
 
                     ${controlsHtml}
@@ -272,7 +272,7 @@ function renderDailyView() {
                 } else {
                     targetStr = (!isBonus && target > 0) ? `${val}/${target} ${unitLabel}` : `${val} ${unitLabel}`.trim();
                 }
-                const progressPct = target > 0 ? Math.min(100, Math.round((val / target) * 100)) : (val > 0 ? 100 : 0);
+                const progressPct = target > 0 ? Math.round((val / target) * 100) : (val > 0 ? 100 : 0);
                 const barColor = (isBonus || overTarget) ? "#f59e0b" : "#10b981";
                 const minControlsHtml = renderTaskControls(task, val, { compact: true });
                 const isFastingTask = task.category === "صوم" || (task.schedule || "").includes("WhiteDays") || (task.name && (task.name.includes("صيام") || task.name.includes("صوم")));
@@ -293,7 +293,7 @@ function renderDailyView() {
                         ${minControlsHtml}
                     </div>
                     <div class="task-progress-bar-bg" style="height:4px; margin-top:4px; background:rgba(255,255,255,0.06); border-radius:4px; overflow:hidden;">
-                        <div class="task-progress-bar-fill" style="width:${progressPct}%; height:100%; background:${barColor}; border-radius:4px; transition:width 0.3s ease;"></div>
+                        <div class="task-progress-bar-fill" style="width:${Math.min(100, progressPct)}%; height:100%; background:${barColor}; border-radius:4px; transition:width 0.3s ease;"></div>
                     </div>
                 `;
                 completedSection.appendChild(pill);
@@ -434,10 +434,10 @@ function attachTaskControlListeners(grid) {
         // Update card progress bar in real time without destroying input focus
         if (card && task) {
             const target = getTaskNormalizedTarget(task, currentDateStr);
-            const progressPct = target > 0 ? Math.min(100, Math.round((newTotal / target) * 100)) : (newTotal > 0 ? 100 : 0);
+            const progressPct = target > 0 ? Math.round((newTotal / target) * 100) : (newTotal > 0 ? 100 : 0);
             const progressBar = card.querySelector(".task-progress-bar-fill");
             if (progressBar) {
-                progressBar.style.width = `${progressPct}%`;
+                progressBar.style.width = `${Math.min(100, progressPct)}%`;
             }
         }
         updateDailyScoreSummary();
@@ -627,7 +627,7 @@ function updateTaskCardInPlace(taskId, val, task = null) {
 
     const curDate = currentDateStr;
     const target = getTaskNormalizedTarget(task, curDate);
-    const progressPct = target > 0 ? Math.min(100, Math.round((val / target) * 100)) : (val > 0 ? 100 : 0);
+    const progressPct = target > 0 ? Math.round((val / target) * 100) : (val > 0 ? 100 : 0);
     const log = (appData && appData.logs) ? appData.logs[curDate] : null;
     const tp = log?.taskProgress?.[taskId];
     const isBonus = card.classList.contains("is-bonus-card")
@@ -638,7 +638,7 @@ function updateTaskCardInPlace(taskId, val, task = null) {
     // 1. Update progress bar fill
     const progressBar = card.querySelector(".task-progress-bar-fill");
     if (progressBar) {
-        progressBar.style.width = `${progressPct}%`;
+        progressBar.style.width = `${Math.min(100, progressPct)}%`;
         if (card.classList.contains("task-item-minimal")) {
             progressBar.style.background = barColor;
         }

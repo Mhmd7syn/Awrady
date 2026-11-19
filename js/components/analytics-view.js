@@ -297,7 +297,7 @@ function initChart() {
                         display: true,
                         position: "right",
                         min: 0,
-                        max: 100,
+                        suggestedMax: 100,
                         ticks: { color: "#f59e0b", font: { family: "Outfit", weight: "600" }, callback: val => `${val}%` },
                         grid: { drawOnChartArea: false }
                     },
@@ -356,7 +356,7 @@ function applyCenteredMovingAverage(data, radius = 3) {
             count++;
         }
         const smoothedHours = count > 0 ? Math.round((sumHours / count) * 10) / 10 : item.hours;
-        const smoothedPercent = count > 0 ? Math.min(100, Math.round(sumPct / count)) : (item.percent || 0);
+        const smoothedPercent = count > 0 ? Math.round(sumPct / count) : (item.percent || 0);
         return {
             ...item,
             hours: smoothedHours,
@@ -512,7 +512,7 @@ function updateChartAndAnalytics() {
         const hoursFormatted = Math.round(hours * 10) / 10;
 
         const score = ScoringEngine.calculateDayScore(dateStr, appData, false);
-        const pctFormatted = Math.min(100, Math.round(score * 100));
+        const pctFormatted = Math.round(score * 100);
 
         const dateParts = dateStr.split("-");
         const label = dateParts.length === 3 ? `${parseInt(dateParts[2], 10)}/${parseInt(dateParts[1], 10)}` : dateStr;
