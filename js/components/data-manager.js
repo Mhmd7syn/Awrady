@@ -129,12 +129,12 @@ function setupDataManagement() {
                         renderAllTimeStats();
                         updateChartAndAnalytics();
                         updateHeaderTodayScore();
-                        alert("✅ تم استعادة النسخة الاحتياطية بنجاح ومزامنتها مع قاعدة البيانات!");
+                        showToast("✅ تم استعادة النسخة الاحتياطية بنجاح ومزامنتها مع قاعدة البيانات!", "success");
                     } else {
-                        alert("❌ ملف JSON غير صحيح أو مفقود للبنية.");
+                        showToast("❌ ملف JSON غير صحيح أو مفقود للبنية.", "error");
                     }
                 } catch (err) {
-                    alert("❌ حدث خطأ أثناء قراءة ملف JSON: " + err.message);
+                    showToast("❌ حدث خطأ أثناء قراءة ملف JSON: " + err.message, "error");
                 }
             };
             reader.readAsText(file);
@@ -159,8 +159,8 @@ function setupDataManagement() {
                         console.warn("[AwradyAPI] Reset progress sync error:", e);
                     }
                 }
-                alert("🧹 تم مسح سجلات الإنجاز بنجاح!");
-                location.reload();
+                showToast("🧹 تم مسح سجلات الإنجاز بنجاح!", "success", 2000, () => location.reload());
+                setTimeout(() => location.reload(), 1200);
             }
         });
     }
@@ -190,8 +190,8 @@ function setupDataManagement() {
                         console.warn("[AwradyAPI] Reset data sync error:", e);
                     }
                 }
-                alert("🔄 تم إعادة ضبط التطبيق بنجاح على البيانات الافتراضية!");
-                location.reload();
+                showToast("🔄 تم إعادة ضبط التطبيق بنجاح على البيانات الافتراضية!", "success", 2000, () => location.reload());
+                setTimeout(() => location.reload(), 1200);
             }
         });
     }
@@ -226,7 +226,7 @@ function setupDataManagement() {
     if (headerCloudPill) {
         headerCloudPill.addEventListener("click", async () => {
             if (!navigator.onLine) {
-                alert("أنت حالياً في وضع عدم الاتصال (Offline). بياناتك محفوظة محلياً في هذا المتصفح وستتم مزامنتها تلقائياً فور عودة الاتصال بالسحابة.");
+                showToast("أنت حالياً في وضع عدم الاتصال (Offline). بياناتك محفوظة محلياً في هذا المتصفح وستتم مزامنتها تلقائياً فور عودة الاتصال بالسحابة.", "info");
                 return;
             }
             updateCloudSyncUI({ state: "syncing", message: "جارِ التحقق من المزامنة السحابية..." });

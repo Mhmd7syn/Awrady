@@ -332,7 +332,7 @@ function saveTaskFromModal() {
     const id = document.getElementById("task-id-input").value || `task_${Date.now()}`;
     const name = document.getElementById("task-name-input").value.trim();
     if (!name) {
-        alert("يرجى إدخال اسم المهمة");
+        showToast("يرجى إدخال اسم المهمة", "warning");
         return;
     }
     const cat = document.getElementById("task-category-input").value;

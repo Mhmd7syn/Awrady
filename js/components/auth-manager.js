@@ -100,14 +100,14 @@ class AuthManager {
 
                     if (isSignupConfirm) {
                         setTimeout(() => {
-                            alert(`🎉 تم تأكيد وتفعيل بريدك الإلكتروني بنجاح!\nمرحباً بك (${this.currentUser})، تم فتح حسابك المؤكد وهو الآن نشط بالكامل ومربوط بالمزامنة السحابية.`);
+                            showToast(`🎉 تم تأكيد وتفعيل بريدك الإلكتروني بنجاح!\nمرحباً بك (${this.currentUser})، تم فتح حسابك المؤكد وهو الآن نشط بالكامل ومربوط بالمزامنة السحابية.`, "success", 5000);
                         }, 400);
                         if (typeof window.startApp === "function") {
                             window.startApp(this.currentUser);
                         }
                     } else if (isEmailChange) {
                         setTimeout(() => {
-                            alert("✅ تم تأكيد وتحديث البريد الإلكتروني الجديد بنجاح!");
+                            showToast("✅ تم تأكيد وتحديث البريد الإلكتروني الجديد بنجاح!", "success");
                         }, 400);
                     }
 
@@ -157,14 +157,14 @@ class AuthManager {
 
                     if (isSignupConfirm) {
                         setTimeout(() => {
-                            alert(`🎉 تم تأكيد وتفعيل بريدك الإلكتروني بنجاح!\nمرحباً بك (${this.currentUser})، تم فتح حسابك المؤكد وهو الآن نشط بالكامل ومربوط بالمزامنة السحابية.`);
+                            showToast(`🎉 تم تأكيد وتفعيل بريدك الإلكتروني بنجاح!\nمرحباً بك (${this.currentUser})، تم فتح حسابك المؤكد وهو الآن نشط بالكامل ومربوط بالمزامنة السحابية.`, "success", 5000);
                         }, 400);
                         if (typeof window.startApp === "function") {
                             window.startApp(this.currentUser);
                         }
                     } else if (isEmailChange) {
                         setTimeout(() => {
-                            alert("✅ تم تأكيد تحديث البريد الإلكتروني الجديد بنجاح!");
+                            showToast("✅ تم تأكيد تحديث البريد الإلكتروني الجديد بنجاح!", "success");
                         }, 400);
                     }
                 }
@@ -772,8 +772,8 @@ class AuthManager {
             }
 
             this.closeAccountModal();
-            alert("✅ تم حذف حسابك وكافة البيانات المرتبطة به بنجاح.");
-            window.location.reload();
+            showToast("✅ تم حذف حسابك وكافة البيانات المرتبطة به بنجاح.", "success", 2000, () => window.location.reload());
+            setTimeout(() => window.location.reload(), 1200);
         } catch (err) {
             this.showAccountMsg(err.message || "حدث خطأ أثناء محاولة حذف الحساب.", true);
         } finally {
@@ -865,16 +865,16 @@ class AuthManager {
 
             const newPwd = prompt("🔑 استعادة كلمة المرور:\nيرجى إدخال كلمة المرور الجديدة (6 أحرف على الأقل):");
             if (!newPwd || newPwd.trim().length < 6) {
-                alert("لم يتم تغيير كلمة المرور: يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.");
+                showToast("لم يتم تغيير كلمة المرور: يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.", "warning");
                 return;
             }
 
             try {
                 const { error } = await client.auth.updateUser({ password: newPwd.trim() });
                 if (error) {
-                    alert("فشل تحديث كلمة المرور: " + error.message);
+                    showToast("فشل تحديث كلمة المرور: " + error.message, "error");
                 } else {
-                    alert("✅ تم تعيين كلمة المرور الجديدة بنجاح! يمكنك الآن استخدامها لتسجيل الدخول.");
+                    showToast("✅ تم تعيين كلمة المرور الجديدة بنجاح! يمكنك الآن استخدامها لتسجيل الدخول.", "success");
                     if (typeof window !== "undefined" && window.location.hash) {
                         try {
                             window.history.replaceState(null, "", window.location.pathname + window.location.search);
@@ -882,7 +882,7 @@ class AuthManager {
                     }
                 }
             } catch (err) {
-                alert("حدث خطأ أثناء تحديث كلمة المرور: " + (err.message || ""));
+                showToast("حدث خطأ أثناء تحديث كلمة المرور: " + (err.message || ""), "error");
             }
         }, 500);
     }
