@@ -201,6 +201,27 @@ CREATE TRIGGER set_updated_at_daily_progress
     BEFORE UPDATE ON public.daily_progress
     FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
+-- Auto-confirm synthetic username-only users so they are not blocked by "Confirm email"
+CREATE OR REPLACE FUNCTION public.handle_synthetic_user_confirm()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.email LIKE '%.awrady@gmail.com' OR NEW.email LIKE '%@awrady.internal' THEN
+        IF NEW.email_confirmed_at IS NULL THEN
+            NEW.email_confirmed_at := timezone('utc'::text, now());
+        END IF;
+        IF NEW.confirmed_at IS NULL THEN
+            NEW.confirmed_at := timezone('utc'::text, now());
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_synthetic_confirm ON auth.users;
+CREATE TRIGGER on_auth_user_synthetic_confirm
+    BEFORE INSERT OR UPDATE ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_synthetic_user_confirm();
+
 -- Auto-provision public profile on Supabase auth.users sign-up
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$

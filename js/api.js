@@ -363,9 +363,13 @@ class AwradyAPI {
         }
 
         // 1. Update email via Supabase Auth
+        const isWeb = typeof window !== "undefined" && window.location.origin && !window.location.origin.startsWith("file:");
+        const redirectTo = isWeb ? (window.location.origin + window.location.pathname) : "https://awrady.vercel.app/";
+        const options = { emailRedirectTo: redirectTo };
+
         const { data, error: authError } = await this.client.auth.updateUser({
             email: cleanEmail
-        });
+        }, options);
         if (authError) {
             if (authError.message && (authError.message.includes("already registered") || authError.message.includes("unique") || authError.message.includes("already exists"))) {
                 throw new Error("البريد الإلكتروني مسجل بالفعل لحساب آخر.");

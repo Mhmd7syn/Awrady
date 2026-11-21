@@ -102,7 +102,7 @@ class AuthManager {
                     }
                     this.show();
                     this.updateUI();
-                } else if (session?.user && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
+                } else if (session?.user && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED")) {
                     this.currentUserId = session.user.id;
                     this.currentUser = session.user.user_metadata?.username || session.user.email?.split("@")[0] || session.user.id;
                     this.currentUserEmail = session.user.email || "";
@@ -116,6 +116,13 @@ class AuthManager {
                     }
                     this.hide();
                     this.updateUI();
+
+                    // If redirected from an email confirmation link, clean the hash from address bar
+                    if (typeof window !== "undefined" && window.location.hash && (window.location.hash.includes("access_token") || window.location.hash.includes("type="))) {
+                        try {
+                            window.history.replaceState(null, "", window.location.pathname + window.location.search);
+                        } catch (_) {}
+                    }
                 }
             });
         }
@@ -290,25 +297,33 @@ class AuthManager {
             }
 
             try {
+                const isWeb = typeof window !== "undefined" && window.location.origin && !window.location.origin.startsWith("file:");
+                const redirectTo = isWeb ? (window.location.origin + window.location.pathname) : "https://awrady.vercel.app/";
                 const { data, error } = await client.auth.signUp({
                     email,
                     password,
                     options: {
-                        data: { username }
+                        data: { username },
+                        emailRedirectTo: redirectTo
                     }
                 });
 
                 if (error) {
                     if (error.message.includes("already registered") || error.message.includes("User already registered")) {
-                        return this.showMsg("اسم المستخدم مسجل مسبقاً، يمكنك تسجيل الدخول به.");
+                        return this.showMsg("اسم المستخدم أو البريد مسجل مسبقاً، يمكنك تسجيل الدخول به.");
                     }
                     if (error.message.includes("rate limit") || error.message.includes("rate_limit")) {
-                        return this.showMsg("تم تجاوز حد إرسال الإيميلات. يرجى إيقاف خاصية 'Confirm email' في لوحة Supabase.");
+                        return this.showMsg("تم تجاوز حد إرسال الإيميلات. يرجى الانتظار قليلاً والمحاولة لاحقاً.");
                     }
                     if (error.message.includes("Password should be")) {
                         return this.showMsg(`كلمة المرور ضعيفة: ${error.message}`);
                     }
                     return this.showMsg(error.message || "حدث خطأ أثناء إنشاء الحساب.");
+                }
+
+                // If real email is used and confirmation is required by Supabase:
+                if (!data.session && rawInput.includes("@")) {
+                    return this.showMsg(`📨 تم إنشاء الحساب بنجاح! تم إرسال رابط تأكيد إلى ${rawInput}. يرجى فتح بريدك والضغط على الرابط لتفعيل الحساب.`, false);
                 }
 
                 const uid = data.user?.id || null;
@@ -331,7 +346,7 @@ class AuthManager {
                         return this.showMsg("البريد الإلكتروني أو كلمة المرور غير صحيحة. (إذا كنت تسجل لأول مرة، يرجى التبديل إلى تبويب 'إنشاء حساب جديد').");
                     }
                     if (error.message.includes("Email not confirmed")) {
-                        return this.showMsg("البريد الإلكتروني لم يتم تأكيده. يرجى إيقاف خاصية 'Confirm email' في لوحة تحكم Supabase.");
+                        return this.showMsg("البريد الإلكتروني لم يتم تأكيده بعد. يرجى مراجعة بريدك الإلكتروني والضغط على رابط التفعيل.");
                     }
                     return this.showMsg(error.message || "فشل تسجيل الدخول.");
                 }
