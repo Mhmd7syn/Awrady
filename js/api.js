@@ -17,7 +17,7 @@ class AwradyAPI {
         const key = APP_CONSTANTS.SUPABASE.ANON_KEY;
 
         if (!url || !key || !window.supabase?.createClient) {
-            console.error("[AwradyAPI] Supabase client credentials missing.");
+            console.info("[AwradyAPI] Supabase client credentials missing; running in local/guest mode.");
             return false;
         }
 
