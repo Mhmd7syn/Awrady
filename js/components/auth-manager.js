@@ -8,9 +8,11 @@ class AuthManager {
     constructor() {
         this.SESSION_KEY = APP_CONSTANTS.STORAGE_KEYS.SESSION_USER;
         this.SESSION_UID_KEY = "AWRAD_AUTH_UID";
+        this.SESSION_EMAIL_KEY = "AWRAD_AUTH_EMAIL";
         this.GUEST_USER = APP_CONSTANTS.GUEST_USER;
         this.currentUser = null;
         this.currentUserId = null;
+        this.currentUserEmail = null;
         this.mode = "login"; // "login" | "register"
     }
 
@@ -40,6 +42,10 @@ class AuthManager {
         return Boolean(this.getCurrentUser());
     }
 
+    isGuest() {
+        return !this.getCurrentUserId() || this.getCurrentUser() === this.GUEST_USER;
+    }
+
     async init() {
         if (window.awradyAPI && !window.awradyAPI.client) {
             window.awradyAPI.init();
@@ -48,9 +54,11 @@ class AuthManager {
 
         this.currentUser = localStorage.getItem(this.SESSION_KEY);
         this.currentUserId = localStorage.getItem(this.SESSION_UID_KEY);
+        this.currentUserEmail = localStorage.getItem(this.SESSION_EMAIL_KEY);
 
         if (this.currentUser === this.GUEST_USER) {
             this.currentUserId = null;
+            this.currentUserEmail = null;
             if (window.awradyAPI) {
                 window.awradyAPI.setCurrentUser(this.GUEST_USER, null);
             }
@@ -66,8 +74,12 @@ class AuthManager {
                 if (session?.user) {
                     this.currentUserId = session.user.id;
                     this.currentUser = session.user.user_metadata?.username || session.user.email?.split("@")[0] || session.user.id;
+                    this.currentUserEmail = session.user.email || "";
                     localStorage.setItem(this.SESSION_KEY, this.currentUser);
                     localStorage.setItem(this.SESSION_UID_KEY, this.currentUserId);
+                    if (this.currentUserEmail) {
+                        localStorage.setItem(this.SESSION_EMAIL_KEY, this.currentUserEmail);
+                    }
                     if (window.awradyAPI) {
                         window.awradyAPI.setCurrentUser(this.currentUser, this.currentUserId);
                     }
@@ -81,8 +93,10 @@ class AuthManager {
                 if (event === "SIGNED_OUT") {
                     this.currentUser = null;
                     this.currentUserId = null;
+                    this.currentUserEmail = null;
                     localStorage.removeItem(this.SESSION_KEY);
                     localStorage.removeItem(this.SESSION_UID_KEY);
+                    localStorage.removeItem(this.SESSION_EMAIL_KEY);
                     if (window.awradyAPI) {
                         window.awradyAPI.setCurrentUser(this.GUEST_USER, null);
                     }
@@ -91,8 +105,12 @@ class AuthManager {
                 } else if (session?.user && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
                     this.currentUserId = session.user.id;
                     this.currentUser = session.user.user_metadata?.username || session.user.email?.split("@")[0] || session.user.id;
+                    this.currentUserEmail = session.user.email || "";
                     localStorage.setItem(this.SESSION_KEY, this.currentUser);
                     localStorage.setItem(this.SESSION_UID_KEY, this.currentUserId);
+                    if (this.currentUserEmail) {
+                        localStorage.setItem(this.SESSION_EMAIL_KEY, this.currentUserEmail);
+                    }
                     if (window.awradyAPI) {
                         window.awradyAPI.setCurrentUser(this.currentUser, this.currentUserId);
                     }
@@ -118,18 +136,69 @@ class AuthManager {
         const btnSubmit = document.getElementById("btn-auth-submit");
         const btnGuest = document.getElementById("btn-auth-guest");
         const btnLogout = document.getElementById("btn-header-logout");
+        const btnSettings = document.getElementById("btn-header-settings");
+        const userIcon = document.getElementById("header-user-icon");
+        const userInfo = document.getElementById("header-user-info");
+        const btnCloseAccount = document.getElementById("btn-close-account-modal");
+        const accountModal = document.getElementById("account-settings-modal");
+        const btnUpdateName = document.getElementById("btn-update-display-name");
+        const btnUpdateEmail = document.getElementById("btn-update-email");
+        const btnUpdatePwd = document.getElementById("btn-update-password");
 
         if (btnLoginTab) btnLoginTab.addEventListener("click", () => this.setMode("login"));
         if (btnRegisterTab) btnRegisterTab.addEventListener("click", () => this.setMode("register"));
         if (btnSubmit) btnSubmit.addEventListener("click", () => this.submit());
         if (btnGuest) btnGuest.addEventListener("click", () => this.loginAsGuest());
         if (btnLogout) btnLogout.addEventListener("click", () => this.logout());
+        if (btnSettings) btnSettings.addEventListener("click", () => this.openAccountModal());
+        if (userIcon) userIcon.addEventListener("click", () => this.openAccountModal());
+        if (userInfo) userInfo.addEventListener("click", () => this.openAccountModal());
+        if (btnCloseAccount) btnCloseAccount.addEventListener("click", () => this.closeAccountModal());
+        if (btnUpdateName) btnUpdateName.addEventListener("click", () => this.saveDisplayName());
+        if (btnUpdateEmail) btnUpdateEmail.addEventListener("click", () => this.saveEmail());
+        if (btnUpdatePwd) btnUpdatePwd.addEventListener("click", () => this.savePassword());
+
+        if (accountModal) {
+            accountModal.addEventListener("click", (e) => {
+                if (e.target === accountModal) this.closeAccountModal();
+            });
+        }
 
         ["auth-username", "auth-password", "auth-confirm-password"].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.addEventListener("keydown", (e) => {
                 if (e.key === "Enter") this.submit();
             });
+        });
+
+        const inputDisplayName = document.getElementById("account-display-name");
+        if (inputDisplayName) {
+            inputDisplayName.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") this.saveDisplayName();
+            });
+        }
+
+        const inputEmail = document.getElementById("account-email");
+        if (inputEmail) {
+            inputEmail.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") this.saveEmail();
+            });
+        }
+
+        ["account-new-password", "account-confirm-password"].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") this.savePassword();
+            });
+        });
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") {
+                const modal = document.getElementById("account-settings-modal");
+                if (modal && !modal.classList.contains("hidden")) {
+                    this.closeAccountModal();
+                }
+            }
         });
     }
 
@@ -287,8 +356,18 @@ class AuthManager {
         localStorage.setItem(this.SESSION_KEY, username);
         if (userId) {
             localStorage.setItem(this.SESSION_UID_KEY, userId);
+            if (window.awradyAPI?.client?.auth) {
+                window.awradyAPI.client.auth.getSession().then(({ data: { session } }) => {
+                    if (session?.user?.email) {
+                        this.currentUserEmail = session.user.email;
+                        localStorage.setItem(this.SESSION_EMAIL_KEY, this.currentUserEmail);
+                    }
+                }).catch(() => {});
+            }
         } else {
             localStorage.removeItem(this.SESSION_UID_KEY);
+            localStorage.removeItem(this.SESSION_EMAIL_KEY);
+            this.currentUserEmail = null;
         }
         if (window.awradyAPI) {
             window.awradyAPI.setCurrentUser(username, userId);
@@ -313,8 +392,10 @@ class AuthManager {
         }
         localStorage.removeItem(this.SESSION_KEY);
         localStorage.removeItem(this.SESSION_UID_KEY);
+        localStorage.removeItem(this.SESSION_EMAIL_KEY);
         this.currentUser = null;
         this.currentUserId = null;
+        this.currentUserEmail = null;
         if (window.awradyAPI) {
             window.awradyAPI.setCurrentUser(this.GUEST_USER, null);
         }
@@ -322,6 +403,187 @@ class AuthManager {
         this.updateUI();
         if (typeof window.logoutApp === "function") {
             window.logoutApp();
+        }
+    }
+
+    openAccountModal() {
+        if (this.isGuest()) {
+            this.show();
+            this.showMsg("يرجى تسجيل الدخول أو إنشاء حساب للوصول إلى إعدادات الحساب.");
+            return;
+        }
+        const modal = document.getElementById("account-settings-modal");
+        if (!modal) return;
+        const nameInput = document.getElementById("account-display-name");
+        if (nameInput) nameInput.value = this.currentUser || "";
+
+        const emailInput = document.getElementById("account-email");
+        let displayEmail = this.currentUserEmail || "";
+        if (displayEmail.endsWith(".awrady@gmail.com") || displayEmail.endsWith("@awrady.internal")) {
+            displayEmail = "";
+        }
+        if (emailInput) emailInput.value = displayEmail;
+
+        const pwdInput = document.getElementById("account-new-password");
+        if (pwdInput) pwdInput.value = "";
+        const confirmInput = document.getElementById("account-confirm-password");
+        if (confirmInput) confirmInput.value = "";
+        this.clearAccountMsg();
+        modal.classList.remove("hidden");
+        if (nameInput) nameInput.focus();
+
+        // Fetch fresh email from Supabase Auth session if not loaded yet
+        const client = window.awradyAPI?.client;
+        if (client?.auth) {
+            client.auth.getUser().then(({ data }) => {
+                if (data?.user?.email) {
+                    this.currentUserEmail = data.user.email;
+                    localStorage.setItem(this.SESSION_EMAIL_KEY, this.currentUserEmail);
+                    let freshEmail = data.user.email;
+                    if (freshEmail.endsWith(".awrady@gmail.com") || freshEmail.endsWith("@awrady.internal")) {
+                        freshEmail = "";
+                    }
+                    if (emailInput && !emailInput.value) {
+                        emailInput.value = freshEmail;
+                    }
+                }
+            }).catch(() => {});
+        }
+    }
+
+    closeAccountModal() {
+        const modal = document.getElementById("account-settings-modal");
+        if (modal) modal.classList.add("hidden");
+        this.clearAccountMsg();
+    }
+
+    showAccountMsg(msg, isError = true) {
+        const el = document.getElementById("account-msg");
+        if (el) {
+            el.className = `auth-msg ${isError ? 'error' : 'success'}`;
+            el.textContent = msg;
+        }
+    }
+
+    clearAccountMsg() {
+        const el = document.getElementById("account-msg");
+        if (el) {
+            el.className = "auth-msg";
+            el.textContent = "";
+        }
+    }
+
+    async saveDisplayName() {
+        const input = document.getElementById("account-display-name");
+        const rawName = (input?.value || "").trim();
+        const minLen = APP_CONSTANTS.LIMITS?.USERNAME_MIN || 3;
+
+        if (!rawName || rawName.length < minLen) {
+            return this.showAccountMsg(`اسم المستخدم يجب أن يكون ${minLen} أحرف على الأقل.`, true);
+        }
+
+        const cleanName = rawName.toLowerCase();
+        if (cleanName === (this.currentUser || "").toLowerCase()) {
+            return this.showAccountMsg("لم يتم تغيير اسم المستخدم.", false);
+        }
+
+        const btn = document.getElementById("btn-update-display-name");
+        if (btn) btn.disabled = true;
+        this.showAccountMsg("جاري حفظ الاسم المعروض...", false);
+
+        try {
+            if (!window.awradyAPI) throw new Error("خدمة الاتصال غير متوفرة.");
+            await window.awradyAPI.updateDisplayName(cleanName);
+
+            const oldName = this.currentUser;
+            this.currentUser = cleanName;
+            localStorage.setItem(this.SESSION_KEY, cleanName);
+
+            // Migrate local cache key if Store is active
+            if (window.AppStore && typeof window.AppStore.getUserStorageKey === "function") {
+                try {
+                    const oldKey = window.AppStore.getUserStorageKey(oldName);
+                    const newKey = window.AppStore.getUserStorageKey(cleanName);
+                    const cached = localStorage.getItem(oldKey);
+                    if (cached && oldKey !== newKey) {
+                        localStorage.setItem(newKey, cached);
+                    }
+                } catch (_) {}
+            }
+
+            this.updateUI();
+            this.showAccountMsg("✅ تم تحديث اسم المستخدم بنجاح!", false);
+        } catch (err) {
+            this.showAccountMsg(err.message || "فشل تحديث اسم المستخدم.", true);
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    async saveEmail() {
+        const input = document.getElementById("account-email");
+        const rawEmail = (input?.value || "").trim().toLowerCase();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        if (!rawEmail || !emailRegex.test(rawEmail)) {
+            return this.showAccountMsg("يرجى إدخال عنوان بريد إلكتروني صالح.", true);
+        }
+
+        if (rawEmail === (this.currentUserEmail || "").toLowerCase()) {
+            return this.showAccountMsg("لم يتم تغيير البريد الإلكتروني.", false);
+        }
+
+        const btn = document.getElementById("btn-update-email");
+        if (btn) btn.disabled = true;
+        this.showAccountMsg("جاري حفظ البريد الإلكتروني والمزامنة...", false);
+
+        try {
+            if (!window.awradyAPI) throw new Error("خدمة الاتصال غير متوفرة.");
+            const data = await window.awradyAPI.updateEmail(rawEmail);
+
+            this.currentUserEmail = rawEmail;
+            localStorage.setItem(this.SESSION_EMAIL_KEY, rawEmail);
+
+            if (data?.user?.new_email) {
+                this.showAccountMsg("📨 تم حفظ البريد وإرسال رابط تأكيد للبريد الجديد، يرجى تأكيده لإتمام العملية.", false);
+            } else {
+                this.showAccountMsg("✅ تم تحديث وحفظ البريد الإلكتروني في قاعدة البيانات بنجاح!", false);
+            }
+        } catch (err) {
+            this.showAccountMsg(err.message || "فشل تحديث البريد الإلكتروني.", true);
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    async savePassword() {
+        const pwdInput = document.getElementById("account-new-password");
+        const confirmInput = document.getElementById("account-confirm-password");
+        const newPwd = pwdInput?.value || "";
+        const confirmPwd = confirmInput?.value || "";
+        const minLen = APP_CONSTANTS.LIMITS?.PASSWORD_MIN || 6;
+
+        if (!newPwd || newPwd.length < minLen) {
+            return this.showAccountMsg(`كلمة المرور الجديدة يجب أن تكون ${minLen} أحرف على الأقل.`, true);
+        }
+        if (newPwd !== confirmPwd) {
+            return this.showAccountMsg("كلمة المرور وتأكيد كلمة المرور غير متطابقتين.", true);
+        }
+
+        const btn = document.getElementById("btn-update-password");
+        if (btn) btn.disabled = true;
+        this.showAccountMsg("جاري تحديث كلمة المرور...", false);
+
+        try {
+            if (!window.awradyAPI) throw new Error("خدمة الاتصال غير متوفرة.");
+            await window.awradyAPI.updatePassword(newPwd);
+            if (pwdInput) pwdInput.value = "";
+            if (confirmInput) confirmInput.value = "";
+            this.showAccountMsg("✅ تم تغيير كلمة المرور بنجاح!", false);
+        } catch (err) {
+            this.showAccountMsg(err.message || "فشل تغيير كلمة المرور.", true);
+        } finally {
+            if (btn) btn.disabled = false;
         }
     }
 }

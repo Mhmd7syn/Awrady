@@ -299,6 +299,117 @@ class AwradyAPI {
         }
         return [];
     }
+
+    async updateDisplayName(displayName) {
+        if (!this.client || this.isGuest()) {
+            throw new Error("يجب تسجيل الدخول لتحديث الاسم المعروض.");
+        }
+        const uid = this.getEffectiveUserId();
+        if (!uid) {
+            throw new Error("تعذر تحديد هوية المستخدم.");
+        }
+        const cleanName = (displayName || "").trim().toLowerCase();
+        const minLen = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.LIMITS?.USERNAME_MIN) || 3;
+        if (!cleanName || cleanName.length < minLen) {
+            throw new Error(`اسم المستخدم يجب أن يكون ${minLen} أحرف على الأقل.`);
+        }
+
+        // 1. Update Supabase Auth user metadata
+        const { data, error: authError } = await this.client.auth.updateUser({
+            data: { username: cleanName }
+        });
+        if (authError) {
+            if (authError.message && (authError.message.includes("unique") || authError.message.includes("already registered") || authError.message.includes("already exists"))) {
+                throw new Error("اسم المستخدم مستخدم بالفعل، يرجى اختيار اسم آخر.");
+            }
+            throw authError;
+        }
+
+        // 2. Sync public.users table directly to safeguard against trigger latency
+        try {
+            const tblUsers = APP_CONSTANTS.DB.TABLES.USERS;
+            const { error: dbError } = await this.client
+                .from(tblUsers)
+                .update({ username: cleanName, updated_at: new Date().toISOString() })
+                .eq("id", uid);
+
+            if (dbError) {
+                if (dbError.message && (dbError.message.includes("unique") || dbError.code === "23505")) {
+                    throw new Error("اسم المستخدم مستخدم بالفعل، يرجى اختيار اسم آخر.");
+                }
+                console.warn("[AwradyAPI] Direct public.users update note:", dbError);
+            }
+        } catch (dbErr) {
+            if (dbErr.message && dbErr.message.includes("مستخدم بالفعل")) throw dbErr;
+            console.warn("[AwradyAPI] Failed to update public.users directly:", dbErr);
+        }
+
+        this.currentUser = cleanName;
+        return data;
+    }
+
+    async updateEmail(newEmail) {
+        if (!this.client || this.isGuest()) {
+            throw new Error("يجب تسجيل الدخول لتحديث البريد الإلكتروني.");
+        }
+        const uid = this.getEffectiveUserId();
+        if (!uid) {
+            throw new Error("تعذر تحديد هوية المستخدم.");
+        }
+        const cleanEmail = (newEmail || "").trim().toLowerCase();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+            throw new Error("يرجى إدخال عنوان بريد إلكتروني صالح.");
+        }
+
+        // 1. Update email via Supabase Auth
+        const { data, error: authError } = await this.client.auth.updateUser({
+            email: cleanEmail
+        });
+        if (authError) {
+            if (authError.message && (authError.message.includes("already registered") || authError.message.includes("unique") || authError.message.includes("already exists"))) {
+                throw new Error("البريد الإلكتروني مسجل بالفعل لحساب آخر.");
+            }
+            if (authError.message && (authError.message.includes("rate limit") || authError.message.includes("rate_limit"))) {
+                throw new Error("تم تجاوز عدد محاولات إرسال البريد. يرجى الانتظار قليلاً والمحاولة لاحقاً.");
+            }
+            throw authError;
+        }
+
+        // 2. Direct sync to public.users table
+        try {
+            const tblUsers = APP_CONSTANTS.DB.TABLES.USERS;
+            await this.client
+                .from(tblUsers)
+                .update({ email: cleanEmail, updated_at: new Date().toISOString() })
+                .eq("id", uid);
+        } catch (dbErr) {
+            console.warn("[AwradyAPI] Direct public.users email update note:", dbErr);
+        }
+
+        return data;
+    }
+
+    async updatePassword(newPassword) {
+        if (!this.client || this.isGuest()) {
+            throw new Error("يجب تسجيل الدخول لتغيير كلمة المرور.");
+        }
+        const minLen = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.LIMITS?.PASSWORD_MIN) || 6;
+        if (!newPassword || newPassword.length < minLen) {
+            throw new Error(`كلمة المرور يجب أن تكون ${minLen} أحرف على الأقل.`);
+        }
+
+        const { data, error } = await this.client.auth.updateUser({
+            password: newPassword
+        });
+        if (error) {
+            if (error.message && (error.message.includes("same_password") || error.message.includes("should be different"))) {
+                throw new Error("كلمة المرور الجديدة مطابقة للقديمة. يرجى اختيار كلمة مرور مختلفة.");
+            }
+            throw error;
+        }
+        return data;
+    }
 }
 
 if (typeof window !== "undefined") {

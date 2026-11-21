@@ -15,7 +15,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <!-- Supabase JS Client for 24/7 Cloud Sync -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.48.1/dist/umd/supabase.min.js"></script>
-    <link rel="stylesheet" href="css/style.css?v=20261121_03">
+    <link rel="stylesheet" href="css/style.css?v=20261121_04">
     <link rel="icon" type="image/x-icon" href="app-icon.ico">
 
     <!-- PWA & Mobile Web App Meta Tags -->
@@ -78,11 +78,14 @@
                     </div>
                 </div>
                 <div class="stat-pill glass-card user-account-pill" id="header-user-pill" title="الحساب النشط" style="display: flex; align-items: center; gap: 8px;">
-                    <div class="stat-icon emerald-icon"><i class="fa-solid fa-circle-user"></i></div>
-                    <div class="stat-info">
+                    <div class="stat-icon emerald-icon" id="header-user-icon" style="cursor: pointer;" title="إعدادات الحساب"><i class="fa-solid fa-circle-user"></i></div>
+                    <div class="stat-info" id="header-user-info" style="cursor: pointer;" title="إعدادات الحساب">
                         <span class="stat-label">المستخدم</span>
                         <span class="stat-value" id="header-username-display" style="font-size: 0.82rem; font-weight: 700;">-</span>
                     </div>
+                    <button id="btn-header-settings" title="إعدادات الحساب (تعديل الاسم وكلمة المرور)" aria-label="إعدادات الحساب" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.75rem;">
+                        <i class="fa-solid fa-gear"></i>
+                    </button>
                     <button id="btn-header-logout" title="تسجيل الخروج" aria-label="تسجيل الخروج" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.75rem;">
                         <i class="fa-solid fa-arrow-right-from-bracket"></i>
                     </button>
@@ -811,6 +814,89 @@
         </div>
     </div>
 
+    <!-- ACCOUNT SETTINGS MODAL (FOR AUTHENTICATED USERS) -->
+    <div id="account-settings-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="account-modal-title">
+        <div class="modal-container glass-card" style="max-width: 480px;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); display: flex; align-items: center; justify-content: center; color: #10b981;">
+                        <i class="fa-solid fa-user-gear"></i>
+                    </div>
+                    <h3 id="account-modal-title" style="margin: 0;">إعدادات الحساب <span class="modal-header-sub">Account Settings</span></h3>
+                </div>
+                <button class="btn-close" id="btn-close-account-modal" aria-label="إغلاق إعدادات الحساب"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="modal-body" style="padding-top: 4px;">
+                <div id="account-msg" class="auth-msg"></div>
+
+                <!-- Section 1: Display Name -->
+                <div class="account-section" style="margin-bottom: 22px;">
+                    <h4 style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; margin: 0 0 6px; display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-signature" style="color: #10b981; font-size: 0.85rem;"></i>
+                        <span>الاسم المعروض (اسم المستخدم)</span>
+                    </h4>
+                    <p style="font-size: 0.78rem; color: #94a3b8; margin: 0 0 10px; line-height: 1.5;">
+                        الاسم المعروض في اللوحة والمزامنة (3 أحرف على الأقل).
+                    </p>
+                    <div class="account-input-group">
+                        <input type="text" id="account-display-name" class="auth-input-field" placeholder="أدخل اسم المستخدم الجديد" dir="ltr" autocomplete="username">
+                        <button type="button" id="btn-update-display-name" class="btn-primary btn-glow btn-account-action">
+                            <i class="fa-solid fa-check"></i> <span>حفظ الاسم</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div style="height: 1px; background: rgba(255, 255, 255, 0.08); margin: 20px 0;"></div>
+
+                <!-- Section 2: Email Address -->
+                <div class="account-section" style="margin-bottom: 22px;">
+                    <h4 style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; margin: 0 0 6px; display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-envelope" style="color: #10b981; font-size: 0.85rem;"></i>
+                        <span>البريد الإلكتروني</span>
+                    </h4>
+                    <p style="font-size: 0.78rem; color: #94a3b8; margin: 0 0 10px; line-height: 1.5;">
+                        البريد الإلكتروني المرتبط بحسابك لتسجيل الدخول والمزامنة واستعادة الحساب.
+                    </p>
+                    <div class="account-input-group">
+                        <input type="email" id="account-email" class="auth-input-field" placeholder="أدخل البريد الإلكتروني (مثال: name@example.com)" dir="ltr" autocomplete="email">
+                        <button type="button" id="btn-update-email" class="btn-primary btn-glow btn-account-action">
+                            <i class="fa-solid fa-check"></i> <span>حفظ البريد</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div style="height: 1px; background: rgba(255, 255, 255, 0.08); margin: 20px 0;"></div>
+
+                <!-- Section 3: Change Password -->
+                <div class="account-section">
+                    <h4 style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; margin: 0 0 6px; display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-key" style="color: #10b981; font-size: 0.85rem;"></i>
+                        <span>تغيير كلمة المرور</span>
+                    </h4>
+                    <p style="font-size: 0.78rem; color: #94a3b8; margin: 0 0 12px; line-height: 1.5;">
+                        أدخل كلمة المرور الجديدة (6 أحرف على الأقل).
+                    </p>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <div>
+                            <label for="account-new-password" style="font-size: 0.8rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 4px;">كلمة المرور الجديدة</label>
+                            <input type="password" id="account-new-password" class="auth-input-field" placeholder="أدخل كلمة المرور الجديدة" autocomplete="new-password" style="margin-bottom: 0;">
+                        </div>
+                        <div>
+                            <label for="account-confirm-password" style="font-size: 0.8rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 4px;">تأكيد كلمة المرور الجديدة</label>
+                            <input type="password" id="account-confirm-password" class="auth-input-field" placeholder="أعد إدخال كلمة المرور للتأكيد" autocomplete="new-password" style="margin-bottom: 0;">
+                        </div>
+                        <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+                            <button type="button" id="btn-update-password" class="btn-primary btn-glow btn-account-action" style="width: 100%;">
+                                <i class="fa-solid fa-lock"></i> <span>تحديث كلمة المرور</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- FULLSCREEN AUTHENTICATION GATEWAY (LOGIN / REGISTER) -->
     <div id="auth-overlay" class="auth-overlay">
         <div class="auth-card glass-card">
@@ -856,7 +942,7 @@
     <!-- Scripts -->
     <script src="js/config/constants.js?v=20261121_01"></script>
     <script src="js/config/default-data.js?v=20261118_02"></script>
-    <script src="js/api.js?v=20261118_03"></script>
+    <script src="js/api.js?v=20261121_05"></script>
     <script src="js/utils/date-utils.js?v=20261013_10"></script>
     <script src="js/core/schedule-engine.js?v=20261113_01"></script>
     <script src="js/core/scoring-engine.js?v=20261113_02"></script>
@@ -874,10 +960,10 @@
     <script src="js/components/analytics-view.js?v=20261121_01"></script>
     <script src="js/components/analytics-breakdown.js?v=20261121_01"></script>
     <script src="js/components/data-manager.js?v=20261118_02"></script>
-    <script src="js/components/auth-manager.js?v=20261118_06"></script>
+    <script src="js/components/auth-manager.js?v=20261121_08"></script>
     <script src="js/components/day-summary.js?v=20261113_02"></script>
     <script src="js/components/daily-view.js?v=20261119_01"></script>
-    <script src="js/app.js?v=20261121_01"></script>
+    <script src="js/app.js?v=20261121_02"></script>
 
     <!-- PWA Service Worker Registration -->
     <script>
