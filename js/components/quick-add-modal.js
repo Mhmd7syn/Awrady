@@ -173,6 +173,9 @@ function renderQuickAddExistingList() {
         const catInfo = `${task.category || 'عام'}${task.subcategory ? ' - ' + task.subcategory : ''}`;
 
         const row = document.createElement("div");
+        row.className = "qa-task-item";
+        row.setAttribute("role", "listitem");
+        row.setAttribute("data-task-id", task.id);
         row.style.cssText = `display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:rgba(255,255,255,0.04); border-radius:10px; border:1px solid rgba(255,255,255,0.08); transition:all 0.2s ease; ${isAlreadyActive ? 'opacity:0.6;' : ''}`;
 
         row.innerHTML = `
