@@ -412,23 +412,28 @@ class AwradyAPI {
             throw new Error("يرجى إدخال عنوان بريد إلكتروني صالح.");
         }
 
-        // 1. Attempt direct RPC linkage for username-only accounts (bypasses GoTrue synthetic domain validation & double-confirmation)
-        try {
-            const { data: rpcRes, error: rpcErr } = await this.client.rpc("set_user_email", {
-                p_email: cleanEmail
-            });
-            if (!rpcErr && rpcRes && rpcRes.success) {
-                try { await this.client.auth.refreshSession(); } catch (_) {}
-                return { directUpdate: true, user: { email: cleanEmail } };
+        // 1. For username-only accounts (synthetic email), link directly to bypass fake domain validation
+        const currentEmail = (this.currentUserEmail || "").toLowerCase();
+        const isSynthetic = !currentEmail || currentEmail.endsWith("@awrady.internal") || currentEmail.endsWith(".awrady@gmail.com");
+
+        if (isSynthetic) {
+            try {
+                const { data: rpcRes, error: rpcErr } = await this.client.rpc("set_user_email", {
+                    p_email: cleanEmail
+                });
+                if (!rpcErr && rpcRes && rpcRes.success) {
+                    try { await this.client.auth.refreshSession(); } catch (_) {}
+                    return { directUpdate: true, user: { email: cleanEmail } };
+                }
+                if (rpcErr && rpcErr.message && (rpcErr.message.includes("مسجل بالفعل") || rpcErr.message.includes("already registered"))) {
+                    throw new Error("البريد الإلكتروني مسجل بالفعل لحساب آخر.");
+                }
+            } catch (rpcEx) {
+                if (rpcEx.message && rpcEx.message.includes("مسجل بالفعل")) throw rpcEx;
             }
-            if (rpcErr && rpcErr.message && (rpcErr.message.includes("مسجل بالفعل") || rpcErr.message.includes("already registered"))) {
-                throw new Error("البريد الإلكتروني مسجل بالفعل لحساب آخر.");
-            }
-        } catch (rpcEx) {
-            if (rpcEx.message && rpcEx.message.includes("مسجل بالفعل")) throw rpcEx;
         }
 
-        // 2. Fallback to standard GoTrue auth.updateUser
+        // 2. Standard GoTrue auth.updateUser for accounts with existing real emails (notifies and confirms both emails)
         const isWeb = typeof window !== "undefined" && window.location.origin && !window.location.origin.startsWith("file:");
         const redirectTo = isWeb ? (window.location.origin + window.location.pathname) : "https://awrady.vercel.app/";
         const options = { emailRedirectTo: redirectTo };

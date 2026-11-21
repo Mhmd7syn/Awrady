@@ -544,6 +544,7 @@ RETURNS jsonb AS $$
 DECLARE
     curr_uid UUID;
     clean_email text;
+    curr_email text;
 BEGIN
     curr_uid := auth.uid();
     IF curr_uid IS NULL THEN
@@ -553,6 +554,12 @@ BEGIN
     clean_email := lower(trim(p_email));
     IF clean_email !~ '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$' THEN
         RAISE EXCEPTION 'البريد الإلكتروني غير صالح.';
+    END IF;
+
+    -- If user already has an existing verified real email, delegate to GoTrue's secure double-confirmation flow
+    SELECT email INTO curr_email FROM public.users WHERE id = curr_uid;
+    IF curr_email IS NOT NULL AND curr_email != '' AND curr_email NOT LIKE '%@awrady.internal' AND curr_email NOT LIKE '%.awrady@gmail.com' THEN
+        RETURN jsonb_build_object('success', false, 'reason', 'has_real_email');
     END IF;
 
     -- Check if email is already registered to another user in auth or public
