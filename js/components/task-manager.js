@@ -11,6 +11,7 @@ import { AppState } from '../core/state.js';
 import { saveData } from '../core/store.js';
 import { awradyAPI } from '../api.js';
 import { renderCategoriesManager } from './category-manager.js';
+import { renderDailyView } from './daily-view.js';
 import { showWeeklyHoursModal } from './weekly-modal.js';
 import { openTaskModal, closeTaskModal, saveTaskFromModal, updateTaskModalScheduleUI } from './task-modal.js';
 
@@ -351,11 +352,15 @@ function deleteForever(id) {
         if (window.awradyAPI?.client) {
             window.awradyAPI.purgeTask(id).catch(e => console.warn("[AwradyAPI] purgeTask:", e.message));
         }
-        renderDailyView();
-        renderTaskManager();
-        renderAllTimeStats();
-        updateChartAndAnalytics();
-        updateHeaderTodayScore();
+        if (typeof window !== "undefined") {
+            if (typeof window.renderDailyView === "function") window.renderDailyView();
+            renderTaskManager();
+            if (typeof window.renderAllTimeStats === "function") window.renderAllTimeStats();
+            if (typeof window.updateChartAndAnalytics === "function") window.updateChartAndAnalytics();
+            if (typeof window.updateHeaderTodayScore === "function") window.updateHeaderTodayScore();
+        } else {
+            renderTaskManager();
+        }
     }
 }
 

@@ -22,9 +22,7 @@ import { setupTaskManager, renderTaskManager } from './components/task-manager.j
 import { setupNawafelToast, setupQiyamToast } from './components/nawafel-toast.js';
 import { setupPomodoroControls, openPomodoroModal } from './components/pomodoro.js';
 import { openQuickAddModal } from './components/quick-add-modal.js';
-import { initChart, updateChartAndAnalytics, renderAllTimeStats } from './components/analytics-view.js';
-
-let chartInstance = null;
+import { initChart, updateChartAndAnalytics, renderAllTimeStats, chartInstance } from './components/analytics-view.js';
 
 // ============================================================================
 // APPLICATION LIFECYCLE

@@ -276,7 +276,9 @@ function setupAnalyticsFilters() {
             buttons.forEach(b => b.classList.remove("active"));
             btn.classList.add("active");
             analyticsTaskStatusFilter = btn.getAttribute("data-status-filter") || "all";
-            const selectedDates = getSelectedDates();
+            const selectedDates = (typeof getSelectedDates === "function")
+                ? getSelectedDates()
+                : (typeof window !== "undefined" && typeof window.getSelectedDates === "function" ? window.getSelectedDates() : []);
             renderTaskBreakdown(selectedDates);
         };
     });
@@ -461,11 +463,13 @@ if (typeof window !== "undefined") {
     window.renderTaskRankings = renderTaskRankings;
     window.calculateTaskStatsForDates = calculateTaskStatsForDates;
     window.getTaskStatusKey = getTaskStatusKey;
+    window.setupAnalyticsFilters = setupAnalyticsFilters;
 }
 
 export {
     renderTaskBreakdown,
     renderTaskRankings,
     calculateTaskStatsForDates,
-    getTaskStatusKey
+    getTaskStatusKey,
+    setupAnalyticsFilters
 };

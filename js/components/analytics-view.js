@@ -8,11 +8,13 @@
 import { getLocalTodayString, addDays, getArabicDateFormatted } from '../utils/date-utils.js';
 import { ScoringEngine } from '../core/scoring-engine.js';
 import { AppState } from '../core/state.js';
-import { renderTaskBreakdown, renderTaskRankings } from './analytics-breakdown.js';
+import { renderTaskBreakdown, renderTaskRankings, setupAnalyticsFilters } from './analytics-breakdown.js';
 
 let chartTimeRange = "all";
+let chartInstance = null;
 if (typeof window !== "undefined") {
     window.chartTimeRange = chartTimeRange;
+    window.chartInstance = chartInstance;
 }
 
 function getRecordedDates() {
@@ -165,6 +167,7 @@ function renderAllTimeStats() {
 function initChart() {
     const canvas = document.getElementById("progressChart");
     if (!canvas) return;
+    if (chartInstance) return chartInstance;
     const ctx = canvas.getContext("2d");
 
     const gradient = ctx.createLinearGradient(0, 0, 0, 400);
@@ -313,6 +316,9 @@ function initChart() {
                 }
             }
         });
+        if (typeof window !== "undefined") {
+            window.chartInstance = chartInstance;
+        }
     }
 
     document.querySelectorAll(".chart-range-buttons .btn-range").forEach(btn => {
@@ -632,5 +638,6 @@ export {
     initChart,
     applyCenteredMovingAverage,
     getExtremaPointRadii,
-    chartTimeRange
+    chartTimeRange,
+    chartInstance
 };
