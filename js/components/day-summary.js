@@ -2,8 +2,17 @@
  * Day summary: score ring, badges, header score
  */
 
-function updateDailyScoreSummary() {
-    const score = calculateDayScore(currentDateStr);
+import { APP_CONSTANTS } from '../config/constants.js';
+import { getLocalTodayString, formatTimeHM } from '../utils/date-utils.js';
+import { isTaskCompleted } from '../core/task-rules.js';
+import { ScheduleEngine } from '../core/schedule-engine.js';
+import { ScoringEngine, calculateDayScore } from '../core/scoring-engine.js';
+import { AppState } from '../core/state.js';
+
+export function updateDailyScoreSummary() {
+    const currentDateStr = AppState.getCurrentDate();
+    const appData = AppState.getAppData();
+    const score = calculateDayScore(currentDateStr, appData);
     const scorePct = Math.round(score * 100);
     const clampedPct = Math.min(100, scorePct);
 
@@ -31,7 +40,9 @@ function updateDailyScoreSummary() {
         if (tp && typeof tp === "object" && tp.status === "disabled") return;
 
         activeTotal++;
-        const val = getTaskVal(t.id);
+        const val = typeof window !== "undefined" && typeof window.getTaskVal === "function"
+            ? window.getTaskVal(t.id)
+            : (Number(log?.taskProgress?.[t.id]?.achieved) || 0);
         if (isTaskCompleted(t, val, currentDateStr)) {
             completedCount++;
         }
@@ -53,14 +64,20 @@ function updateDailyScoreSummary() {
     }
 }
 
-function updateHeaderTodayScore() {
+export function updateHeaderTodayScore() {
     const todayStr = getLocalTodayString();
-    const score = calculateDayScore(todayStr);
+    const appData = AppState.getAppData();
+    const score = calculateDayScore(todayStr, appData);
     const scorePct = Math.round(score * 100);
     const headerEl = document.getElementById("header-today-score");
     if (headerEl) headerEl.textContent = `${scorePct}%`;
 
-    if (typeof renderAllTimeStats === "function") {
-        renderAllTimeStats();
+    if (typeof window !== "undefined" && typeof window.renderAllTimeStats === "function") {
+        window.renderAllTimeStats();
     }
+}
+
+if (typeof window !== "undefined") {
+    window.updateDailyScoreSummary = updateDailyScoreSummary;
+    window.updateHeaderTodayScore = updateHeaderTodayScore;
 }

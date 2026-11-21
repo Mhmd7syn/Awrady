@@ -2,6 +2,11 @@
  * Per-task consistency breakdown
  */
 
+import { isTimeTask, getTaskNormalizedTarget, groupTasksByCategory, getCategoryIconHtml } from '../core/task-rules.js';
+import { ScheduleEngine } from '../core/schedule-engine.js';
+import { ScoringEngine } from '../core/scoring-engine.js';
+import { AppState } from '../core/state.js';
+
 let analyticsTaskStatusFilter = "all";
 let _analyticsFiltersInitialized = false;
 
@@ -457,3 +462,10 @@ if (typeof window !== "undefined") {
     window.calculateTaskStatsForDates = calculateTaskStatsForDates;
     window.getTaskStatusKey = getTaskStatusKey;
 }
+
+export {
+    renderTaskBreakdown,
+    renderTaskRankings,
+    calculateTaskStatsForDates,
+    getTaskStatusKey
+};

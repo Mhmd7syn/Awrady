@@ -3,6 +3,11 @@
  * Weighted-average equation system, daily score aggregation, and time estimation.
  */
 
+import { APP_CONSTANTS } from '../config/constants.js';
+import { isTimeTask, getTaskDayTarget } from './task-rules.js';
+import { ScheduleEngine } from './schedule-engine.js';
+import { getLocalTodayString, getDayOfWeekAbbrev, getHijriDateDetails } from '../utils/date-utils.js';
+
 class ScoringEngine {
     /**
      * Returns the time weight (in minutes) for a task used in weighted-average scoring
@@ -146,3 +151,6 @@ if (typeof window !== "undefined") {
     window.ScoringEngine = ScoringEngine;
     window.calculateDayScore = ScoringEngine.calculateDayScore.bind(ScoringEngine);
 }
+
+export { ScoringEngine };
+export const calculateDayScore = ScoringEngine.calculateDayScore.bind(ScoringEngine);

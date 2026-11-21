@@ -6,48 +6,50 @@
  * ============================================================================
  */
 
+import { APP_CONSTANTS } from './config/constants.js';
+import { DEFAULT_TASKS, DEFAULT_CATEGORIES, DEFAULT_AWRAD_DATA } from './config/default-data.js';
+import { getLocalTodayString, addDays } from './utils/date-utils.js';
+import { AppState } from './core/state.js';
+import { AppStore, initData, syncAllDirtyDays } from './core/store.js';
+import { awradyAPI } from './api.js';
+import { ScoringEngine } from './core/scoring-engine.js';
+import { showToast } from './components/toast.js';
+import { authManager } from './components/auth-manager.js';
+import { setupDataManagement } from './components/data-manager.js';
+import { renderDailyView } from './components/daily-view.js';
+import { updateDailyScoreSummary, updateHeaderTodayScore } from './components/day-summary.js';
+import { setupTaskManager, renderTaskManager } from './components/task-manager.js';
+import { setupNawafelToast, setupQiyamToast } from './components/nawafel-toast.js';
+import { setupPomodoroControls, openPomodoroModal } from './components/pomodoro.js';
+import { openQuickAddModal } from './components/quick-add-modal.js';
+import { initChart, updateChartAndAnalytics, renderAllTimeStats } from './components/analytics-view.js';
+
 let chartInstance = null;
 
 // ============================================================================
 // APPLICATION LIFECYCLE
 // ============================================================================
-document.addEventListener("DOMContentLoaded", async () => {
-    if (typeof setupDataManagement === "function") {
-        setupDataManagement();
-    }
-    if (window.authManager) {
-        await window.authManager.init();
-        if (window.authManager.isLoggedIn()) {
-            await window.startApp(window.authManager.getCurrentUser());
-        } else {
-            window.authManager.show();
-        }
-    } else {
-        console.warn("[App] AuthManager missing");
-    }
-});
-
-window.startApp = async function(username) {
-    if (window.AppState && typeof window.AppState.resetState === "function") {
-        window.AppState.resetState();
-    } else {
+export async function startApp(username) {
+    if (AppState && typeof AppState.resetState === "function") {
+        AppState.resetState();
+    } else if (typeof window !== "undefined") {
         window.appData = {
             tasks: [],
             logs: {}
         };
     }
 
-    if (window.awradyAPI) {
-        const uid = window.authManager?.getCurrentUserId?.() || localStorage.getItem("AWRAD_AUTH_UID") || null;
-        window.awradyAPI.setCurrentUser(username, uid);
+    if (awradyAPI) {
+        const uid = authManager?.getCurrentUserId?.() || (typeof localStorage !== "undefined" ? localStorage.getItem("AWRAD_AUTH_UID") : null);
+        awradyAPI.setCurrentUser(username, uid);
     }
-    if (window.AppStore) {
-        await window.AppStore.initData();
+    if (AppStore) {
+        await AppStore.initData();
     } else if (typeof initData === "function") {
         await initData();
     }
 
-    if (!window._appControlsBound) {
+    if (typeof window !== "undefined" && !window._appControlsBound) {
         setupNavigation();
         setupDailyControls();
         if (typeof setupTaskManager === "function") setupTaskManager();
@@ -60,12 +62,12 @@ window.startApp = async function(username) {
     if (typeof renderDailyView === "function") renderDailyView();
     if (typeof renderAllTimeStats === "function") renderAllTimeStats();
     if (typeof updateHeaderTodayScore === "function") updateHeaderTodayScore();
-};
+}
 
-window.logoutApp = function() {
-    if (window.AppState) {
-        window.AppState.resetState();
-    } else {
+export function logoutApp() {
+    if (AppState) {
+        AppState.resetState();
+    } else if (typeof window !== "undefined") {
         window.appData = {
             tasks: [],
             logs: {}
@@ -75,12 +77,12 @@ window.logoutApp = function() {
     if (todayEl) todayEl.textContent = "0%";
     const container = document.getElementById("daily-tasks-grid");
     if (container) container.innerHTML = "";
-};
+}
 
 // ============================================================================
 // NAVIGATION & CONTROLS
 // ============================================================================
-function setupNavigation() {
+export function setupNavigation() {
     const navTabs = document.querySelectorAll(".nav-tab");
     navTabs.forEach(tab => {
         tab.addEventListener("click", () => {
@@ -120,13 +122,13 @@ function setupNavigation() {
     }
 }
 
-async function switchActiveDate(newDate) {
-    const activeDate = window.AppState ? window.AppState.getCurrentDate() : window.currentDateStr;
+export async function switchActiveDate(newDate) {
+    const activeDate = AppState ? AppState.getCurrentDate() : (typeof window !== "undefined" ? window.currentDateStr : null);
     if (!newDate || newDate === activeDate) return;
 
-    if (window.AppState) {
-        window.AppState.setCurrentDate(newDate);
-    } else {
+    if (AppState) {
+        AppState.setCurrentDate(newDate);
+    } else if (typeof window !== "undefined") {
         window.currentDateStr = newDate;
     }
 
@@ -139,9 +141,9 @@ async function switchActiveDate(newDate) {
     }
 
     // 2. Non-blocking cloud fetch in background via AppStore
-    if (window.AppStore?.fetchDayProgress) {
-        window.AppStore.fetchDayProgress(newDate, () => {
-            const current = window.AppState ? window.AppState.getCurrentDate() : window.currentDateStr;
+    if (AppStore?.fetchDayProgress) {
+        AppStore.fetchDayProgress(newDate, () => {
+            const current = AppState ? AppState.getCurrentDate() : (typeof window !== "undefined" ? window.currentDateStr : null);
             if (current === newDate && typeof renderDailyView === "function") {
                 renderDailyView();
             }
@@ -149,10 +151,10 @@ async function switchActiveDate(newDate) {
     }
 }
 
-function setupDailyControls() {
+export function setupDailyControls() {
     const datePicker = document.getElementById("date-picker-input");
     const dateDisplay = document.getElementById("current-date-display");
-    const curDate = window.AppState ? window.AppState.getCurrentDate() : window.currentDateStr;
+    const curDate = AppState ? AppState.getCurrentDate() : (typeof window !== "undefined" ? window.currentDateStr : null);
 
     const openDatePicker = () => {
         if (!datePicker) return;
@@ -173,7 +175,7 @@ function setupDailyControls() {
             if (e.target.value) {
                 switchActiveDate(e.target.value);
             } else {
-                datePicker.value = window.AppState ? window.AppState.getCurrentDate() : window.currentDateStr;
+                datePicker.value = AppState ? AppState.getCurrentDate() : (typeof window !== "undefined" ? window.currentDateStr : null);
             }
         });
         datePicker.addEventListener("click", () => {
@@ -198,7 +200,7 @@ function setupDailyControls() {
     const btnPrev = document.getElementById("btn-prev-day");
     if (btnPrev) {
         btnPrev.addEventListener("click", () => {
-            const current = window.AppState ? window.AppState.getCurrentDate() : window.currentDateStr;
+            const current = AppState ? AppState.getCurrentDate() : (typeof window !== "undefined" ? window.currentDateStr : null);
             switchActiveDate(addDays(current, -1));
         });
     }
@@ -206,7 +208,7 @@ function setupDailyControls() {
     const btnNext = document.getElementById("btn-next-day");
     if (btnNext) {
         btnNext.addEventListener("click", () => {
-            const current = window.AppState ? window.AppState.getCurrentDate() : window.currentDateStr;
+            const current = AppState ? AppState.getCurrentDate() : (typeof window !== "undefined" ? window.currentDateStr : null);
             switchActiveDate(addDays(current, 1));
         });
     }
@@ -231,33 +233,62 @@ function setupDailyControls() {
 // ============================================================================
 // SCORING ENGINE INTEGRATION & HELPERS
 // ============================================================================
-function calculateDayScore(dateStr, appDataRef = null, returnHours = false) {
-    const data = appDataRef || (window.AppState ? window.AppState.getAppData() : window.appData);
+export function calculateDayScore(dateStr, appDataRef = null, returnHours = false) {
+    const data = appDataRef || (AppState ? AppState.getAppData() : (typeof window !== "undefined" ? window.appData : null));
     return ScoringEngine.calculateDayScore(dateStr, data, returnHours);
 }
 
+// Global attachments
 if (typeof window !== "undefined") {
-    window.renderDailyView = typeof renderDailyView !== "undefined" ? renderDailyView : window.renderDailyView;
+    window.startApp = startApp;
+    window.logoutApp = logoutApp;
+    window.setupNavigation = setupNavigation;
     window.switchActiveDate = switchActiveDate;
+    window.setupDailyControls = setupDailyControls;
     window.calculateDayScore = calculateDayScore;
 
     window.addEventListener("online", () => {
-        if (window.AppStore) {
-            window.AppStore.syncAllDirtyDays();
+        if (AppStore) {
+            AppStore.syncAllDirtyDays();
         } else if (typeof syncAllDirtyDays === "function") {
             syncAllDirtyDays();
         }
     });
 
     window.addEventListener("beforeunload", () => {
-        if (window.AppStore) {
-            window.AppStore.flush();
+        if (AppStore) {
+            AppStore.flush();
         }
     });
 
     window.addEventListener("pagehide", () => {
-        if (window.AppStore) {
-            window.AppStore.flush();
+        if (AppStore) {
+            AppStore.flush();
         }
     });
+}
+
+// Bootstrapping on DOM ready
+async function init() {
+    if (typeof setupDataManagement === "function") {
+        setupDataManagement();
+    }
+    if (authManager) {
+        await authManager.init();
+        if (authManager.isLoggedIn()) {
+            await startApp(authManager.getCurrentUser());
+        } else {
+            authManager.show();
+        }
+    } else {
+        console.warn("[App] AuthManager missing");
+    }
+}
+
+if (typeof document !== "undefined") {
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", init);
+    } else {
+        init();
+    }
 }

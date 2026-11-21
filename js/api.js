@@ -3,6 +3,8 @@
  * Direct PostgREST queries with Row-Level Security (RLS) and Realtime sync.
  */
 
+import { APP_CONSTANTS } from './config/constants.js';
+
 class AwradyAPI {
     constructor() {
         this.client = null;
@@ -545,6 +547,11 @@ class AwradyAPI {
     }
 }
 
+const awradyAPI = (typeof window !== "undefined" && window.awradyAPI) ? window.awradyAPI : new AwradyAPI();
+
 if (typeof window !== "undefined") {
-    window.awradyAPI = new AwradyAPI();
+    window.AwradyAPI = AwradyAPI;
+    window.awradyAPI = awradyAPI;
 }
+
+export { AwradyAPI, awradyAPI };

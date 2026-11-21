@@ -3,6 +3,10 @@
  * Native Supabase Auth integration with Row-Level Security (RLS) support.
  */
 
+import { APP_CONSTANTS } from '../config/constants.js';
+import { awradyAPI } from '../api.js';
+import { showToast } from './toast.js';
+
 class AuthManager {
     constructor() {
         this.SESSION_KEY = APP_CONSTANTS.STORAGE_KEYS.SESSION_USER;
@@ -888,6 +892,11 @@ class AuthManager {
     }
 }
 
+const authManager = (typeof window !== "undefined" && window.authManager) ? window.authManager : new AuthManager();
+
 if (typeof window !== "undefined") {
-    window.authManager = new AuthManager();
+    window.AuthManager = AuthManager;
+    window.authManager = authManager;
 }
+
+export { AuthManager, authManager };

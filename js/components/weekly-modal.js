@@ -5,6 +5,13 @@
  * everyday task exclusion, live row target totals, daily weighted hours, and persistence.
  */
 
+import { APP_CONSTANTS } from '../config/constants.js';
+import { isTimeTask, getTaskDayTarget, isDailyScheduledTask, getTaskNormalizedTarget, getTaskUnit } from '../core/task-rules.js';
+import { ScoringEngine } from '../core/scoring-engine.js';
+import { AppState } from '../core/state.js';
+import { saveData } from '../core/store.js';
+import { awradyAPI } from '../api.js';
+
 const WEEKLY_WEEKDAYS = [
     { key: "Sat", ar: "السبت" },
     { key: "Sun", ar: "الأحد" },
@@ -700,3 +707,12 @@ if (typeof window !== "undefined") {
     window.getTaskTargetForDay = getTaskTargetForDay;
     window.getTaskWeightedHours = getTaskWeightedHours;
 }
+
+export {
+    weeklyModalOptions,
+    showWeeklyHoursModal,
+    saveWeeklyMatrix,
+    getEligibleWeeklyTasks,
+    getTaskTargetForDay,
+    getTaskWeightedHours
+};

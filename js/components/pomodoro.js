@@ -3,6 +3,23 @@
  * Ultra-simple, robust, and bug-free focus timer engine.
  */
 
+import { APP_CONSTANTS } from '../config/constants.js';
+import { isTimeTask } from '../core/task-rules.js';
+import { AppState } from '../core/state.js';
+import { saveData } from '../core/store.js';
+import {
+    ensureAudioUnlocked,
+    startAudioKeepalive,
+    stopAudioKeepalive,
+    requestPomoNotificationPermission,
+    restoreDocumentTitle,
+    dispatchSystemNotification,
+    dispatchFiveMinuteWarning,
+    startTitleBlinking,
+    stopTitleBlinking,
+    playPomoAlarm
+} from './pomodoro-alerts.js';
+
 const PomodoroTimer = {
     mode: "work", // 'work' | 'rest'
     isRunning: false,
@@ -864,3 +881,14 @@ if (typeof window !== "undefined") {
     window.resetPomoTimer = resetPomoTimer;
     window.setPomoMode = setPomoMode;
 }
+
+export {
+    PomodoroTimer,
+    setupPomodoroControls,
+    openPomodoroModal,
+    closePomodoroModal,
+    startPomoTimer,
+    pausePomoTimer,
+    resetPomoTimer,
+    setPomoMode
+};

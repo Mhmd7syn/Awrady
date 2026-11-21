@@ -345,3 +345,18 @@ if (typeof window !== "undefined") {
     window.playWebAudioChime = playWebAudioChime;
     window.playFiveMinuteChime = playFiveMinuteChime;
 }
+
+export {
+    ensureAudioUnlocked,
+    startAudioKeepalive,
+    stopAudioKeepalive,
+    requestPomoNotificationPermission,
+    restoreDocumentTitle,
+    dispatchSystemNotification,
+    dispatchFiveMinuteWarning,
+    startTitleBlinking,
+    stopTitleBlinking,
+    playPomoAlarm,
+    playWebAudioChime,
+    playFiveMinuteChime
+};

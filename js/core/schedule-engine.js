@@ -3,6 +3,9 @@
  * Pure logic for task scheduling, bonus task detection, and date visibility.
  */
 
+import { getHijriDateDetails, getDayOfWeekAbbrev } from '../utils/date-utils.js';
+import { isEverydayOrSpecificDaysSchedule } from './task-rules.js';
+
 class ScheduleEngine {
     /**
      * Checks if a task is deactivated / stopped for a given date or day log
@@ -179,3 +182,5 @@ class ScheduleEngine {
 if (typeof window !== "undefined") {
     window.ScheduleEngine = ScheduleEngine;
 }
+
+export { ScheduleEngine };

@@ -5,6 +5,14 @@
  * ============================================================================
  */
 
+import { APP_CONSTANTS } from '../config/constants.js';
+import { DEFAULT_TASKS } from '../config/default-data.js';
+import { getLocalTodayString } from '../utils/date-utils.js';
+import { AppState } from '../core/state.js';
+import { saveData, getUserStorageKey, loadDefaultAppData, pushDayToCloud } from '../core/store.js';
+import { awradyAPI } from '../api.js';
+import { showToast } from './toast.js';
+
 /**
  * Update 24/7 Cloud Sync UI status badge & header pill
  */
@@ -247,3 +255,13 @@ function setupDataManagement() {
     // Initialize Cloud Status indicator
     refreshCloudStatus();
 }
+
+if (typeof window !== "undefined") {
+    window.updateCloudSyncUI = updateCloudSyncUI;
+    window.setupDataManagement = setupDataManagement;
+}
+
+export {
+    updateCloudSyncUI,
+    setupDataManagement
+};

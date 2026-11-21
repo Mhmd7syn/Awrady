@@ -5,6 +5,11 @@
  * ============================================================================
  */
 
+import { getLocalTodayString, addDays, getArabicDateFormatted } from '../utils/date-utils.js';
+import { ScoringEngine } from '../core/scoring-engine.js';
+import { AppState } from '../core/state.js';
+import { renderTaskBreakdown, renderTaskRankings } from './analytics-breakdown.js';
+
 let chartTimeRange = "all";
 if (typeof window !== "undefined") {
     window.chartTimeRange = chartTimeRange;
@@ -618,3 +623,14 @@ if (typeof window !== "undefined") {
     window.applyCenteredMovingAverage = applyCenteredMovingAverage;
     window.getExtremaPointRadii = getExtremaPointRadii;
 }
+
+export {
+    renderAllTimeStats,
+    updateChartAndAnalytics,
+    updateAnalyticsHeroMetrics,
+    getSelectedDates,
+    initChart,
+    applyCenteredMovingAverage,
+    getExtremaPointRadii,
+    chartTimeRange
+};

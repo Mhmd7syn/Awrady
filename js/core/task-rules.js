@@ -3,6 +3,9 @@
  * Single source of truth for task units, time checks, completion status, and control markup.
  */
 
+import { APP_CONSTANTS } from '../config/constants.js';
+import { getDayOfWeekAbbrev } from '../utils/date-utils.js';
+
 /**
  * Resolves the unit of measurement for a task (from type or category/subcategory default)
  * @param {Object} task
@@ -439,6 +442,7 @@ function getCategoryIconHtml(task) {
 if (typeof window !== "undefined") {
     window.getTaskUnit = getTaskUnit;
     window.isTimeTask = isTimeTask;
+    window.getTaskDayTarget = getTaskDayTarget;
     window.getTaskNormalizedTarget = getTaskNormalizedTarget;
     window.isTaskCompleted = isTaskCompleted;
     window.isPrayerSelector = isPrayerSelector;
@@ -452,3 +456,21 @@ if (typeof window !== "undefined") {
     window.isEverydayOrSpecificDaysSchedule = isEverydayOrSpecificDaysSchedule;
     window.isDailyScheduledTask = isDailyScheduledTask;
 }
+
+export {
+    getTaskUnit,
+    isTimeTask,
+    isEverydayOrSpecificDaysSchedule,
+    isDailyScheduledTask,
+    getTaskDayTarget,
+    getTaskNormalizedTarget,
+    isTaskCompleted,
+    isPrayerSelector,
+    isObligatoryPrayerTask,
+    PRAYER_ORDER,
+    getPrayerSortIndex,
+    groupTasksByCategory,
+    rowToLog,
+    renderTaskControls,
+    getCategoryIconHtml
+};

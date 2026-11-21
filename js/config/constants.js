@@ -1,7 +1,7 @@
 /**
  * Awrady Dashboard - Application Constants
  */
-var APP_CONSTANTS = {
+export const APP_CONSTANTS = {
     STORAGE_KEY: "AWRAD_APP_DATA_V1",
     STORAGE_KEYS: {
         SESSION_USER: "AWRAD_AUTH_USER",

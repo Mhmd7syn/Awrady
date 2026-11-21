@@ -5,6 +5,15 @@
  * ============================================================================
  */
 
+import { groupTasksByCategory, getCategoryIconHtml, getTaskUnit, isTimeTask } from '../core/task-rules.js';
+import { ScoringEngine } from '../core/scoring-engine.js';
+import { AppState } from '../core/state.js';
+import { saveData } from '../core/store.js';
+import { awradyAPI } from '../api.js';
+import { renderCategoriesManager } from './category-manager.js';
+import { showWeeklyHoursModal } from './weekly-modal.js';
+import { openTaskModal, closeTaskModal, saveTaskFromModal, updateTaskModalScheduleUI } from './task-modal.js';
+
 function setupTaskManager() {
     const subTabs = document.querySelectorAll(".sub-tab");
     const btnAddTask = document.getElementById("btn-open-add-task-modal");
@@ -369,8 +378,28 @@ function addBonusTaskToDate(taskId, dateStr) {
         ScoringEngine.invalidateScoreCache(dateStr, appData);
     }
     saveData(true, dateStr);
-    renderDailyView();
-    updateDailyScoreSummary();
-    updateHeaderTodayScore();
+    if (typeof window !== "undefined") {
+        if (typeof window.renderDailyView === "function") window.renderDailyView();
+        if (typeof window.updateDailyScoreSummary === "function") window.updateDailyScoreSummary();
+        if (typeof window.updateHeaderTodayScore === "function") window.updateHeaderTodayScore();
+    }
 }
+
+if (typeof window !== "undefined") {
+    window.setupTaskManager = setupTaskManager;
+    window.renderGroupedTasks = renderGroupedTasks;
+    window.renderTaskManager = renderTaskManager;
+    window.archiveTask = archiveTask;
+    window.deleteForever = deleteForever;
+    window.addBonusTaskToDate = addBonusTaskToDate;
+}
+
+export {
+    setupTaskManager,
+    renderGroupedTasks,
+    renderTaskManager,
+    archiveTask,
+    deleteForever,
+    addBonusTaskToDate
+};
 

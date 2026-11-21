@@ -2,6 +2,28 @@
  * Daily view: task grid rendering, controls, and per-task value updates
  */
 
+import { APP_CONSTANTS } from '../config/constants.js';
+import { getHijriDateDetails, getArabicDateFormatted, addDays, getDayOfWeekAbbrev } from '../utils/date-utils.js';
+import {
+    getTaskUnit,
+    isTimeTask,
+    getTaskDayTarget,
+    getTaskNormalizedTarget,
+    isTaskCompleted,
+    isPrayerSelector,
+    isObligatoryPrayerTask,
+    getPrayerSortIndex,
+    renderTaskControls
+} from '../core/task-rules.js';
+import { ScheduleEngine } from '../core/schedule-engine.js';
+import { ScoringEngine } from '../core/scoring-engine.js';
+import { AppState } from '../core/state.js';
+import { saveData } from '../core/store.js';
+import { updateDailyScoreSummary, updateHeaderTodayScore } from './day-summary.js';
+import { openPomodoroModal } from './pomodoro.js';
+import { openTaskModal } from './task-modal.js';
+import { checkAndShowNawafelPrompt, checkAndShowQiyamPrompt, removePrayerExtras } from './nawafel-toast.js';
+
 function renderDailyView() {
     const grid = document.getElementById("daily-tasks-grid");
     if (!grid) return;
@@ -741,3 +763,23 @@ function setTaskVal(taskId, val) {
         removePrayerExtras(taskId);
     }
 }
+
+if (typeof window !== "undefined") {
+    window.renderDailyView = renderDailyView;
+    window.getTaskVal = getTaskVal;
+    window.setTaskVal = setTaskVal;
+    window.adjustTaskVal = adjustTaskVal;
+    window.isQiyamTask = isQiyamTask;
+    window.updateTaskCardInPlace = updateTaskCardInPlace;
+    window.toggleDeactivateTaskForDate = toggleDeactivateTaskForDate;
+}
+
+export {
+    renderDailyView,
+    getTaskVal,
+    setTaskVal,
+    adjustTaskVal,
+    isQiyamTask,
+    updateTaskCardInPlace,
+    toggleDeactivateTaskForDate
+};

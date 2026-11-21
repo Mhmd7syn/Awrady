@@ -2,6 +2,10 @@
  * Awrady Dashboard - Interactive Nawafel & Qiyam Toasts Component
  */
 
+import { APP_CONSTANTS } from '../config/constants.js';
+import { AppState } from '../core/state.js';
+import { saveData } from '../core/store.js';
+
 let currentPrayerTaskId = null;
 let tempNawafelCount = 0;
 let tempAzkarChecked = false;
@@ -9,7 +13,11 @@ let tempAzkarChecked = false;
 let currentQiyamTaskId = null;
 let tempQiyamWirdCount = 0;
 
-function setupNawafelToast() {
+const getTaskVal = (id) => (typeof window !== "undefined" && typeof window.getTaskVal === "function") ? window.getTaskVal(id) : 0;
+const setTaskVal = (id, val) => { if (typeof window !== "undefined" && typeof window.setTaskVal === "function") window.setTaskVal(id, val); };
+const renderDailyView = () => { if (typeof window !== "undefined" && typeof window.renderDailyView === "function") window.renderDailyView(); };
+
+export function setupNawafelToast() {
     const btnPlus = document.getElementById("btn-nawafel-plus");
     const btnMinus = document.getElementById("btn-nawafel-minus");
     const toggleAzkar = document.getElementById("toggle-azkar-prayer");
@@ -64,11 +72,12 @@ function setupNawafelToast() {
     });
 }
 
-function checkAndShowNawafelPrompt(prayerTaskId) {
+export function checkAndShowNawafelPrompt(prayerTaskId) {
     currentPrayerTaskId = prayerTaskId;
-    const curDateStr = currentDateStr;
+    const curDateStr = AppState.getCurrentDate();
+    const appData = AppState.getAppData();
     
-    const log = window.appData?.logs?.[curDateStr] || null;
+    const log = appData?.logs?.[curDateStr] || null;
     const extras = log?.prayerExtras?.[prayerTaskId] || { nawafel: 0, azkar: false };
     
     tempNawafelCount = extras.nawafel;
@@ -86,17 +95,18 @@ function checkAndShowNawafelPrompt(prayerTaskId) {
     }
 }
 
-function hideNawafelPrompt() {
+export function hideNawafelPrompt() {
     const toast = document.getElementById("nawafel-toast-overlay");
     if (toast) toast.classList.add("hidden");
 }
 
-function savePrayerExtras(autoClose = false) {
+export function savePrayerExtras(autoClose = false) {
     try {
-        if (window.appData && currentPrayerTaskId) {
-            const curDateStr = currentDateStr;
+        const appData = AppState.getAppData();
+        if (appData && currentPrayerTaskId) {
+            const curDateStr = AppState.getCurrentDate();
             const prayerId = currentPrayerTaskId;
-            const curLog = window.appData?.logs?.[curDateStr] || null;
+            const curLog = appData?.logs?.[curDateStr] || null;
             const oldExtras = curLog?.prayerExtras?.[prayerId] || { nawafel: 0, azkar: false };
 
             const nawafelDiff = tempNawafelCount - oldExtras.nawafel;
@@ -106,9 +116,7 @@ function savePrayerExtras(autoClose = false) {
                 return;
             }
 
-            const log = typeof ensureDayRecord === "function"
-                ? ensureDayRecord(curDateStr)
-                : (window.appData.logs[curDateStr] || (window.appData.logs[curDateStr] = { taskProgress: {}, prayerExtras: {} }));
+            const log = AppState.ensureDayRecord(curDateStr);
 
             if (!log.prayerExtras) {
                 log.prayerExtras = {};
@@ -125,7 +133,7 @@ function savePrayerExtras(autoClose = false) {
             const azkarId = APP_CONSTANTS.TASK_IDS.PRAYER_AZKAR;
 
             if (nawafelDiff !== 0) {
-                const nawafelTask = window.appData.tasks.find(t => !t.isArchived && t.id === sunnahId);
+                const nawafelTask = (appData.tasks || []).find(t => !t.isArchived && t.id === sunnahId);
                 if (nawafelTask) {
                     const curVal = getTaskVal(nawafelTask.id);
                     setTaskVal(nawafelTask.id, Math.max(0, curVal + nawafelDiff));
@@ -133,7 +141,7 @@ function savePrayerExtras(autoClose = false) {
             }
 
             if (azkarDiff !== 0) {
-                const azkarTask = window.appData.tasks.find(t => !t.isArchived && t.id === azkarId);
+                const azkarTask = (appData.tasks || []).find(t => !t.isArchived && t.id === azkarId);
                 if (azkarTask) {
                     const curVal = getTaskVal(azkarTask.id);
                     setTaskVal(azkarTask.id, Math.max(0, curVal + azkarDiff));
@@ -152,22 +160,23 @@ function savePrayerExtras(autoClose = false) {
     }
 }
 
-function removePrayerExtras(prayerTaskId) {
-    const curDateStr = currentDateStr;
-    const log = window.appData?.logs?.[curDateStr];
+export function removePrayerExtras(prayerTaskId) {
+    const curDateStr = AppState.getCurrentDate();
+    const appData = AppState.getAppData();
+    const log = appData?.logs?.[curDateStr];
     if (!log?.prayerExtras?.[prayerTaskId]) return;
     const extras = log.prayerExtras[prayerTaskId];
     const sunnahId = APP_CONSTANTS.TASK_IDS.SUNNAH;
     const azkarId = APP_CONSTANTS.TASK_IDS.PRAYER_AZKAR;
 
     if (extras.nawafel > 0) {
-        const nawafelTask = window.appData.tasks.find(t => !t.isArchived && t.id === sunnahId);
+        const nawafelTask = (appData.tasks || []).find(t => !t.isArchived && t.id === sunnahId);
         if (nawafelTask) {
             setTaskVal(nawafelTask.id, Math.max(0, getTaskVal(nawafelTask.id) - extras.nawafel));
         }
     }
     if (extras.azkar) {
-        const azkarTask = window.appData.tasks.find(t => !t.isArchived && t.id === azkarId);
+        const azkarTask = (appData.tasks || []).find(t => !t.isArchived && t.id === azkarId);
         if (azkarTask) {
             setTaskVal(azkarTask.id, Math.max(0, getTaskVal(azkarTask.id) - 1));
         }
@@ -178,7 +187,7 @@ function removePrayerExtras(prayerTaskId) {
     renderDailyView();
 }
 
-function setupQiyamToast() {
+export function setupQiyamToast() {
     const btnPlus = document.getElementById("btn-qiyam-wird-plus");
     const btnMinus = document.getElementById("btn-qiyam-wird-minus");
     const btnSave = document.getElementById("btn-qiyam-save");
@@ -204,7 +213,7 @@ function setupQiyamToast() {
     if (btnCancel) btnCancel.addEventListener("click", hideQiyamPrompt);
 }
 
-function checkAndShowQiyamPrompt() {
+export function checkAndShowQiyamPrompt() {
     tempQiyamWirdCount = 0;
     const counter = document.getElementById("qiyam-wird-counter-val");
     if (counter) counter.textContent = tempQiyamWirdCount;
@@ -215,15 +224,16 @@ function checkAndShowQiyamPrompt() {
     }
 }
 
-function hideQiyamPrompt() {
+export function hideQiyamPrompt() {
     const toast = document.getElementById("qiyam-toast-overlay");
     if (toast) toast.classList.add("hidden");
 }
 
-function saveQiyamExtras() {
+export function saveQiyamExtras() {
     try {
-        if (tempQiyamWirdCount > 0 && window.appData) {
-            const wirdTask = window.appData.tasks.find(t => !t.isArchived && t.id === APP_CONSTANTS.TASK_IDS.QURAN_WIRD);
+        const appData = AppState.getAppData();
+        if (tempQiyamWirdCount > 0 && appData) {
+            const wirdTask = (appData.tasks || []).find(t => !t.isArchived && t.id === APP_CONSTANTS.TASK_IDS.QURAN_WIRD);
             if (wirdTask) {
                 const curVal = getTaskVal(wirdTask.id);
                 setTaskVal(wirdTask.id, curVal + tempQiyamWirdCount);

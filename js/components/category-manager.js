@@ -3,15 +3,19 @@
  * Displays constant reference categories, subcategories, units, and time estimates.
  */
 
-function renderCategoriesManager() {
+import { APP_CONSTANTS } from '../config/constants.js';
+import { AppState } from '../core/state.js';
+
+export function renderCategoriesManager() {
     const list = document.getElementById("manager-categories-list");
     if (!list) return;
     list.innerHTML = "";
 
     const categories = APP_CONSTANTS.CATEGORIES;
+    const tasks = AppState.getTasks();
 
     categories.forEach(cat => {
-        const taskCount = (window.appData && window.appData.tasks || []).filter(t => t.category === cat.name).length;
+        const taskCount = tasks.filter(t => t.category === cat.name).length;
         const subList = (cat.subcategories || []).map(s => {
             const unit = (s.defaultUnit || cat.defaultUnit) ? ` (${s.defaultUnit || cat.defaultUnit})` : "";
             const mins = (s.defaultEstimatedMinutes || cat.defaultEstimatedMinutes) ? ` ⏱${s.defaultEstimatedMinutes || cat.defaultEstimatedMinutes}د` : "";
@@ -39,4 +43,8 @@ function renderCategoriesManager() {
 
     const countEl = document.getElementById("count-categories");
     if (countEl) countEl.textContent = categories.length;
+}
+
+if (typeof window !== "undefined") {
+    window.renderCategoriesManager = renderCategoriesManager;
 }

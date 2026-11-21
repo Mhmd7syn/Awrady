@@ -2,6 +2,8 @@
  * Awrady Dashboard - Date & Hijri Calculation Utilities
  */
 
+import { APP_CONSTANTS } from '../config/constants.js';
+
 /**
  * Returns today's date formatted as YYYY-MM-DD in local time
  * @param {Date} [dateObj] Optional Date object, defaults to current time
@@ -210,3 +212,16 @@ if (typeof window !== "undefined") {
     window.getDatesForCurrentWeek = getDatesForCurrentWeek;
     window.addDays = addDays;
 }
+
+export {
+    getLocalTodayString,
+    formatTimeHM,
+    getDayOfWeekAbbrev,
+    getArabicDateFormatted,
+    getHijriDateDetails,
+    getDatesForCurrentWeek,
+    addDays,
+    WEEKDAY_ABBREVS,
+    ARABIC_WEEKDAYS,
+    ENGLISH_WEEKDAYS
+};

@@ -2,9 +2,11 @@
  * Awrady Dashboard - Unified Default Dataset & Configuration
  */
 
-var DEFAULT_CATEGORIES = APP_CONSTANTS.CATEGORIES;
+import { APP_CONSTANTS } from './constants.js';
 
-var DEFAULT_TASKS = [
+export const DEFAULT_CATEGORIES = APP_CONSTANTS.CATEGORIES;
+
+export const DEFAULT_TASKS = [
     // صلاة - فرض (يومياً)
     { id: "task_fajr", name: "الفجر", schedule: "Everyday", target: 1, isArchived: false, category: "صلاة", subcategory: "فرض", createdAt: "2000-01-01" },
     { id: "task_dhuhr", name: "الظهر", schedule: "Everyday", target: 1, isArchived: false, category: "صلاة", subcategory: "فرض", createdAt: "2000-01-01" },
@@ -39,7 +41,7 @@ var DEFAULT_TASKS = [
     { id: "task_outing", name: "رياضة وخروج", schedule: "Fri, Sat", target: 1, isArchived: false, category: "خروج", subcategory: "", createdAt: "2000-01-01" }
 ];
 
-var DEFAULT_AWRAD_DATA = {
+export const DEFAULT_AWRAD_DATA = {
     categories: DEFAULT_CATEGORIES,
     tasks: DEFAULT_TASKS,
     logs: {}

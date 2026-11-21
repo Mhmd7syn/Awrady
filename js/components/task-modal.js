@@ -4,6 +4,14 @@
  * and per-day target configuration via the dailyTargets dictionary for Daily schedule.
  */
 
+import { APP_CONSTANTS } from '../config/constants.js';
+import { getTaskNormalizedTarget } from '../core/task-rules.js';
+import { ScoringEngine } from '../core/scoring-engine.js';
+import { AppState } from '../core/state.js';
+import { saveData } from '../core/store.js';
+import { awradyAPI } from '../api.js';
+import { showToast } from './toast.js';
+
 let editingTaskId = null;
 let _taskModalListenersBound = false;
 
@@ -20,7 +28,7 @@ const TASK_MODAL_WEEKDAYS = [
 /**
  * Updates the active days counter badge and Check-All checkbox state
  */
-function updateDailyTargetsUIState() {
+export function updateDailyTargetsUIState() {
     const chks = Array.from(document.querySelectorAll("#daily-targets-list .chk-day-active"));
     const activeCount = chks.filter(c => c.checked).length;
     const chkAll = document.getElementById("chk-daily-targets-all");
@@ -51,7 +59,7 @@ function updateDailyTargetsUIState() {
  * Updates task edit modal UI elements according to the chosen schedule type
  * @param {string} schedType ("Everyday", "Daily", "Weekdays", "WhiteDays", "Ramadan", "OneTime")
  */
-function updateTaskModalScheduleUI(schedType) {
+export function updateTaskModalScheduleUI(schedType) {
     const dailyBox = document.getElementById("daily-targets-box");
     const otBox = document.getElementById("onetime-date-selector-box");
     const targetGroup = document.getElementById("task-target-group");
@@ -72,7 +80,7 @@ function updateTaskModalScheduleUI(schedType) {
             if (otBox) otBox.classList.remove("hidden");
             const otDateInput = document.getElementById("task-onetime-date-input");
             if (otDateInput && !otDateInput.value) {
-                otDateInput.value = (typeof currentDateStr !== "undefined") ? currentDateStr : new Date().toISOString().slice(0, 10);
+                otDateInput.value = AppState.getCurrentDate() || new Date().toISOString().slice(0, 10);
             }
         } else {
             if (otBox) otBox.classList.add("hidden");
@@ -155,7 +163,7 @@ function setupTaskModalDynamicEvents() {
  * @param {string|null} id Task ID to edit, or null to create
  * @param {Object} options Configuration flags (e.g. { isOneTime: true })
  */
-function openTaskModal(id, options = {}) {
+export function openTaskModal(id, options = {}) {
     editingTaskId = id;
     const modal = document.getElementById("task-modal");
     const title = document.getElementById("modal-task-title");
@@ -167,6 +175,9 @@ function openTaskModal(id, options = {}) {
 
     if (!modal) return;
     setupTaskModalDynamicEvents();
+
+    const appData = AppState.getAppData();
+    const currentDateStr = AppState.getCurrentDate();
 
     function updateSubcats(categoryName, selectedSubcat = "") {
         if (!subcatInput) return;
@@ -272,7 +283,7 @@ function openTaskModal(id, options = {}) {
             updateTaskModalScheduleUI(schedType);
         }
     } else {
-        const defaultDate = (typeof currentDateStr !== "undefined") ? currentDateStr : new Date().toISOString().slice(0, 10);
+        const defaultDate = currentDateStr || new Date().toISOString().slice(0, 10);
         const schedType = options.isOneTime ? "OneTime" : "Everyday";
 
         if (title) {
@@ -319,7 +330,7 @@ function openTaskModal(id, options = {}) {
     modal.classList.remove("hidden");
 }
 
-function closeTaskModal() {
+export function closeTaskModal() {
     const modal = document.getElementById("task-modal");
     if (modal) modal.classList.add("hidden");
     editingTaskId = null;
@@ -328,7 +339,7 @@ function closeTaskModal() {
 /**
  * Saves task configuration from the modal
  */
-function saveTaskFromModal() {
+export function saveTaskFromModal() {
     const id = document.getElementById("task-id-input").value || `task_${Date.now()}`;
     const name = document.getElementById("task-name-input").value.trim();
     if (!name) {
@@ -377,7 +388,8 @@ function saveTaskFromModal() {
         effectiveTarget = targetStr === "" ? 1 : Math.max(0.25, parseFloat(targetStr) || 1);
     }
 
-    const selectedDate = (typeof currentDateStr !== "undefined") ? currentDateStr : new Date().toISOString().slice(0, 10);
+    const appData = AppState.getAppData();
+    const selectedDate = AppState.getCurrentDate() || new Date().toISOString().slice(0, 10);
     const otDateInput = document.getElementById("task-onetime-date-input");
     const chosenOneTimeDate = (schedType === "OneTime" && otDateInput?.value) ? otDateInput.value : selectedDate;
 
@@ -450,21 +462,21 @@ function saveTaskFromModal() {
     closeTaskModal();
 
     // Persist local state
-    if (typeof saveData === "function") {
-        saveData(true);
-    }
+    saveData(true);
 
     // Persist to cloud
-    if (window.awradyAPI?.client && savedTask) {
-        window.awradyAPI.saveTask(savedTask).catch(e => console.warn("[AwradyAPI] saveTask:", e.message));
+    if (awradyAPI?.client && savedTask) {
+        awradyAPI.saveTask(savedTask).catch(e => console.warn("[AwradyAPI] saveTask:", e.message));
     }
 
     // Refresh UI
-    if (typeof renderDailyView === "function") renderDailyView();
-    if (typeof renderTaskManager === "function") renderTaskManager();
-    if (typeof updateHeaderTodayScore === "function") updateHeaderTodayScore();
-    if (typeof renderAllTimeStats === "function") renderAllTimeStats();
-    if (typeof updateChartAndAnalytics === "function") updateChartAndAnalytics();
+    if (typeof window !== "undefined") {
+        if (typeof window.renderDailyView === "function") window.renderDailyView();
+        if (typeof window.renderTaskManager === "function") window.renderTaskManager();
+        if (typeof window.updateHeaderTodayScore === "function") window.updateHeaderTodayScore();
+        if (typeof window.renderAllTimeStats === "function") window.renderAllTimeStats();
+        if (typeof window.updateChartAndAnalytics === "function") window.updateChartAndAnalytics();
+    }
 }
 
 if (typeof window !== "undefined") {

@@ -2,13 +2,21 @@
  * Quick-add modal
  */
 
-// ============================================================================
-// QUICK ADD MODAL (EXISTING BONUS TASK vs NEW TASK)
-// ============================================================================
+import { AppState } from '../core/state.js';
+import { ScheduleEngine } from '../core/schedule-engine.js';
+import { getCategoryIconHtml } from '../core/task-rules.js';
+import { openTaskModal } from './task-modal.js';
+
 let _qaCurrentFilter = "all";
 let _quickAddInitialized = false;
 
-function initQuickAddModal() {
+const addBonusTaskToDate = (taskId, dateStr) => {
+    if (typeof window !== "undefined" && typeof window.addBonusTaskToDate === "function") {
+        window.addBonusTaskToDate(taskId, dateStr);
+    }
+};
+
+export function initQuickAddModal() {
     if (_quickAddInitialized) return;
     const modal = document.getElementById("quick-add-modal");
     if (!modal) return;
@@ -79,6 +87,7 @@ function initQuickAddModal() {
             if (btn) {
                 const taskId = btn.getAttribute("data-task-id");
                 if (taskId) {
+                    const currentDateStr = AppState.getCurrentDate();
                     addBonusTaskToDate(taskId, currentDateStr);
                     modal.classList.add("hidden");
                 }
@@ -89,7 +98,7 @@ function initQuickAddModal() {
     _quickAddInitialized = true;
 }
 
-function openQuickAddModal() {
+export function openQuickAddModal() {
     initQuickAddModal();
     const modal = document.getElementById("quick-add-modal");
     if (!modal) return;
@@ -110,7 +119,7 @@ function openQuickAddModal() {
     modal.classList.remove("hidden");
 }
 
-function populateQuickAddExistingList() {
+export function populateQuickAddExistingList() {
     initQuickAddModal();
     const searchInput = document.getElementById("quick-add-search-input");
     if (searchInput) {
@@ -124,11 +133,12 @@ function populateQuickAddExistingList() {
     renderQuickAddExistingList();
 }
 
-function renderQuickAddExistingList() {
+export function renderQuickAddExistingList() {
     const list = document.getElementById("quick-add-existing-list");
     if (!list) return;
 
-    const curDate = currentDateStr;
+    const curDate = AppState.getCurrentDate();
+    const appData = AppState.getAppData();
     const term = (document.getElementById("quick-add-search-input")?.value || "").trim().toLowerCase();
 
     list.innerHTML = "";
@@ -199,4 +209,11 @@ function renderQuickAddExistingList() {
 
         list.appendChild(row);
     });
+}
+
+if (typeof window !== "undefined") {
+    window.initQuickAddModal = initQuickAddModal;
+    window.openQuickAddModal = openQuickAddModal;
+    window.populateQuickAddExistingList = populateQuickAddExistingList;
+    window.renderQuickAddExistingList = renderQuickAddExistingList;
 }
