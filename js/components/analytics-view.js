@@ -602,7 +602,10 @@ function updateChartAndAnalytics() {
     if (elPeriodAvg) elPeriodAvg.textContent = `${periodAvgHours} س/يوم`;
     if (elBestDay) elBestDay.textContent = bestDayLabel;
 
-    // Pass selectedDates so breakdown reflects the same period as the chart
+    // Pass selectedDates so breakdown and rankings reflect the same period as the chart
+    if (typeof renderTaskRankings === "function") {
+        renderTaskRankings(selectedDates);
+    }
     renderTaskBreakdown(selectedDates);
 }
 

@@ -15,7 +15,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <!-- Supabase JS Client for 24/7 Cloud Sync -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.48.1/dist/umd/supabase.min.js"></script>
-    <link rel="stylesheet" href="css/style.css?v=20261113_04">
+    <link rel="stylesheet" href="css/style.css?v=20261121_01">
     <link rel="icon" type="image/x-icon" href="app-icon.ico">
 
     <!-- PWA & Mobile Web App Meta Tags -->
@@ -216,6 +216,41 @@
                                 <span class="lbl">أفضل يوم:</span>
                                 <span class="val gold-text" id="analytics-best-day">--</span>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Highlights Strip: Highest & Lowest Progress Cards -->
+            <div class="analytics-rankings-grid">
+                <!-- Highest Progress Card (Top 3) -->
+                <div class="card-hero-metric glass-card ranking-card">
+                    <div class="hero-metric-content">
+                        <div class="ranking-card-header">
+                            <div class="hero-icon-wrapper emerald"><i class="fa-solid fa-arrow-trend-up"></i></div>
+                            <div>
+                                <h4>الأعلى التزاماً</h4>
+                                <div class="metric-footer" id="analytics-top-subtitle">أفضل 3 أوراد إنجازاً في الفترة</div>
+                            </div>
+                        </div>
+                        <div class="ranking-list" id="analytics-top-tasks">
+                            <!-- Populated dynamically by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lowest Progress Card (Lowest 3) -->
+                <div class="card-hero-metric glass-card ranking-card">
+                    <div class="hero-metric-content">
+                        <div class="ranking-card-header">
+                            <div class="hero-icon-wrapper rose"><i class="fa-solid fa-arrow-trend-down"></i></div>
+                            <div>
+                                <h4>الأقل التزاماً</h4>
+                                <div class="metric-footer" id="analytics-lowest-subtitle">الأوراد الأكثر حاجة للتركيز والمتابعة</div>
+                            </div>
+                        </div>
+                        <div class="ranking-list" id="analytics-lowest-tasks">
+                            <!-- Populated dynamically by JS -->
                         </div>
                     </div>
                 </div>
@@ -834,8 +869,8 @@
     <script src="js/components/task-modal.js?v=20261113_07"></script>
     <script src="js/components/quick-add-modal.js?v=20261111_05"></script>
     <script src="js/components/category-manager.js?v=20261013_10"></script>
-    <script src="js/components/analytics-view.js?v=20261119_04"></script>
-    <script src="js/components/analytics-breakdown.js?v=20261119_04"></script>
+    <script src="js/components/analytics-view.js?v=20261121_01"></script>
+    <script src="js/components/analytics-breakdown.js?v=20261121_01"></script>
     <script src="js/components/data-manager.js?v=20261118_02"></script>
     <script src="js/components/auth-manager.js?v=20261118_06"></script>
     <script src="js/components/day-summary.js?v=20261113_02"></script>

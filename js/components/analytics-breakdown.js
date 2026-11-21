@@ -33,6 +33,235 @@ function getTaskStatusKey(task) {
     return "scheduled";
 }
 
+/**
+ * Calculates commitment statistics for a task over a specific list of dates.
+ * Returns activeTimes, scheduledDaysCount, effectiveTotalDays, consistencyPct, taskTotalHours, and formattedHours.
+ */
+function calculateTaskStatsForDates(task, allDates) {
+    let activeTimes = 0;
+    let sumRatio = 0;
+    let scheduledDaysCount = 0;
+    let taskTotalHours = 0;
+
+    const statusKey = getTaskStatusKey(task);
+    const targetDate = task.oneTimeDate || (task.createdAt ? task.createdAt.slice(0, 10) : null);
+    const archiveCutoff = task.archivedAt || null;
+
+    const computeTaskHours = (taskObj, val, date) => {
+        if (val <= 0) return 0;
+        const isTime = typeof isTimeTask === "function" && isTimeTask(taskObj);
+        if (isTime) return val / 60;
+        const tgt = getTaskNormalizedTarget(taskObj, date);
+        const baseTgt = (taskObj.target && taskObj.target > 0) ? taskObj.target : 1;
+        const effectiveTgt = tgt > 0 ? tgt : baseTgt;
+        const weightMinutes = (typeof ScoringEngine !== "undefined" && typeof ScoringEngine.getTaskWeightMinutes === "function")
+            ? ScoringEngine.getTaskWeightMinutes(taskObj, effectiveTgt)
+            : 1;
+        const ratio = val / effectiveTgt;
+        return (ratio * weightMinutes) / 60;
+    };
+
+    // Check if task has any past logged entries (for legacy tasks without explicit cutoff dates)
+    let taskHasAnyLogs = false;
+    let lastLoggedDate = null;
+    if (appData && appData.logs) {
+        for (const dKey in appData.logs) {
+            if ((Number(appData.logs[dKey]?.taskProgress?.[task.id]?.achieved) || 0) > 0) {
+                taskHasAnyLogs = true;
+                if (!lastLoggedDate || dKey > lastLoggedDate) {
+                    lastLoggedDate = dKey;
+                }
+            }
+        }
+    }
+
+    (allDates || []).forEach(d => {
+        const log = (appData && appData.logs && appData.logs[d]) ? appData.logs[d] : null;
+        const val = Number(log?.taskProgress?.[task.id]?.achieved) || 0;
+        const isDeactivated = (typeof ScheduleEngine !== "undefined") ? ScheduleEngine.isTaskDisabledForDate(task, log, appData) : false;
+        const isExplicitBonus = Boolean(task.isBonus);
+
+        let isScheduled = false;
+        if (!isExplicitBonus && !(isDeactivated && val === 0)) {
+            if (statusKey === "onetime") {
+                if (targetDate && d === targetDate && !isDeactivated) {
+                    isScheduled = true;
+                }
+            } else if (statusKey === "archived") {
+                if (archiveCutoff && d > archiveCutoff) {
+                    isScheduled = false;
+                } else if (!archiveCutoff && !taskHasAnyLogs) {
+                    isScheduled = false;
+                } else if (!archiveCutoff && lastLoggedDate && d > lastLoggedDate) {
+                    isScheduled = false;
+                } else {
+                    isScheduled = (typeof ScheduleEngine !== "undefined")
+                        ? ScheduleEngine.isTaskScheduledForDate(task, d, appData, val, null, true)
+                        : false;
+                }
+            } else {
+                isScheduled = (typeof ScheduleEngine !== "undefined")
+                    ? ScheduleEngine.isTaskScheduledForDate(task, d, appData, val)
+                    : false;
+            }
+        }
+
+        if (isScheduled) {
+            scheduledDaysCount++;
+            if (val > 0) {
+                activeTimes++;
+                const tgt = getTaskNormalizedTarget(task, d);
+                const baseTgt = (task.target && task.target > 0) ? (isTimeTask(task) ? task.target * 60 : task.target) : 1;
+                const effectiveTgt = tgt > 0 ? tgt : baseTgt;
+                sumRatio += val / effectiveTgt;
+                taskTotalHours += computeTaskHours(task, val, d);
+            }
+        } else if (val > 0) {
+            // Strictly additive bonus entry: never increments scheduledDaysCount
+            activeTimes++;
+            const tgt = getTaskNormalizedTarget(task, d);
+            const baseTgt = (task.target && task.target > 0) ? (isTimeTask(task) ? task.target * 60 : task.target) : 1;
+            const effectiveTgt = tgt > 0 ? tgt : baseTgt;
+            sumRatio += val / effectiveTgt;
+            taskTotalHours += computeTaskHours(task, val, d);
+        }
+    });
+
+    // Special fallback for one-time task if target date wasn't inside allDates range
+    if (statusKey === "onetime" && scheduledDaysCount === 0 && targetDate) {
+        const log = (appData && appData.logs && appData.logs[targetDate]) ? appData.logs[targetDate] : null;
+        const isDeactivated = (typeof ScheduleEngine !== "undefined") ? ScheduleEngine.isTaskDisabledForDate(task, log, appData) : false;
+        const val = Number(log?.taskProgress?.[task.id]?.achieved) || 0;
+
+        if (!isDeactivated || val > 0) {
+            scheduledDaysCount = isDeactivated ? 0 : 1;
+            if (val > 0) {
+                activeTimes = Math.max(activeTimes, 1);
+                const tgt = getTaskNormalizedTarget(task, targetDate);
+                const baseTgt = (task.target && task.target > 0) ? (isTimeTask(task) ? task.target * 60 : task.target) : 1;
+                const effectiveTgt = tgt > 0 ? tgt : baseTgt;
+                sumRatio += val / effectiveTgt;
+                taskTotalHours += computeTaskHours(task, val, targetDate);
+            }
+        }
+    }
+
+    const effectiveTotalDays = scheduledDaysCount > 0 ? scheduledDaysCount : (activeTimes > 0 ? activeTimes : 0);
+    const consistencyPct = effectiveTotalDays > 0 ? Math.round((sumRatio / effectiveTotalDays) * 100) : 0;
+    const formattedHours = Math.round(taskTotalHours * 10) / 10;
+
+    return {
+        activeTimes,
+        scheduledDaysCount,
+        effectiveTotalDays,
+        consistencyPct,
+        taskTotalHours,
+        formattedHours
+    };
+}
+
+/**
+ * Renders an individual ranking item row.
+ */
+function renderRankingItemHtml(entry, rank, type) {
+    const { task, stats } = entry;
+    const iconHtml = (typeof getCategoryIconHtml === "function") ? getCategoryIconHtml(task) : '<i class="fa-solid fa-check"></i>';
+    const goldThreshold = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS?.UI?.SCORE_THRESHOLDS?.GOLD)
+        ? APP_CONSTANTS.UI.SCORE_THRESHOLDS.GOLD
+        : 90;
+
+    let pctClass = "";
+    if (stats.consistencyPct >= goldThreshold) {
+        pctClass = "gold-text";
+    } else if (stats.consistencyPct >= 65) {
+        pctClass = "emerald-text";
+    } else if (stats.consistencyPct >= 35) {
+        pctClass = "amber-text";
+    } else {
+        pctClass = "rose-text";
+    }
+
+    const badgeClass = `${type}-${rank}`;
+
+    return `
+        <div class="ranking-item">
+            <div class="ranking-item-start">
+                <span class="ranking-badge ${badgeClass}">${rank}</span>
+                <span class="ranking-task-icon">${iconHtml}</span>
+                <span class="ranking-task-name" title="${task.name || ''}">${task.name || 'بدون اسم'}</span>
+            </div>
+            <div class="ranking-item-end">
+                <span class="ranking-hours-val">${stats.formattedHours} س</span>
+                <span class="ranking-pct ${pctClass}">${stats.consistencyPct}%</span>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Renders Top 3 and Lowest 3 scheduled tasks based on progress percentage in the selected period.
+ */
+function renderTaskRankings(allDates) {
+    const elTopContainer = document.getElementById("analytics-top-tasks");
+    const elLowestContainer = document.getElementById("analytics-lowest-tasks");
+    if (!elTopContainer && !elLowestContainer) return;
+
+    const renderEmpty = () => `<div class="ranking-empty-state"><i class="fa-regular fa-calendar-xmark"></i> <span>لا توجد أوراد مجدولة كافية في هذه الفترة</span></div>`;
+
+    if (!appData || !appData.tasks || !Array.isArray(appData.tasks)) {
+        if (elTopContainer) elTopContainer.innerHTML = renderEmpty();
+        if (elLowestContainer) elLowestContainer.innerHTML = renderEmpty();
+        return;
+    }
+
+    // Only scheduled tasks ("not archived or onetime")
+    const scheduledTasks = appData.tasks.filter(t => getTaskStatusKey(t) === "scheduled");
+
+    // Filter rule: only include tasks with effectiveTotalDays > 0 in the period
+    const taskEntries = [];
+    scheduledTasks.forEach(task => {
+        const stats = calculateTaskStatsForDates(task, allDates);
+        if (stats.effectiveTotalDays > 0) {
+            taskEntries.push({ task, stats });
+        }
+    });
+
+    if (taskEntries.length === 0) {
+        if (elTopContainer) elTopContainer.innerHTML = renderEmpty();
+        if (elLowestContainer) elLowestContainer.innerHTML = renderEmpty();
+        return;
+    }
+
+    // Top 3: sorted by consistencyPct descending, secondary by taskTotalHours descending, then name
+    const topEntries = [...taskEntries].sort((a, b) => {
+        if (b.stats.consistencyPct !== a.stats.consistencyPct) {
+            return b.stats.consistencyPct - a.stats.consistencyPct;
+        }
+        if (b.stats.taskTotalHours !== a.stats.taskTotalHours) {
+            return b.stats.taskTotalHours - a.stats.taskTotalHours;
+        }
+        return (a.task.name || "").localeCompare(b.task.name || "");
+    }).slice(0, 3);
+
+    // Lowest 3: sorted by consistencyPct ascending, secondary by taskTotalHours ascending, then name
+    const lowestEntries = [...taskEntries].sort((a, b) => {
+        if (a.stats.consistencyPct !== b.stats.consistencyPct) {
+            return a.stats.consistencyPct - b.stats.consistencyPct;
+        }
+        if (a.stats.taskTotalHours !== b.stats.taskTotalHours) {
+            return a.stats.taskTotalHours - b.stats.taskTotalHours;
+        }
+        return (a.task.name || "").localeCompare(b.task.name || "");
+    }).slice(0, 3);
+
+    if (elTopContainer) {
+        elTopContainer.innerHTML = topEntries.map((entry, idx) => renderRankingItemHtml(entry, idx + 1, "top")).join("");
+    }
+    if (elLowestContainer) {
+        elLowestContainer.innerHTML = lowestEntries.map((entry, idx) => renderRankingItemHtml(entry, idx + 1, "low")).join("");
+    }
+}
+
 function setupAnalyticsFilters() {
     if (_analyticsFiltersInitialized) return;
     const buttons = document.querySelectorAll(".analytics-task-filter-strip .btn-filter-status");
@@ -123,115 +352,17 @@ function renderTaskBreakdown(allDates) {
             const statusKey = getTaskStatusKey(task);
             const statusCfg = TASK_STATUS_CONFIG[statusKey] || TASK_STATUS_CONFIG.scheduled;
 
-            let activeTimes = 0;
-            let sumRatio = 0;
-            let scheduledDaysCount = 0;
-            let taskTotalHours = 0;
-
             const targetDate = task.oneTimeDate || (task.createdAt ? task.createdAt.slice(0, 10) : null);
             const archiveCutoff = task.archivedAt || null;
 
-            const computeTaskHours = (taskObj, val, date) => {
-                if (val <= 0) return 0;
-                const isTime = typeof isTimeTask === "function" && isTimeTask(taskObj);
-                if (isTime) return val / 60;
-                const tgt = getTaskNormalizedTarget(taskObj, date);
-                const baseTgt = (taskObj.target && taskObj.target > 0) ? taskObj.target : 1;
-                const effectiveTgt = tgt > 0 ? tgt : baseTgt;
-                const weightMinutes = (typeof ScoringEngine !== "undefined" && typeof ScoringEngine.getTaskWeightMinutes === "function")
-                    ? ScoringEngine.getTaskWeightMinutes(taskObj, effectiveTgt)
-                    : 1;
-                const ratio = val / effectiveTgt;
-                return (ratio * weightMinutes) / 60;
-            };
+            const stats = calculateTaskStatsForDates(task, allDates);
+            catSumPct += stats.consistencyPct;
+            catSumHours += stats.taskTotalHours;
 
-            // Check if task has any past logged entries (for legacy tasks without explicit cutoff dates)
-            let taskHasAnyLogs = false;
-            let lastLoggedDate = null;
-            if (appData.logs) {
-                for (const dKey in appData.logs) {
-                    if ((Number(appData.logs[dKey]?.taskProgress?.[task.id]?.achieved) || 0) > 0) {
-                        taskHasAnyLogs = true;
-                        if (!lastLoggedDate || dKey > lastLoggedDate) {
-                            lastLoggedDate = dKey;
-                        }
-                    }
-                }
-            }
-
-            (allDates || []).forEach(d => {
-                const log = (appData.logs && appData.logs[d]) ? appData.logs[d] : null;
-                const val = Number(log?.taskProgress?.[task.id]?.achieved) || 0;
-                const isDeactivated = ScheduleEngine.isTaskDisabledForDate(task, log, appData);
-
-                const isExplicitBonus = Boolean(task.isBonus);
-                let isScheduled = false;
-
-                if (!isExplicitBonus && !(isDeactivated && val === 0)) {
-                    if (statusKey === "onetime") {
-                        if (targetDate && d === targetDate && !isDeactivated) {
-                            isScheduled = true;
-                        }
-                    } else if (statusKey === "archived") {
-                        if (archiveCutoff && d > archiveCutoff) {
-                            isScheduled = false;
-                        } else if (!archiveCutoff && !taskHasAnyLogs) {
-                            isScheduled = false;
-                        } else if (!archiveCutoff && lastLoggedDate && d > lastLoggedDate) {
-                            isScheduled = false;
-                        } else {
-                            isScheduled = ScheduleEngine.isTaskScheduledForDate(task, d, appData, val, null, true);
-                        }
-                    } else {
-                        isScheduled = ScheduleEngine.isTaskScheduledForDate(task, d, appData, val);
-                    }
-                }
-
-                if (isScheduled) {
-                    scheduledDaysCount++;
-                    if (val > 0) {
-                        activeTimes++;
-                        const tgt = getTaskNormalizedTarget(task, d);
-                        const baseTgt = (task.target && task.target > 0) ? (isTimeTask(task) ? task.target * 60 : task.target) : 1;
-                        const effectiveTgt = tgt > 0 ? tgt : baseTgt;
-                        sumRatio += val / effectiveTgt;
-                        taskTotalHours += computeTaskHours(task, val, d);
-                    }
-                } else if (val > 0) {
-                    // Strictly additive bonus entry: never increments scheduledDaysCount
-                    activeTimes++;
-                    const tgt = getTaskNormalizedTarget(task, d);
-                    const baseTgt = (task.target && task.target > 0) ? (isTimeTask(task) ? task.target * 60 : task.target) : 1;
-                    const effectiveTgt = tgt > 0 ? tgt : baseTgt;
-                    sumRatio += val / effectiveTgt;
-                    taskTotalHours += computeTaskHours(task, val, d);
-                }
-            });
-
-            // Special fallback for one-time task if target date wasn't inside allDates range
-            if (statusKey === "onetime" && scheduledDaysCount === 0 && targetDate) {
-                const log = (appData.logs && appData.logs[targetDate]) ? appData.logs[targetDate] : null;
-                const isDeactivated = ScheduleEngine.isTaskDisabledForDate(task, log, appData);
-                const val = Number(log?.taskProgress?.[task.id]?.achieved) || 0;
-
-                if (!isDeactivated || val > 0) {
-                    scheduledDaysCount = isDeactivated ? 0 : 1;
-                    if (val > 0) {
-                        activeTimes = Math.max(activeTimes, 1);
-                        const tgt = getTaskNormalizedTarget(task, targetDate);
-                        const baseTgt = (task.target && task.target > 0) ? (isTimeTask(task) ? task.target * 60 : task.target) : 1;
-                        const effectiveTgt = tgt > 0 ? tgt : baseTgt;
-                        sumRatio += val / effectiveTgt;
-                        taskTotalHours += computeTaskHours(task, val, targetDate);
-                    }
-                }
-            }
-
-            const effectiveTotalDays = scheduledDaysCount > 0 ? scheduledDaysCount : (activeTimes > 0 ? activeTimes : 0);
-            const consistencyPct = effectiveTotalDays > 0 ? Math.round((sumRatio / effectiveTotalDays) * 100) : 0;
-            catSumPct += consistencyPct;
-            catSumHours += taskTotalHours;
-            const formattedHours = Math.round(taskTotalHours * 10) / 10;
+            const activeTimes = stats.activeTimes;
+            const effectiveTotalDays = stats.effectiveTotalDays;
+            const consistencyPct = stats.consistencyPct;
+            const formattedHours = stats.formattedHours;
             const iconHtml = getCategoryIconHtml(task);
             const statusBadgeHtml = `<span class="breakdown-status-badge ${statusCfg.badgeClass}"><i class="fa-solid ${statusCfg.icon}"></i> ${statusCfg.label}</span>`;
 
@@ -318,4 +449,11 @@ function renderTaskBreakdown(allDates) {
         catCard.appendChild(catBody);
         container.appendChild(catCard);
     });
+}
+
+if (typeof window !== "undefined") {
+    window.renderTaskBreakdown = renderTaskBreakdown;
+    window.renderTaskRankings = renderTaskRankings;
+    window.calculateTaskStatsForDates = calculateTaskStatsForDates;
+    window.getTaskStatusKey = getTaskStatusKey;
 }
