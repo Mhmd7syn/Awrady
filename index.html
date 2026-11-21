@@ -15,7 +15,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <!-- Supabase JS Client for 24/7 Cloud Sync -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.48.1/dist/umd/supabase.min.js"></script>
-    <link rel="stylesheet" href="css/style.css?v=20261121_01">
+    <link rel="stylesheet" href="css/style.css?v=20261121_03">
     <link rel="icon" type="image/x-icon" href="app-icon.ico">
 
     <!-- PWA & Mobile Web App Meta Tags -->
@@ -714,13 +714,13 @@
 
     <!-- POMODORO TIMER MODAL -->
     <div id="pomodoro-modal" class="modal-overlay hidden">
-        <div class="modal-container glass-card" style="max-width: 400px; text-align: center;">
+        <div class="modal-container glass-card" style="max-width: 400px;">
             <div class="modal-header">
-                <h3 id="modal-pomodoro-title"><i class="fa-solid fa-clock"></i> مؤقت التركيز (Pomofocus)</h3>
-                <button class="btn-hide-pomo" id="btn-close-pomodoro" aria-label="إخفاء مؤقت التركيز"><i class="fa-solid fa-eye-slash"></i> <span>إخفاء</span></button>
+                <h3 id="modal-pomodoro-title"><i class="fa-solid fa-clock"></i> <span>مؤقت التركيز</span> <span class="modal-header-sub">(Pomofocus)</span></h3>
+                <button class="btn-hide-pomo" id="btn-close-pomodoro" aria-label="إخفاء مؤقت التركيز" title="إخفاء مؤقت التركيز"><i class="fa-solid fa-eye-slash"></i></button>
             </div>
             
-            <div class="pomodoro-content" style="padding: 20px 0;">
+            <div class="pomodoro-content" style="padding: 10px 0 0 0; text-align: center;">
                 <h4 id="pomodoro-task-name" style="margin-bottom: 10px; color: #10b981;">اسم المهمة</h4>
                 <select id="pomo-task-select" style="width: 100%; margin-bottom: 15px; background: rgba(15,23,42,0.9); color: #f8fafc; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 8px 12px; font-family: inherit; font-size: 0.9rem; cursor: pointer;">
                     <option value="">🎯 جلسة تركيز عامة (بدون تحديد مهمة)</option>
