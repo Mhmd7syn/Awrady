@@ -2086,7 +2086,8 @@ body {
 }
 
 #btn-header-settings,
-#btn-header-logout {
+#btn-header-logout,
+#btn-delete-account {
     transition: var(--transition, all 0.2s ease);
 }
 
@@ -2099,6 +2100,13 @@ body {
 #btn-header-logout:hover {
     background: rgba(239, 68, 68, 0.3) !important;
     border-color: rgba(239, 68, 68, 0.5) !important;
+    transform: translateY(-1px);
+}
+
+#btn-delete-account:hover {
+    background: rgba(239, 68, 68, 0.25) !important;
+    border-color: #ef4444 !important;
+    color: #ffffff !important;
     transform: translateY(-1px);
 }
 

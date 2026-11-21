@@ -16,11 +16,9 @@ var APP_CONSTANTS = {
         },
         CHANNEL: "awrady_live_sync"
     },
-    GUEST_USER: "primary_user",
     SUPABASE: {
         URL: (typeof window !== "undefined" && (window.__ENV__?.SUPABASE_URL || localStorage.getItem("AWRAD_SUPABASE_URL"))) || "https://krmatocnrjzivwpmbxgu.supabase.co",
-        ANON_KEY: (typeof window !== "undefined" && (window.__ENV__?.SUPABASE_ANON_KEY || localStorage.getItem("AWRAD_SUPABASE_ANON_KEY"))) || "sb_publishable_JGajulg_tl67UJBKLyJZrA_E2tdQoZQ",
-        DEFAULT_USER_ID: "primary_user"
+        ANON_KEY: (typeof window !== "undefined" && (window.__ENV__?.SUPABASE_ANON_KEY || localStorage.getItem("AWRAD_SUPABASE_ANON_KEY"))) || "sb_publishable_JGajulg_tl67UJBKLyJZrA_E2tdQoZQ"
     },
     SCHEDULE_TYPES: {
         EVERYDAY: "Everyday",

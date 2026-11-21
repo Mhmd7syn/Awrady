@@ -6,7 +6,7 @@
 class AwradyAPI {
     constructor() {
         this.client = null;
-        this.currentUser = APP_CONSTANTS.GUEST_USER;
+        this.currentUser = null;
         this.currentUserId = null;
         this._listeners = new Set();
         this._syncChannel = null;
@@ -40,8 +40,7 @@ class AwradyAPI {
     }
 
     isGuest() {
-        const uid = this.getEffectiveUserId();
-        return !uid || this.currentUser === APP_CONSTANTS.GUEST_USER;
+        return !this.getEffectiveUserId();
     }
 
     getEffectiveUserId() {
@@ -49,11 +48,19 @@ class AwradyAPI {
     }
 
     setCurrentUser(username, userId = null) {
-        const cleanUser = (username || APP_CONSTANTS.GUEST_USER).toLowerCase().trim();
-        this.currentUser = cleanUser;
-        if (cleanUser === APP_CONSTANTS.GUEST_USER) {
+        if (!username) {
+            this.currentUser = null;
             this.currentUserId = null;
-        } else if (userId) {
+            if (this._syncChannel) {
+                try { this.client.removeChannel(this._syncChannel); } catch (_) {}
+                this._syncChannel = null;
+            }
+            return;
+        }
+
+        const cleanUser = username.toLowerCase().trim();
+        this.currentUser = cleanUser;
+        if (userId) {
             this.currentUserId = userId;
         } else if (!this.currentUserId) {
             this.currentUserId = localStorage.getItem("AWRAD_AUTH_UID") || 
@@ -61,16 +68,9 @@ class AwradyAPI {
                                  null;
         }
 
-        if (this.client) {
-            if (this.isGuest()) {
-                if (this._syncChannel) {
-                    try { this.client.removeChannel(this._syncChannel); } catch (_) {}
-                    this._syncChannel = null;
-                }
-            } else {
-                this.ensureUserExists();
-                this._setupRealtimeSync();
-            }
+        if (this.client && this.currentUserId) {
+            this.ensureUserExists();
+            this._setupRealtimeSync();
         }
     }
 
@@ -357,8 +357,49 @@ class AwradyAPI {
             throw new Error("تعذر تحديد هوية المستخدم.");
         }
         const cleanEmail = (newEmail || "").trim().toLowerCase();
+
+        // If email is empty, remove email and revert to username-only authentication
+        if (!cleanEmail) {
+            let rpcSuccess = false;
+            try {
+                const { error: rpcErr } = await this.client.rpc("remove_user_email");
+                if (!rpcErr) {
+                    rpcSuccess = true;
+                } else {
+                    console.warn("[AwradyAPI] remove_user_email RPC note:", rpcErr);
+                }
+            } catch (e) {
+                console.warn("[AwradyAPI] remove_user_email RPC call failed:", e);
+            }
+
+            if (!rpcSuccess) {
+                const username = (this.currentUser || "").trim().toLowerCase();
+                const safeUsername = username.replace(/[^a-z0-9._-]/g, "") || "user";
+                const syntheticEmail = `${safeUsername}@awrady.internal`;
+
+                try {
+                    await this.client.auth.updateUser({ email: syntheticEmail });
+                } catch (authErr) {
+                    console.warn("[AwradyAPI] Reverting auth email to synthetic note:", authErr);
+                }
+
+                const tblUsers = APP_CONSTANTS.DB.TABLES.USERS;
+                const { error: dbError } = await this.client
+                    .from(tblUsers)
+                    .update({ email: null, updated_at: new Date().toISOString() })
+                    .eq("id", uid);
+
+                if (dbError) {
+                    console.warn("[AwradyAPI] Direct public.users email clear note:", dbError);
+                    throw dbError;
+                }
+            }
+
+            return { removed: true };
+        }
+
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+        if (!emailRegex.test(cleanEmail)) {
             throw new Error("يرجى إدخال عنوان بريد إلكتروني صالح.");
         }
 
@@ -413,6 +454,49 @@ class AwradyAPI {
             throw error;
         }
         return data;
+    }
+
+    async deleteAccount() {
+        if (!this.client || this.isGuest()) return true;
+        const uid = this.getEffectiveUserId();
+        if (!uid) return true;
+
+        let rpcSuccess = false;
+        try {
+            const { error: rpcError } = await this.client.rpc("delete_user_account");
+            if (!rpcError) {
+                rpcSuccess = true;
+            } else {
+                console.warn("[AwradyAPI] RPC delete_user_account note:", rpcError);
+            }
+        } catch (e) {
+            console.warn("[AwradyAPI] RPC delete_user_account failed:", e);
+        }
+
+        // Fallback cleanup in case RPC is not configured on remote database
+        if (!rpcSuccess) {
+            try {
+                await this.clearAllProgress();
+                await this.clearAllTasks();
+                const tblUsers = APP_CONSTANTS.DB.TABLES.USERS;
+                await this.client.from(tblUsers).delete().eq("id", uid);
+            } catch (err) {
+                console.warn("[AwradyAPI] Fallback user data deletion note:", err);
+            }
+        }
+
+        // Tear down realtime sync subscription
+        if (this._syncChannel) {
+            try { this.client.removeChannel(this._syncChannel); } catch (_) {}
+            this._syncChannel = null;
+        }
+
+        // Sign out from Supabase Auth
+        try {
+            await this.client.auth.signOut();
+        } catch (_) {}
+
+        return true;
     }
 }
 

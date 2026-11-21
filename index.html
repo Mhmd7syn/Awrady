@@ -856,10 +856,10 @@
                         <span>البريد الإلكتروني</span>
                     </h4>
                     <p style="font-size: 0.78rem; color: #94a3b8; margin: 0 0 10px; line-height: 1.5;">
-                        البريد الإلكتروني المرتبط بحسابك لتسجيل الدخول والمزامنة واستعادة الحساب.
+                        البريد الإلكتروني المرتبط بحسابك لتسجيل الدخول والمزامنة (يمكنك إفراغه وحفظ التغيير لحذفه والاعتماد على اسم المستخدم فقط).
                     </p>
                     <div class="account-input-group">
-                        <input type="email" id="account-email" class="auth-input-field" placeholder="أدخل البريد الإلكتروني (مثال: name@example.com)" dir="ltr" autocomplete="email">
+                        <input type="email" id="account-email" class="auth-input-field" placeholder="أدخل البريد الإلكتروني أو اتركه فارغاً للحذف" dir="ltr" autocomplete="email">
                         <button type="button" id="btn-update-email" class="btn-primary btn-glow btn-account-action">
                             <i class="fa-solid fa-check"></i> <span>حفظ البريد</span>
                         </button>
@@ -893,6 +893,22 @@
                         </div>
                     </div>
                 </div>
+
+                <div style="height: 1px; background: rgba(239, 68, 68, 0.2); margin: 20px 0;"></div>
+
+                <!-- Section 4: Delete Account -->
+                <div class="account-section" style="border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 12px; padding: 14px 16px; background: rgba(239, 68, 68, 0.05);">
+                    <h4 style="font-size: 0.95rem; font-weight: 700; color: #f87171; margin: 0 0 6px; display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-triangle-exclamation" style="color: #ef4444; font-size: 0.85rem;"></i>
+                        <span>حذف الحساب نهائياً</span>
+                    </h4>
+                    <p style="font-size: 0.78rem; color: #fca5a5; margin: 0 0 12px; line-height: 1.5; opacity: 0.9;">
+                        تحذير: سيؤدي حذف الحساب إلى مسح كافة المهام، سجلات الإنجاز، وبيانات الحساب نهائياً وبشكل لا يمكن استرجاعه.
+                    </p>
+                    <button type="button" id="btn-delete-account" class="btn-danger-outline btn-account-action" style="width: 100%; border-color: rgba(239, 68, 68, 0.6); color: #f87171; background: rgba(239, 68, 68, 0.1);">
+                        <i class="fa-solid fa-user-xmark"></i> <span>حذف الحساب وكافة البيانات نهائياً</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -919,7 +935,10 @@
                 <label style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 5px;">اسم المستخدم أو البريد الإلكتروني</label>
                 <input type="text" id="auth-username" class="auth-input-field" placeholder="أدخل اسم المستخدم أو البريد الإلكتروني" required dir="ltr" autocomplete="username">
 
-                <label style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 5px; margin-top: 10px;">كلمة المرور</label>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; margin-bottom: 5px;">
+                    <label style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin: 0;">كلمة المرور</label>
+                    <button type="button" id="btn-auth-forgot" style="background: none; border: none; color: #10b981; font-size: 0.78rem; font-weight: 600; cursor: pointer; padding: 0; text-decoration: underline;">نسيت كلمة المرور؟</button>
+                </div>
                 <input type="password" id="auth-password" class="auth-input-field" placeholder="أدخل كلمة المرور (6 أحرف على الأقل)" required autocomplete="current-password">
 
                 <div id="auth-confirm-container" style="display: none; margin-top: 10px;">
@@ -929,10 +948,6 @@
 
                 <button type="button" id="btn-auth-submit" class="btn-primary btn-block btn-glow" style="margin-top: 8px; width: 100%; padding: 12px; font-size: 1rem;">
                     <span>تسجيل الدخول</span>
-                </button>
-
-                <button type="button" id="btn-auth-guest" class="btn-outline btn-block" style="margin-top: 10px; width: 100%; padding: 10px; font-size: 0.85rem; border-color: rgba(255,255,255,0.15); color: #cbd5e1;">
-                    <i class="fa-solid fa-user-clock"></i> <span>المتابعة كزائر / تجربة سريعة</span>
                 </button>
             </form>
         </div>

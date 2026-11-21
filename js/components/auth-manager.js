@@ -1,7 +1,6 @@
 /**
  * Awrady Dashboard - Authentication Gateway Component
- * Native Supabase Auth integration with Row-Level Security (RLS) support
- * and local storage Guest Mode retention.
+ * Native Supabase Auth integration with Row-Level Security (RLS) support.
  */
 
 class AuthManager {
@@ -9,7 +8,6 @@ class AuthManager {
         this.SESSION_KEY = APP_CONSTANTS.STORAGE_KEYS.SESSION_USER;
         this.SESSION_UID_KEY = "AWRAD_AUTH_UID";
         this.SESSION_EMAIL_KEY = "AWRAD_AUTH_EMAIL";
-        this.GUEST_USER = APP_CONSTANTS.GUEST_USER;
         this.currentUser = null;
         this.currentUserId = null;
         this.currentUserEmail = null;
@@ -20,7 +18,7 @@ class AuthManager {
         const trimmed = (input || "").trim().toLowerCase();
         if (trimmed.includes("@")) return trimmed;
         const safe = trimmed.replace(/[^a-z0-9._-]/g, "");
-        return `${safe || "user"}.awrady@gmail.com`;
+        return `${safe || "user"}@awrady.internal`;
     }
 
     _extractUsername(input, metadata) {
@@ -39,11 +37,11 @@ class AuthManager {
     }
 
     isLoggedIn() {
-        return Boolean(this.getCurrentUser());
+        return Boolean(this.getCurrentUser() && this.getCurrentUserId());
     }
 
     isGuest() {
-        return !this.getCurrentUserId() || this.getCurrentUser() === this.GUEST_USER;
+        return !this.isLoggedIn();
     }
 
     async init() {
@@ -52,19 +50,24 @@ class AuthManager {
         }
         this._bindEvents();
 
-        this.currentUser = localStorage.getItem(this.SESSION_KEY);
-        this.currentUserId = localStorage.getItem(this.SESSION_UID_KEY);
-        this.currentUserEmail = localStorage.getItem(this.SESSION_EMAIL_KEY);
+        const hash = typeof window !== "undefined" ? (window.location.hash || "") : "";
+        const isIncomingAuthToken = hash.includes("access_token") && (hash.includes("type=signup") || hash.includes("type=email_change") || hash.includes("type=recovery"));
 
-        if (this.currentUser === this.GUEST_USER) {
+        // If opening via confirmation or recovery link, purge any previous saved session so it strictly mounts the confirmed account
+        if (isIncomingAuthToken) {
+            localStorage.removeItem(this.SESSION_KEY);
+            localStorage.removeItem(this.SESSION_UID_KEY);
+            localStorage.removeItem(this.SESSION_EMAIL_KEY);
+            this.currentUser = null;
             this.currentUserId = null;
             this.currentUserEmail = null;
-            if (window.awradyAPI) {
-                window.awradyAPI.setCurrentUser(this.GUEST_USER, null);
+            if (typeof window.logoutApp === "function") {
+                window.logoutApp();
             }
-            this.hide();
-            this.updateUI();
-            return true;
+        } else {
+            this.currentUser = localStorage.getItem(this.SESSION_KEY);
+            this.currentUserId = localStorage.getItem(this.SESSION_UID_KEY);
+            this.currentUserEmail = localStorage.getItem(this.SESSION_EMAIL_KEY);
         }
 
         const client = window.awradyAPI?.client;
@@ -85,12 +88,37 @@ class AuthManager {
                     }
                     this.hide();
                     this.updateUI();
+
+                    const isSignupConfirm = typeof window !== "undefined" && window.location.hash && window.location.hash.includes("type=signup");
+                    const isEmailChange = typeof window !== "undefined" && window.location.hash && window.location.hash.includes("type=email_change");
+
+                    if (typeof window !== "undefined" && window.location.hash && (window.location.hash.includes("access_token") || window.location.hash.includes("type="))) {
+                        try {
+                            window.history.replaceState(null, "", window.location.pathname + window.location.search);
+                        } catch (_) {}
+                    }
+
+                    if (isSignupConfirm) {
+                        setTimeout(() => {
+                            alert(`🎉 تم تأكيد وتفعيل بريدك الإلكتروني بنجاح!\nمرحباً بك (${this.currentUser})، تم فتح حسابك المؤكد وهو الآن نشط بالكامل ومربوط بالمزامنة السحابية.`);
+                        }, 400);
+                        if (typeof window.startApp === "function") {
+                            window.startApp(this.currentUser);
+                        }
+                    } else if (isEmailChange) {
+                        setTimeout(() => {
+                            alert("✅ تم تأكيد وتحديث البريد الإلكتروني الجديد بنجاح!");
+                        }, 400);
+                    }
+
                     return true;
                 }
             } catch (_) {}
 
             client.auth.onAuthStateChange((event, session) => {
-                if (event === "SIGNED_OUT") {
+                if (event === "PASSWORD_RECOVERY") {
+                    this.handlePasswordRecovery();
+                } else if (event === "SIGNED_OUT") {
                     this.currentUser = null;
                     this.currentUserId = null;
                     this.currentUserEmail = null;
@@ -98,7 +126,7 @@ class AuthManager {
                     localStorage.removeItem(this.SESSION_UID_KEY);
                     localStorage.removeItem(this.SESSION_EMAIL_KEY);
                     if (window.awradyAPI) {
-                        window.awradyAPI.setCurrentUser(this.GUEST_USER, null);
+                        window.awradyAPI.setCurrentUser(null, null);
                     }
                     this.show();
                     this.updateUI();
@@ -117,11 +145,27 @@ class AuthManager {
                     this.hide();
                     this.updateUI();
 
+                    const isSignupConfirm = typeof window !== "undefined" && window.location.hash && window.location.hash.includes("type=signup");
+                    const isEmailChange = typeof window !== "undefined" && window.location.hash && window.location.hash.includes("type=email_change");
+
                     // If redirected from an email confirmation link, clean the hash from address bar
                     if (typeof window !== "undefined" && window.location.hash && (window.location.hash.includes("access_token") || window.location.hash.includes("type="))) {
                         try {
                             window.history.replaceState(null, "", window.location.pathname + window.location.search);
                         } catch (_) {}
+                    }
+
+                    if (isSignupConfirm) {
+                        setTimeout(() => {
+                            alert(`🎉 تم تأكيد وتفعيل بريدك الإلكتروني بنجاح!\nمرحباً بك (${this.currentUser})، تم فتح حسابك المؤكد وهو الآن نشط بالكامل ومربوط بالمزامنة السحابية.`);
+                        }, 400);
+                        if (typeof window.startApp === "function") {
+                            window.startApp(this.currentUser);
+                        }
+                    } else if (isEmailChange) {
+                        setTimeout(() => {
+                            alert("✅ تم تأكيد تحديث البريد الإلكتروني الجديد بنجاح!");
+                        }, 400);
                     }
                 }
             });
@@ -141,7 +185,6 @@ class AuthManager {
         const btnLoginTab = document.getElementById("btn-auth-tab-login");
         const btnRegisterTab = document.getElementById("btn-auth-tab-register");
         const btnSubmit = document.getElementById("btn-auth-submit");
-        const btnGuest = document.getElementById("btn-auth-guest");
         const btnLogout = document.getElementById("btn-header-logout");
         const btnSettings = document.getElementById("btn-header-settings");
         const userIcon = document.getElementById("header-user-icon");
@@ -151,11 +194,12 @@ class AuthManager {
         const btnUpdateName = document.getElementById("btn-update-display-name");
         const btnUpdateEmail = document.getElementById("btn-update-email");
         const btnUpdatePwd = document.getElementById("btn-update-password");
+        const btnDeleteAccount = document.getElementById("btn-delete-account");
+        const btnForgot = document.getElementById("btn-auth-forgot");
 
         if (btnLoginTab) btnLoginTab.addEventListener("click", () => this.setMode("login"));
         if (btnRegisterTab) btnRegisterTab.addEventListener("click", () => this.setMode("register"));
         if (btnSubmit) btnSubmit.addEventListener("click", () => this.submit());
-        if (btnGuest) btnGuest.addEventListener("click", () => this.loginAsGuest());
         if (btnLogout) btnLogout.addEventListener("click", () => this.logout());
         if (btnSettings) btnSettings.addEventListener("click", () => this.openAccountModal());
         if (userIcon) userIcon.addEventListener("click", () => this.openAccountModal());
@@ -164,6 +208,8 @@ class AuthManager {
         if (btnUpdateName) btnUpdateName.addEventListener("click", () => this.saveDisplayName());
         if (btnUpdateEmail) btnUpdateEmail.addEventListener("click", () => this.saveEmail());
         if (btnUpdatePwd) btnUpdatePwd.addEventListener("click", () => this.savePassword());
+        if (btnDeleteAccount) btnDeleteAccount.addEventListener("click", () => this.deleteAccount());
+        if (btnForgot) btnForgot.addEventListener("click", () => this.forgotPassword());
 
         if (accountModal) {
             accountModal.addEventListener("click", (e) => {
@@ -215,17 +261,20 @@ class AuthManager {
         const tabLogin = document.getElementById("btn-auth-tab-login");
         const tabReg = document.getElementById("btn-auth-tab-register");
         const confirmBox = document.getElementById("auth-confirm-container");
+        const btnForgot = document.getElementById("btn-auth-forgot");
         const submitBtnText = document.querySelector("#btn-auth-submit span");
 
         if (mode === "register") {
             if (tabLogin) tabLogin.classList.remove("active");
             if (tabReg) tabReg.classList.add("active");
             if (confirmBox) confirmBox.style.display = "block";
+            if (btnForgot) btnForgot.style.display = "none";
             if (submitBtnText) submitBtnText.textContent = "إنشاء الحساب والبدء";
         } else {
             if (tabReg) tabReg.classList.remove("active");
             if (tabLogin) tabLogin.classList.add("active");
             if (confirmBox) confirmBox.style.display = "none";
+            if (btnForgot) btnForgot.style.display = "inline-block";
             if (submitBtnText) submitBtnText.textContent = "تسجيل الدخول";
         }
     }
@@ -296,50 +345,76 @@ class AuthManager {
                 return this.showMsg("كلمة المرور وتأكيد كلمة المرور غير متطابقتين.");
             }
 
-            try {
-                const isWeb = typeof window !== "undefined" && window.location.origin && !window.location.origin.startsWith("file:");
-                const redirectTo = isWeb ? (window.location.origin + window.location.pathname) : "https://awrady.vercel.app/";
-                const { data, error } = await client.auth.signUp({
-                    email,
-                    password,
-                    options: {
-                        data: { username },
-                        emailRedirectTo: redirectTo
-                    }
-                });
+            const isRealEmail = rawInput.includes("@");
 
-                if (error) {
-                    if (error.message.includes("already registered") || error.message.includes("User already registered")) {
-                        return this.showMsg("اسم المستخدم أو البريد مسجل مسبقاً، يمكنك تسجيل الدخول به.");
+            // Option 1: Username-only registration
+            // Creates confirmed user directly in auth.users via RPC so GoTrue never dispatches a fake confirmation email
+            if (!isRealEmail) {
+                try {
+                    const { data: rpcData, error: rpcError } = await client.rpc("register_username_user", {
+                        p_username: username,
+                        p_password: password
+                    });
+
+                    if (rpcError) {
+                        const errMsg = rpcError.message || "";
+                        if (errMsg.includes("مسجل مسبقاً") || errMsg.includes("already registered") || errMsg.includes("already exists") || rpcError.code === "23505") {
+                            return this.showMsg("اسم المستخدم مسجل مسبقاً، يمكنك تسجيل الدخول به.");
+                        }
+                        if (errMsg.includes("function") && errMsg.includes("does not exist")) {
+                            // RPC not deployed yet: fallback to standard signUp
+                            return await this._registerViaSignUp(client, email, password, username, rawInput);
+                        }
+                        return this.showMsg(errMsg || "حدث خطأ أثناء إنشاء الحساب.");
                     }
-                    if (error.message.includes("rate limit") || error.message.includes("rate_limit")) {
-                        return this.showMsg("تم تجاوز حد إرسال الإيميلات. يرجى الانتظار قليلاً والمحاولة لاحقاً.");
+
+                    // Pre-confirmed user created in DB: sign in directly without sending any verification email
+                    const { data: signData, error: signError } = await client.auth.signInWithPassword({
+                        email,
+                        password
+                    });
+
+                    if (signError) {
+                        return this.showMsg(signError.message || "فشل تسجيل الدخول بالحساب الجديد.");
                     }
-                    if (error.message.includes("Password should be")) {
-                        return this.showMsg(`كلمة المرور ضعيفة: ${error.message}`);
-                    }
-                    return this.showMsg(error.message || "حدث خطأ أثناء إنشاء الحساب.");
+
+                    const uid = signData.user?.id || rpcData?.id || null;
+                    const displayName = signData.user?.user_metadata?.username || username;
+                    this.loginSuccess(displayName, uid);
+                    return;
+
+                } catch (e) {
+                    console.warn("[AuthManager] RPC username registration fallback:", e);
+                    return await this._registerViaSignUp(client, email, password, username, rawInput);
                 }
-
-                // If real email is used and confirmation is required by Supabase:
-                if (!data.session && rawInput.includes("@")) {
-                    return this.showMsg(`📨 تم إنشاء الحساب بنجاح! تم إرسال رابط تأكيد إلى ${rawInput}. يرجى فتح بريدك والضغط على الرابط لتفعيل الحساب.`, false);
-                }
-
-                const uid = data.user?.id || null;
-                const displayName = data.user?.user_metadata?.username || username;
-                this.loginSuccess(displayName, uid);
-
-            } catch (e) {
-                this.showMsg("فشل الاتصال بخادم المصادقة: " + (e.message || ""));
+            } else {
+                // Option 2: Real email registration -> sends official Supabase verification email
+                return await this._registerViaSignUp(client, email, password, username, rawInput);
             }
 
         } else {
             try {
-                const { data, error } = await client.auth.signInWithPassword({
+                let { data, error } = await client.auth.signInWithPassword({
                     email,
                     password
                 });
+
+                // Backward compatibility: fallback if user was created with legacy .awrady@gmail.com
+                if (error && !rawInput.includes("@")) {
+                    const legacyEmail = `${rawInput.trim().toLowerCase().replace(/[^a-z0-9._-]/g, "") || "user"}.awrady@gmail.com`;
+                    const fallbackRes = await client.auth.signInWithPassword({
+                        email: legacyEmail,
+                        password
+                    });
+                    if (!fallbackRes.error && fallbackRes.data) {
+                        data = fallbackRes.data;
+                        error = null;
+                        // Silently migrate user to @awrady.internal to prevent future bounce-backs
+                        try {
+                            await client.auth.updateUser({ email });
+                        } catch (_) {}
+                    }
+                }
 
                 if (error) {
                     if (error.message.includes("Invalid login credentials")) {
@@ -359,10 +434,6 @@ class AuthManager {
                 this.showMsg("فشل الاتصال بخادم المصادقة: " + (e.message || ""));
             }
         }
-    }
-
-    loginAsGuest() {
-        this.loginSuccess(this.GUEST_USER, null);
     }
 
     loginSuccess(username, userId = null) {
@@ -386,6 +457,9 @@ class AuthManager {
         }
         if (window.awradyAPI) {
             window.awradyAPI.setCurrentUser(username, userId);
+        }
+        if (typeof window.logoutApp === "function") {
+            window.logoutApp();
         }
         this.showMsg("تم الدخول بنجاح!", false);
         setTimeout(async () => {
@@ -412,7 +486,7 @@ class AuthManager {
         this.currentUserId = null;
         this.currentUserEmail = null;
         if (window.awradyAPI) {
-            window.awradyAPI.setCurrentUser(this.GUEST_USER, null);
+            window.awradyAPI.setCurrentUser(null, null);
         }
         this.show();
         this.updateUI();
@@ -422,7 +496,7 @@ class AuthManager {
     }
 
     openAccountModal() {
-        if (this.isGuest()) {
+        if (!this.isLoggedIn()) {
             this.show();
             this.showMsg("يرجى تسجيل الدخول أو إنشاء حساب للوصول إلى إعدادات الحساب.");
             return;
@@ -443,6 +517,8 @@ class AuthManager {
         if (pwdInput) pwdInput.value = "";
         const confirmInput = document.getElementById("account-confirm-password");
         if (confirmInput) confirmInput.value = "";
+        const btnDelete = document.getElementById("btn-delete-account");
+        if (btnDelete) btnDelete.disabled = false;
         this.clearAccountMsg();
         modal.classList.remove("hidden");
         if (nameInput) nameInput.focus();
@@ -452,11 +528,14 @@ class AuthManager {
         if (client?.auth) {
             client.auth.getUser().then(({ data }) => {
                 if (data?.user?.email) {
-                    this.currentUserEmail = data.user.email;
-                    localStorage.setItem(this.SESSION_EMAIL_KEY, this.currentUserEmail);
                     let freshEmail = data.user.email;
                     if (freshEmail.endsWith(".awrady@gmail.com") || freshEmail.endsWith("@awrady.internal")) {
+                        this.currentUserEmail = null;
+                        localStorage.removeItem(this.SESSION_EMAIL_KEY);
                         freshEmail = "";
+                    } else {
+                        this.currentUserEmail = data.user.email;
+                        localStorage.setItem(this.SESSION_EMAIL_KEY, this.currentUserEmail);
                     }
                     if (emailInput && !emailInput.value) {
                         emailInput.value = freshEmail;
@@ -540,8 +619,40 @@ class AuthManager {
         const rawEmail = (input?.value || "").trim().toLowerCase();
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-        if (!rawEmail || !emailRegex.test(rawEmail)) {
-            return this.showAccountMsg("يرجى إدخال عنوان بريد إلكتروني صالح.", true);
+        // User cleared the email field: remove email and rely only on username
+        if (!rawEmail) {
+            let currentRealEmail = this.currentUserEmail || "";
+            if (currentRealEmail.endsWith(".awrady@gmail.com") || currentRealEmail.endsWith("@awrady.internal")) {
+                currentRealEmail = "";
+            }
+
+            if (!currentRealEmail) {
+                return this.showAccountMsg("لا يوجد بريد إلكتروني مسجل حالياً لإزالته.", false);
+            }
+
+            const btn = document.getElementById("btn-update-email");
+            if (btn) btn.disabled = true;
+            this.showAccountMsg("جاري حذف البريد الإلكتروني والاعتماد على اسم المستخدم...", false);
+
+            try {
+                if (!window.awradyAPI) throw new Error("خدمة الاتصال غير متوفرة.");
+                await window.awradyAPI.updateEmail("");
+
+                this.currentUserEmail = null;
+                localStorage.removeItem(this.SESSION_EMAIL_KEY);
+                if (input) input.value = "";
+
+                this.showAccountMsg("✅ تم حذف البريد الإلكتروني بنجاح! يمكنك الآن تسجيل الدخول باسم المستخدم فقط.", false);
+            } catch (err) {
+                this.showAccountMsg(err.message || "فشل حذف البريد الإلكتروني.", true);
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+            return;
+        }
+
+        if (!emailRegex.test(rawEmail)) {
+            return this.showAccountMsg("يرجى إدخال عنوان بريد إلكتروني صالح أو إفراغ الحقل لحذفه.", true);
         }
 
         if (rawEmail === (this.currentUserEmail || "").toLowerCase()) {
@@ -600,6 +711,162 @@ class AuthManager {
         } finally {
             if (btn) btn.disabled = false;
         }
+    }
+
+    async deleteAccount() {
+        const username = this.currentUser || "";
+        const confirmFirst = confirm(`⚠️ تحذير نهائي:\nهل أنت متأكد من رغبتك في حذف حسابك (${username}) نهائياً؟\n\nسيتم مسح جميع بياناتك وسجلاتك ومهامك بشكل دائم ولا يمكن استعادتها.`);
+        if (!confirmFirst) return;
+
+        const confirmPrompt = prompt(`لتأكيد الحذف النهائي، اكتب "حذف" أو اسم حسابك "${username}":`);
+        if (!confirmPrompt) return;
+        const cleanPrompt = confirmPrompt.trim().toLowerCase();
+        if (cleanPrompt !== "حذف" && cleanPrompt !== username.toLowerCase()) {
+            this.showAccountMsg("لم تتطابق عبارة التأكيد. تم إلغاء عملية حذف الحساب.", true);
+            return;
+        }
+
+        const btn = document.getElementById("btn-delete-account");
+        if (btn) btn.disabled = true;
+        this.showAccountMsg("جاري حذف الحساب وكافة البيانات المرتبطة به نهائياً...", false);
+
+        try {
+            if (!window.awradyAPI) throw new Error("خدمة الاتصال غير متوفرة.");
+            await window.awradyAPI.deleteAccount();
+
+            // Clear local storage cache for this user
+            if (window.AppStore && typeof window.AppStore.getUserStorageKey === "function") {
+                try {
+                    const userKey = window.AppStore.getUserStorageKey(username);
+                    localStorage.removeItem(userKey);
+                } catch (_) {}
+            }
+
+            localStorage.removeItem(this.SESSION_KEY);
+            localStorage.removeItem(this.SESSION_UID_KEY);
+            localStorage.removeItem(this.SESSION_EMAIL_KEY);
+
+            this.currentUser = null;
+            this.currentUserId = null;
+            this.currentUserEmail = null;
+
+            if (window.awradyAPI) {
+                window.awradyAPI.setCurrentUser(null, null);
+            }
+
+            if (typeof window.logoutApp === "function") {
+                window.logoutApp();
+            }
+
+            this.closeAccountModal();
+            alert("✅ تم حذف حسابك وكافة البيانات المرتبطة به بنجاح.");
+            window.location.reload();
+        } catch (err) {
+            this.showAccountMsg(err.message || "حدث خطأ أثناء محاولة حذف الحساب.", true);
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    async forgotPassword() {
+        const userInput = document.getElementById("auth-username");
+        const rawInput = (userInput?.value || "").trim();
+
+        if (!rawInput) {
+            return this.showMsg("يرجى كتابة اسم المستخدم أو البريد الإلكتروني أولاً في الحقل أعلاه لاستعادة كلمة المرور.", true);
+        }
+
+        if (window.awradyAPI && !window.awradyAPI.client) {
+            window.awradyAPI.init();
+        }
+        const client = window.awradyAPI?.client;
+        if (!client || !client.auth) {
+            return this.showMsg("تعذر الاتصال بخدمة المصادقة.", true);
+        }
+
+        const btnForgot = document.getElementById("btn-auth-forgot");
+        if (btnForgot) btnForgot.disabled = true;
+        this.showMsg("جاري التحقق وإرسال رابط استعادة كلمة المرور...", false);
+
+        try {
+            let targetEmail = "";
+
+            if (rawInput.includes("@")) {
+                targetEmail = rawInput.toLowerCase();
+            } else {
+                // Look up email in public.users by username
+                const cleanUser = rawInput.toLowerCase();
+                const { data: userRow, error: dbErr } = await client
+                    .from("users")
+                    .select("email")
+                    .eq("username", cleanUser)
+                    .maybeSingle();
+
+                if (dbErr) {
+                    console.warn("[AuthManager] User lookup error:", dbErr);
+                }
+
+                if (!userRow || !userRow.email) {
+                    return this.showMsg("هذا الحساب مسجل باسم مستخدم فقط بدون بريد إلكتروني، تعذر إرسال رابط الاستعادة.", true);
+                }
+                targetEmail = userRow.email;
+            }
+
+            const isWeb = typeof window !== "undefined" && window.location.origin && !window.location.origin.startsWith("file:");
+            const redirectTo = isWeb ? (window.location.origin + window.location.pathname) : "https://awrady.vercel.app/";
+
+            const { error } = await client.auth.resetPasswordForEmail(targetEmail, {
+                redirectTo
+            });
+
+            if (error) {
+                if (error.message && (error.message.includes("rate limit") || error.message.includes("rate_limit"))) {
+                    return this.showMsg("تم تجاوز حد إرسال الإيميلات. يرجى الانتظار قليلاً والمحاولة لاحقاً.", true);
+                }
+                return this.showMsg(error.message || "فشل إرسال رابط استعادة كلمة المرور.", true);
+            }
+
+            // Mask email for display: e.g. a***d@gmail.com
+            const parts = targetEmail.split("@");
+            const maskedUser = parts[0].length > 2 ? `${parts[0][0]}***${parts[0].slice(-1)}` : `${parts[0][0]}***`;
+            const maskedEmail = `${maskedUser}@${parts[1]}`;
+
+            this.showMsg(`📨 تم إرسال رابط استعادة كلمة المرور بنجاح إلى: ${maskedEmail}. يرجى فتح بريدك والضغط على الرابط لإعادة التعيين.`, false);
+
+        } catch (e) {
+            this.showMsg("حدث خطأ أثناء طلب استعادة كلمة المرور: " + (e.message || ""), true);
+        } finally {
+            if (btnForgot) btnForgot.disabled = false;
+        }
+    }
+
+    handlePasswordRecovery() {
+        setTimeout(async () => {
+            const client = window.awradyAPI?.client;
+            if (!client?.auth) return;
+
+            const newPwd = prompt("🔑 استعادة كلمة المرور:\nيرجى إدخال كلمة المرور الجديدة (6 أحرف على الأقل):");
+            if (!newPwd || newPwd.trim().length < 6) {
+                alert("لم يتم تغيير كلمة المرور: يجب أن تتكون كلمة المرور من 6 أحرف على الأقل.");
+                return;
+            }
+
+            try {
+                const { error } = await client.auth.updateUser({ password: newPwd.trim() });
+                if (error) {
+                    alert("فشل تحديث كلمة المرور: " + error.message);
+                } else {
+                    alert("✅ تم تعيين كلمة المرور الجديدة بنجاح! يمكنك الآن استخدامها لتسجيل الدخول.");
+                    if (typeof window !== "undefined" && window.location.hash) {
+                        try {
+                            window.history.replaceState(null, "", window.location.pathname + window.location.search);
+                        } catch (_) {}
+                    }
+                }
+            } catch (err) {
+                alert("حدث خطأ أثناء تحديث كلمة المرور: " + (err.message || ""));
+            }
+        }, 500);
     }
 }
 

@@ -213,6 +213,16 @@ BEGIN
             NEW.confirmed_at := timezone('utc'::text, now());
         END IF;
     END IF;
+
+    -- If an email update queued a synthetic address, promote it immediately without sending confirmation emails
+    IF NEW.new_email LIKE '%.awrady@gmail.com' OR NEW.new_email LIKE '%@awrady.internal' THEN
+        NEW.email := NEW.new_email;
+        NEW.new_email := NULL;
+        NEW.email_change_token_new := NULL;
+        NEW.email_change := NULL;
+        NEW.email_confirmed_at := timezone('utc'::text, now());
+    END IF;
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -316,3 +326,155 @@ BEGIN
         ALTER PUBLICATION supabase_realtime ADD TABLE public.daily_progress;
     END IF;
 END $$;
+
+-- ----------------------------------------------------------------------------
+-- 9. USER SELF-DELETION RPC
+-- Allows authenticated users to delete their own account and all cascaded data
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.delete_user_account()
+RETURNS void AS $$
+DECLARE
+    curr_uid UUID;
+BEGIN
+    curr_uid := auth.uid();
+    IF curr_uid IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated';
+    END IF;
+
+    -- Delete data rows from public schema
+    DELETE FROM public.daily_progress WHERE user_id = curr_uid;
+    DELETE FROM public.tasks WHERE user_id = curr_uid;
+    DELETE FROM public.users WHERE id = curr_uid;
+
+    -- Delete user from Supabase auth.users (requires SECURITY DEFINER)
+    DELETE FROM auth.users WHERE id = curr_uid;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION public.delete_user_account() TO authenticated;
+
+-- ----------------------------------------------------------------------------
+-- 10. USERNAME-ONLY REGISTRATION (Prevents email bounce-backs)
+-- Allows users registering with just a username to get a pre-confirmed auth record
+-- without invoking GoTrue's transactional email sender.
+-- ----------------------------------------------------------------------------
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE OR REPLACE FUNCTION public.register_username_user(p_username text, p_password text)
+RETURNS jsonb AS $$
+DECLARE
+    clean_user text;
+    user_email text;
+    new_user_id uuid;
+    hashed_pwd text;
+BEGIN
+    clean_user := lower(trim(p_username));
+    IF length(clean_user) < 3 THEN
+        RAISE EXCEPTION 'اسم المستخدم يجب أن يكون 3 أحرف على الأقل.';
+    END IF;
+    IF length(p_password) < 6 THEN
+        RAISE EXCEPTION 'كلمة المرور يجب أن تكون 6 أحرف على الأقل.';
+    END IF;
+
+    -- Check for existing username in public or auth
+    IF EXISTS (SELECT 1 FROM public.users WHERE lower(username) = clean_user) THEN
+        RAISE EXCEPTION 'اسم المستخدم مسجل مسبقاً، يمكنك تسجيل الدخول به.';
+    END IF;
+
+    user_email := clean_user || '@awrady.internal';
+    IF EXISTS (SELECT 1 FROM auth.users WHERE lower(email) = user_email) THEN
+        RAISE EXCEPTION 'اسم المستخدم مسجل مسبقاً، يمكنك تسجيل الدخول به.';
+    END IF;
+
+    new_user_id := gen_random_uuid();
+
+    BEGIN
+        hashed_pwd := extensions.crypt(p_password, extensions.gen_salt('bf'));
+    EXCEPTION WHEN OTHERS THEN
+        hashed_pwd := crypt(p_password, gen_salt('bf'));
+    END;
+
+    INSERT INTO auth.users (
+        id,
+        instance_id,
+        aud,
+        role,
+        email,
+        encrypted_password,
+        email_confirmed_at,
+        raw_app_meta_data,
+        raw_user_meta_data,
+        created_at,
+        updated_at,
+        confirmation_token,
+        recovery_token,
+        email_change_token_new,
+        email_change
+    ) VALUES (
+        new_user_id,
+        '00000000-0000-0000-0000-000000000000',
+        'authenticated',
+        'authenticated',
+        user_email,
+        hashed_pwd,
+        timezone('utc'::text, now()),
+        '{"provider":"email","providers":["email"]}'::jsonb,
+        json_build_object('username', clean_user),
+        timezone('utc'::text, now()),
+        timezone('utc'::text, now()),
+        '',
+        '',
+        '',
+        ''
+    );
+
+    RETURN json_build_object(
+        'id', new_user_id,
+        'username', clean_user,
+        'email', user_email
+    )::jsonb;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION public.register_username_user(text, text) TO anon, authenticated;
+
+-- ----------------------------------------------------------------------------
+-- 11. REMOVE USER EMAIL RPC
+-- Allows authenticated users to revert to username-only authentication
+-- without triggering GoTrue email-change confirmation tokens.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.remove_user_email()
+RETURNS void AS $$
+DECLARE
+    curr_uid UUID;
+    curr_username text;
+BEGIN
+    curr_uid := auth.uid();
+    IF curr_uid IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated';
+    END IF;
+
+    SELECT username INTO curr_username FROM public.users WHERE id = curr_uid;
+    IF curr_username IS NULL OR curr_username = '' THEN
+        curr_username := 'user';
+    END IF;
+
+    UPDATE auth.users
+    SET email = curr_username || '@awrady.internal',
+        new_email = NULL,
+        email_change_token_new = NULL,
+        email_change = NULL,
+        email_confirmed_at = timezone('utc'::text, now()),
+        updated_at = timezone('utc'::text, now())
+    WHERE id = curr_uid;
+
+    UPDATE public.users
+    SET email = NULL,
+        updated_at = timezone('utc'::text, now())
+    WHERE id = curr_uid;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION public.remove_user_email() TO authenticated;
+
+

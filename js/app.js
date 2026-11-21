@@ -20,14 +20,23 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (window.authManager.isLoggedIn()) {
             await window.startApp(window.authManager.getCurrentUser());
         } else {
-            await window.startApp(APP_CONSTANTS.GUEST_USER);
+            window.authManager.show();
         }
     } else {
-        await window.startApp(APP_CONSTANTS.GUEST_USER);
+        console.warn("[App] AuthManager missing");
     }
 });
 
 window.startApp = async function(username) {
+    if (window.AppState && typeof window.AppState.resetState === "function") {
+        window.AppState.resetState();
+    } else {
+        window.appData = {
+            tasks: [],
+            logs: {}
+        };
+    }
+
     if (window.awradyAPI) {
         const uid = window.authManager?.getCurrentUserId?.() || localStorage.getItem("AWRAD_AUTH_UID") || null;
         window.awradyAPI.setCurrentUser(username, uid);

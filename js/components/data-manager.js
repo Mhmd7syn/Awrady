@@ -151,11 +151,8 @@ function setupDataManagement() {
                 appData.logs = {};
                 try {
                     localStorage.setItem(getUserStorageKey(), JSON.stringify(appData));
-                    if ((window.awradyAPI?.currentUser || "").toLowerCase() === APP_CONSTANTS.GUEST_USER) {
-                        localStorage.setItem(APP_CONSTANTS.STORAGE_KEY, JSON.stringify(appData));
-                    }
                 } catch (_) {}
-                if (window.awradyAPI?.client && !window.awradyAPI.isGuest?.()) {
+                if (window.awradyAPI?.client) {
                     try {
                         await window.awradyAPI.clearAllProgress();
                     } catch (e) {
@@ -184,11 +181,9 @@ function setupDataManagement() {
                 loadDefaultAppData();
                 try {
                     localStorage.removeItem("awrady_tasks_daily_targets");
-                    localStorage.removeItem(APP_CONSTANTS.STORAGE_KEY);
-                    localStorage.removeItem(`${APP_CONSTANTS.STORAGE_KEY}_${APP_CONSTANTS.GUEST_USER}`);
                 } catch (_) {}
                 saveData(true);
-                if (window.awradyAPI?.client && !window.awradyAPI.isGuest?.()) {
+                if (window.awradyAPI?.client) {
                     try {
                         await window.awradyAPI.resetToDefaults(DEFAULT_TASKS);
                     } catch (e) {

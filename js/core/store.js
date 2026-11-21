@@ -48,7 +48,7 @@
                 username ||
                 global.awradyAPI?.currentUser ||
                 (global.authManager && global.authManager.getCurrentUser()) ||
-                (typeof APP_CONSTANTS !== "undefined" ? APP_CONSTANTS.GUEST_USER : "guest")
+                "user"
             ).toLowerCase();
             return `${STORAGE_KEY}_${u}`;
         },
@@ -58,33 +58,15 @@
          */
         loadLocalState() {
             try {
+                const appData = getActiveState();
                 const userKey = this.getUserStorageKey();
-                let localSaved = localStorage.getItem(userKey) || localStorage.getItem(STORAGE_KEY);
-
-                if (!localSaved) {
-                    const guestKey = `${STORAGE_KEY}_${(typeof APP_CONSTANTS !== "undefined" ? APP_CONSTANTS.GUEST_USER : "guest")}`;
-                    localSaved = localStorage.getItem(guestKey);
-                    if (!localSaved) {
-                        for (let i = 0; i < localStorage.length; i++) {
-                            const k = localStorage.key(i);
-                            const pomKey = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.STORAGE_KEYS?.POMODORO) || "awrady_pomo_state_v1";
-                            if (k && k.startsWith(STORAGE_KEY) && !k.endsWith(pomKey)) {
-                                localSaved = localStorage.getItem(k);
-                                if (localSaved) break;
-                            }
-                        }
-                    }
-                }
+                const localSaved = localStorage.getItem(userKey);
 
                 if (localSaved) {
                     const parsed = JSON.parse(localSaved);
                     if (parsed) {
-                        const appData = getActiveState();
-                        if (parsed.tasks && parsed.tasks.length > 0) {
-                            appData.tasks = parsed.tasks;
-                        }
-                        if (parsed.logs) {
-                            appData.logs = parsed.logs;
+                        appData.tasks = (parsed.tasks && parsed.tasks.length > 0) ? parsed.tasks : [];
+                        appData.logs = parsed.logs || {};
 
                             // 1. Clean up any zero-progress false bonus entries from local store
                             for (const dateStr in appData.logs) {
@@ -126,6 +108,12 @@
                             AppState.setAppData(appData);
                         }
                     }
+                } else {
+                    appData.tasks = [];
+                    appData.logs = {};
+                    if (typeof AppState !== "undefined" && AppState.setAppData) {
+                        AppState.setAppData(appData);
+                    }
                 }
             } catch (e) {
                 console.error("[AppStore] LocalStorage error:", e);
@@ -139,10 +127,6 @@
             try {
                 const appData = getActiveState();
                 localStorage.setItem(this.getUserStorageKey(), JSON.stringify(appData));
-                const guestUser = (typeof APP_CONSTANTS !== "undefined" ? APP_CONSTANTS.GUEST_USER : "guest");
-                if ((global.awradyAPI?.currentUser || "").toLowerCase() === guestUser) {
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
-                }
             } catch (e) {
                 console.error("[AppStore] Save to LocalStorage failed:", e);
             }
@@ -479,7 +463,7 @@
                         if (localNewTasks.length > 0) {
                             localNewTasks.forEach(t => global.awradyAPI.saveTask(t).catch(() => {}));
                         }
-                    } else if (tasks && tasks.length === 0 && appData.tasks && appData.tasks.length > 0 && !global.awradyAPI.isGuest?.()) {
+                    } else if (tasks && tasks.length === 0 && appData.tasks && appData.tasks.length > 0) {
                         global.awradyAPI.saveTasks(appData.tasks).catch(() => {});
                     }
 
@@ -500,7 +484,7 @@
                                 appData.logs[row.date] = localLog ? this.mergeDayLog(localLog, row) : (typeof rowToLog === "function" ? rowToLog(row) : row);
                             }
                         });
-                    } else if (allProgress && allProgress.length === 0 && appData.logs && Object.keys(appData.logs).length > 0 && !global.awradyAPI.isGuest?.()) {
+                    } else if (allProgress && allProgress.length === 0 && appData.logs && Object.keys(appData.logs).length > 0) {
                         for (const dateStr in appData.logs) {
                             const log = appData.logs[dateStr];
                             if (log && ((log.precomputedScore || 0) > 0 || Object.keys(log.taskProgress || {}).length > 0)) {
