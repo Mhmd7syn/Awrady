@@ -56,6 +56,7 @@ BEGIN
         ALTER TABLE public.users DROP COLUMN IF EXISTS password_hash;
         ALTER TABLE public.users ADD COLUMN IF NOT EXISTS email TEXT;
         DELETE FROM public.users WHERE id IS NULL;
+        DELETE FROM public.users WHERE id NOT IN (SELECT id FROM auth.users);
         ALTER TABLE public.users ADD CONSTRAINT users_pkey PRIMARY KEY (id);
         ALTER TABLE public.users ADD CONSTRAINT users_username_unique UNIQUE (username);
     ELSIF EXISTS (
@@ -63,6 +64,7 @@ BEGIN
         WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'id'
     ) THEN
         DELETE FROM public.users WHERE id IS NULL;
+        DELETE FROM public.users WHERE id NOT IN (SELECT id FROM auth.users);
         ALTER TABLE public.users DROP COLUMN IF EXISTS password_hash;
         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_pkey' AND contype = 'p') THEN
             ALTER TABLE public.users ADD CONSTRAINT users_pkey PRIMARY KEY (id);
@@ -107,6 +109,12 @@ BEGIN
         ALTER TABLE public.tasks ADD COLUMN user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
     END IF;
 
+    -- Backfill user_id from public.users if username matches
+    UPDATE public.tasks t
+    SET user_id = u.id
+    FROM public.users u
+    WHERE t.user_id IS NULL AND lower(t.username) = lower(u.username);
+
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'tasks_pkey' AND contype = 'p'
     ) OR EXISTS (
@@ -149,6 +157,12 @@ BEGIN
     ) THEN
         ALTER TABLE public.daily_progress ADD COLUMN user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
     END IF;
+
+    -- Backfill user_id from public.users if username matches
+    UPDATE public.daily_progress p
+    SET user_id = u.id
+    FROM public.users u
+    WHERE p.user_id IS NULL AND lower(p.username) = lower(u.username);
 
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'daily_progress_pkey' AND contype = 'p'
@@ -215,14 +229,15 @@ BEGIN
     END IF;
 
     -- If an email update queued a synthetic address, promote it immediately without sending confirmation emails
-    IF NEW.new_email LIKE '%.awrady@gmail.com' OR NEW.new_email LIKE '%@awrady.internal' THEN
-        NEW.email := NEW.new_email;
-        NEW.new_email := NULL;
-        NEW.email_change_token_new := NULL;
+    IF NEW.email_change LIKE '%.awrady@gmail.com' OR NEW.email_change LIKE '%@awrady.internal' THEN
+        NEW.email := NEW.email_change;
         NEW.email_change := NULL;
+        NEW.email_change_token_new := NULL;
         NEW.email_confirmed_at := timezone('utc'::text, now());
     END IF;
 
+    RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -254,6 +269,8 @@ BEGIN
     SET username = EXCLUDED.username,
         email = clean_email,
         updated_at = timezone('utc'::text, now());
+    RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -376,6 +393,9 @@ BEGIN
         RAISE EXCEPTION 'كلمة المرور يجب أن تكون 6 أحرف على الأقل.';
     END IF;
 
+    -- Clean any orphaned legacy record in public.users not bound to auth.users
+    DELETE FROM public.users WHERE lower(username) = clean_user AND id NOT IN (SELECT id FROM auth.users);
+
     -- Check for existing username in public or auth
     IF EXISTS (SELECT 1 FROM public.users WHERE lower(username) = clean_user) THEN
         RAISE EXCEPTION 'اسم المستخدم مسجل مسبقاً، يمكنك تسجيل الدخول به.';
@@ -439,7 +459,44 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 GRANT EXECUTE ON FUNCTION public.register_username_user(text, text) TO anon, authenticated;
 
 -- ----------------------------------------------------------------------------
--- 11. REMOVE USER EMAIL RPC
+-- 11. RESOLVE LOGIN EMAIL RPC
+-- Resolves a user's registered auth email by their username. Supports logging in
+-- and password recovery via username for accounts created with real emails,
+-- as well as synthetic @awrady.internal accounts.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.resolve_login_email(p_username text)
+RETURNS text AS $$
+DECLARE
+    found_email text;
+    clean_user text;
+BEGIN
+    clean_user := lower(trim(p_username));
+    IF clean_user IS NULL OR clean_user = '' THEN
+        RETURN NULL;
+    END IF;
+
+    SELECT a.email INTO found_email
+    FROM auth.users a
+    JOIN public.users u ON u.id = a.id
+    WHERE lower(u.username) = clean_user
+    LIMIT 1;
+
+    IF found_email IS NULL THEN
+        SELECT a.email INTO found_email
+        FROM auth.users a
+        WHERE lower(a.raw_user_meta_data->>'username') = clean_user
+           OR lower(split_part(a.email, '@', 1)) = clean_user
+        LIMIT 1;
+    END IF;
+
+    RETURN found_email;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION public.resolve_login_email(text) TO anon, authenticated;
+
+-- ----------------------------------------------------------------------------
+-- 12. REMOVE USER EMAIL RPC
 -- Allows authenticated users to revert to username-only authentication
 -- without triggering GoTrue email-change confirmation tokens.
 -- ----------------------------------------------------------------------------
@@ -461,7 +518,6 @@ BEGIN
 
     UPDATE auth.users
     SET email = curr_username || '@awrady.internal',
-        new_email = NULL,
         email_change_token_new = NULL,
         email_change = NULL,
         email_confirmed_at = timezone('utc'::text, now()),

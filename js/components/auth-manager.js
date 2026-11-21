@@ -394,13 +394,26 @@ class AuthManager {
 
         } else {
             try {
+                let loginEmail = email;
+
+                if (!rawInput.includes("@")) {
+                    try {
+                        const { data: resolvedEmail } = await client.rpc("resolve_login_email", {
+                            p_username: username
+                        });
+                        if (resolvedEmail) {
+                            loginEmail = resolvedEmail;
+                        }
+                    } catch (_) {}
+                }
+
                 let { data, error } = await client.auth.signInWithPassword({
-                    email,
+                    email: loginEmail,
                     password
                 });
 
                 // Backward compatibility: fallback if user was created with legacy .awrady@gmail.com
-                if (error && !rawInput.includes("@")) {
+                if (error && !rawInput.includes("@") && loginEmail === email) {
                     const legacyEmail = `${rawInput.trim().toLowerCase().replace(/[^a-z0-9._-]/g, "") || "user"}.awrady@gmail.com`;
                     const fallbackRes = await client.auth.signInWithPassword({
                         email: legacyEmail,
@@ -794,22 +807,27 @@ class AuthManager {
             if (rawInput.includes("@")) {
                 targetEmail = rawInput.toLowerCase();
             } else {
-                // Look up email in public.users by username
+                // Look up email by username via resolve_login_email RPC or public.users
                 const cleanUser = rawInput.toLowerCase();
-                const { data: userRow, error: dbErr } = await client
-                    .from("users")
-                    .select("email")
-                    .eq("username", cleanUser)
-                    .maybeSingle();
+                let resolved = null;
+                try {
+                    const { data: res } = await client.rpc("resolve_login_email", { p_username: cleanUser });
+                    resolved = res;
+                } catch (_) {}
 
-                if (dbErr) {
-                    console.warn("[AuthManager] User lookup error:", dbErr);
+                if (!resolved) {
+                    const { data: userRow } = await client
+                        .from("users")
+                        .select("email")
+                        .eq("username", cleanUser)
+                        .maybeSingle();
+                    resolved = userRow?.email || null;
                 }
 
-                if (!userRow || !userRow.email) {
+                if (!resolved || resolved.endsWith("@awrady.internal") || resolved.endsWith(".awrady@gmail.com")) {
                     return this.showMsg("هذا الحساب مسجل باسم مستخدم فقط بدون بريد إلكتروني، تعذر إرسال رابط الاستعادة.", true);
                 }
-                targetEmail = userRow.email;
+                targetEmail = resolved;
             }
 
             const isWeb = typeof window !== "undefined" && window.location.origin && !window.location.origin.startsWith("file:");

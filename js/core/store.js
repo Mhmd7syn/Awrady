@@ -60,12 +60,31 @@
             try {
                 const appData = getActiveState();
                 const userKey = this.getUserStorageKey();
-                const localSaved = localStorage.getItem(userKey);
+                let localSaved = localStorage.getItem(userKey);
+
+                // Seamless migration: If this user has no scoped data yet, adopt un-scoped guest data from this device
+                if (!localSaved) {
+                    const legacyGuestKey = `${STORAGE_KEY}_primary_user`;
+                    const candidate = localStorage.getItem(legacyGuestKey) || localStorage.getItem(STORAGE_KEY);
+                    if (candidate) {
+                        try {
+                            const parsedCandidate = JSON.parse(candidate);
+                            if (parsedCandidate && ((parsedCandidate.tasks && parsedCandidate.tasks.length > 0) || (parsedCandidate.logs && Object.keys(parsedCandidate.logs).length > 0))) {
+                                localSaved = candidate;
+                                localStorage.setItem(userKey, candidate);
+                                localStorage.removeItem(legacyGuestKey);
+                                localStorage.removeItem(STORAGE_KEY);
+                            }
+                        } catch (_) {}
+                    }
+                }
 
                 if (localSaved) {
                     const parsed = JSON.parse(localSaved);
                     if (parsed) {
-                        appData.tasks = (parsed.tasks && parsed.tasks.length > 0) ? parsed.tasks : [];
+                        appData.tasks = (parsed.tasks && parsed.tasks.length > 0) 
+                            ? parsed.tasks 
+                            : ((typeof DEFAULT_TASKS !== "undefined" && DEFAULT_TASKS.length > 0) ? JSON.parse(JSON.stringify(DEFAULT_TASKS)) : []);
                         appData.logs = parsed.logs || {};
 
                             // 1. Clean up any zero-progress false bonus entries from local store
@@ -109,7 +128,9 @@
                         }
                     }
                 } else {
-                    appData.tasks = [];
+                    appData.tasks = (typeof DEFAULT_TASKS !== "undefined" && DEFAULT_TASKS.length > 0)
+                        ? JSON.parse(JSON.stringify(DEFAULT_TASKS))
+                        : [];
                     appData.logs = {};
                     if (typeof AppState !== "undefined" && AppState.setAppData) {
                         AppState.setAppData(appData);
@@ -580,6 +601,9 @@
             if (typeof AppState !== "undefined" && AppState.setAppData) {
                 AppState.setAppData(appData);
             }
+            this.saveLocalState();
+            if (typeof renderDailyView === "function") renderDailyView();
+            if (typeof updateHeaderTodayScore === "function") updateHeaderTodayScore();
         }
     };
 
