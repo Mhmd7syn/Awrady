@@ -683,8 +683,8 @@ class AuthManager {
             this.currentUserEmail = rawEmail;
             localStorage.setItem(this.SESSION_EMAIL_KEY, rawEmail);
 
-            if (data?.user?.new_email) {
-                this.showAccountMsg("📨 تم حفظ البريد وإرسال رابط تأكيد للبريد الجديد، يرجى تأكيده لإتمام العملية.", false);
+            if (data?.user?.new_email || data?.sentConfirmation) {
+                this.showAccountMsg("📨 تم إرسال رابط تأكيد للبريد الجديد، يرجى مراجعة بريدك الإلكتروني لتأكيده.", false);
             } else {
                 this.showAccountMsg("✅ تم تحديث وحفظ البريد الإلكتروني في قاعدة البيانات بنجاح!", false);
             }

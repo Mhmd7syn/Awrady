@@ -533,4 +533,52 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 GRANT EXECUTE ON FUNCTION public.remove_user_email() TO authenticated;
 
+-- ----------------------------------------------------------------------------
+-- 13. SET USER EMAIL RPC
+-- Allows authenticated users who registered with a username-only account
+-- to link their real email directly without GoTrue double-confirmation errors
+-- on synthetic dummy domains.
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.set_user_email(p_email text)
+RETURNS jsonb AS $$
+DECLARE
+    curr_uid UUID;
+    clean_email text;
+BEGIN
+    curr_uid := auth.uid();
+    IF curr_uid IS NULL THEN
+        RAISE EXCEPTION 'Not authenticated';
+    END IF;
+
+    clean_email := lower(trim(p_email));
+    IF clean_email !~ '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$' THEN
+        RAISE EXCEPTION 'البريد الإلكتروني غير صالح.';
+    END IF;
+
+    -- Check if email is already registered to another user in auth or public
+    IF EXISTS (SELECT 1 FROM auth.users WHERE lower(email) = clean_email AND id != curr_uid) OR
+       EXISTS (SELECT 1 FROM public.users WHERE lower(email) = clean_email AND id != curr_uid) THEN
+        RAISE EXCEPTION 'البريد الإلكتروني مسجل بالفعل لحساب آخر.';
+    END IF;
+
+    UPDATE auth.users
+    SET email = clean_email,
+        email_change = NULL,
+        email_change_token_new = NULL,
+        email_confirmed_at = timezone('utc'::text, now()),
+        updated_at = timezone('utc'::text, now())
+    WHERE id = curr_uid;
+
+    UPDATE public.users
+    SET email = clean_email,
+        updated_at = timezone('utc'::text, now())
+    WHERE id = curr_uid;
+
+    RETURN jsonb_build_object('success', true, 'email', clean_email);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION public.set_user_email(text) TO authenticated;
+
+
 

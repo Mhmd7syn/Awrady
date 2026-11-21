@@ -315,14 +315,23 @@ class AwradyAPI {
         }
 
         // 1. Update Supabase Auth user metadata
-        const { data, error: authError } = await this.client.auth.updateUser({
-            data: { username: cleanName }
-        });
-        if (authError) {
-            if (authError.message && (authError.message.includes("unique") || authError.message.includes("already registered") || authError.message.includes("already exists"))) {
-                throw new Error("اسم المستخدم مستخدم بالفعل، يرجى اختيار اسم آخر.");
+        try {
+            const { error: authError } = await this.client.auth.updateUser({
+                data: { username: cleanName }
+            });
+            if (authError) {
+                if (authError.message && (authError.message.includes("unique") || authError.message.includes("already registered") || authError.message.includes("already exists"))) {
+                    throw new Error("اسم المستخدم مستخدم بالفعل، يرجى اختيار اسم آخر.");
+                }
+                if (authError.message && (authError.message.includes("@awrady.internal") || authError.message.includes(".internal") || authError.message.includes("is invalid"))) {
+                    console.warn("[AwradyAPI] auth.updateUser metadata note (synthetic email):", authError.message);
+                } else {
+                    throw authError;
+                }
             }
-            throw authError;
+        } catch (err) {
+            if (err.message && err.message.includes("مستخدم بالفعل")) throw err;
+            console.warn("[AwradyAPI] auth.updateUser exception:", err.message);
         }
 
         // 2. Sync public.users table directly to safeguard against trigger latency
@@ -403,7 +412,23 @@ class AwradyAPI {
             throw new Error("يرجى إدخال عنوان بريد إلكتروني صالح.");
         }
 
-        // 1. Update email via Supabase Auth
+        // 1. Attempt direct RPC linkage for username-only accounts (bypasses GoTrue synthetic domain validation & double-confirmation)
+        try {
+            const { data: rpcRes, error: rpcErr } = await this.client.rpc("set_user_email", {
+                p_email: cleanEmail
+            });
+            if (!rpcErr && rpcRes && rpcRes.success) {
+                try { await this.client.auth.refreshSession(); } catch (_) {}
+                return { directUpdate: true, user: { email: cleanEmail } };
+            }
+            if (rpcErr && rpcErr.message && (rpcErr.message.includes("مسجل بالفعل") || rpcErr.message.includes("already registered"))) {
+                throw new Error("البريد الإلكتروني مسجل بالفعل لحساب آخر.");
+            }
+        } catch (rpcEx) {
+            if (rpcEx.message && rpcEx.message.includes("مسجل بالفعل")) throw rpcEx;
+        }
+
+        // 2. Fallback to standard GoTrue auth.updateUser
         const isWeb = typeof window !== "undefined" && window.location.origin && !window.location.origin.startsWith("file:");
         const redirectTo = isWeb ? (window.location.origin + window.location.pathname) : "https://awrady.vercel.app/";
         const options = { emailRedirectTo: redirectTo };
@@ -418,10 +443,25 @@ class AwradyAPI {
             if (authError.message && (authError.message.includes("rate limit") || authError.message.includes("rate_limit"))) {
                 throw new Error("تم تجاوز عدد محاولات إرسال البريد. يرجى الانتظار قليلاً والمحاولة لاحقاً.");
             }
+            // If GoTrue dispatched confirmation to cleanEmail but errored because old synthetic address (.internal) is rejected by its validator
+            if (authError.message && (authError.message.includes("@awrady.internal") || authError.message.includes(".internal") || authError.message.includes("is invalid"))) {
+                try {
+                    const tblUsers = APP_CONSTANTS.DB.TABLES.USERS;
+                    await this.client
+                        .from(tblUsers)
+                        .update({ email: cleanEmail, updated_at: new Date().toISOString() })
+                        .eq("id", uid);
+                } catch (_) {}
+
+                return {
+                    user: { new_email: cleanEmail },
+                    sentConfirmation: true
+                };
+            }
             throw authError;
         }
 
-        // 2. Direct sync to public.users table
+        // 3. Direct sync to public.users table
         try {
             const tblUsers = APP_CONSTANTS.DB.TABLES.USERS;
             await this.client

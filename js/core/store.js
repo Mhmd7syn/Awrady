@@ -121,11 +121,10 @@
                                     delete appData.logs[dateStr];
                                 }
                             }
-                        }
+                    }
 
-                        if (typeof AppState !== "undefined" && AppState.setAppData) {
-                            AppState.setAppData(appData);
-                        }
+                    if (typeof AppState !== "undefined" && AppState.setAppData) {
+                        AppState.setAppData(appData);
                     }
                 } else {
                     appData.tasks = (typeof DEFAULT_TASKS !== "undefined" && DEFAULT_TASKS.length > 0)
@@ -485,7 +484,7 @@
                             localNewTasks.forEach(t => global.awradyAPI.saveTask(t).catch(() => {}));
                         }
                     } else if (tasks && tasks.length === 0 && appData.tasks && appData.tasks.length > 0) {
-                        global.awradyAPI.saveTasks(appData.tasks).catch(() => {});
+                        await global.awradyAPI.saveTasks(appData.tasks).catch(() => {});
                     }
 
                     if (!appData.logs) appData.logs = {};
