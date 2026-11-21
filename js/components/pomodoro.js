@@ -14,12 +14,14 @@ const PomodoroTimer = {
     taskId: null,
     taskName: "",
     workMinutes: APP_CONSTANTS.POMODORO_DEFAULTS.WORK_MINUTES,
+    defaultWorkMinutes: APP_CONSTANTS.POMODORO_DEFAULTS.WORK_MINUTES,
     restMinutes: APP_CONSTANTS.POMODORO_DEFAULTS.REST_MINUTES,
     originalTitle: "",
     audioContext: null,
     keepAliveNode: null,
     worker: null,
-    titleBlinkInterval: null
+    titleBlinkInterval: null,
+    hasFiredFiveMinWarning: false
 };
 
 /**
@@ -85,9 +87,22 @@ function setupPomodoroControls() {
                 PomodoroTimer.taskId = val;
                 const opt = e.target.options[e.target.selectedIndex];
                 PomodoroTimer.taskName = opt ? (opt.getAttribute("data-name") || opt.textContent.replace(/^⏱️\s*/, "")) : "";
+                
+                // Adapt duration for selected task if timer is idle
+                if (!PomodoroTimer.isRunning) {
+                    const appData = getActiveAppData();
+                    const task = appData?.tasks?.find(t => String(t.id) === String(val));
+                    if (task) {
+                        adaptWorkDurationForTask(task);
+                    }
+                }
             } else {
                 PomodoroTimer.taskId = null;
                 PomodoroTimer.taskName = "";
+                // Restore user default when general session is selected
+                if (!PomodoroTimer.isRunning && PomodoroTimer.defaultWorkMinutes) {
+                    setSessionWorkMinutes(PomodoroTimer.defaultWorkMinutes);
+                }
             }
             updatePomoTaskHeader();
             savePomoState();
@@ -98,8 +113,12 @@ function setupPomodoroControls() {
     const restInput = document.getElementById("input-pomo-rest-time");
 
     const onWorkInputChange = () => {
-        const val = Math.max(1, Math.min(180, parseInt(workInput.value, 10) || 25));
+        const maxLimit = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS?.LIMITS?.POMO_WORK_MAX)
+            ? APP_CONSTANTS.LIMITS.POMO_WORK_MAX
+            : 720;
+        const val = Math.max(1, Math.min(maxLimit, parseInt(workInput.value, 10) || 25));
         PomodoroTimer.workMinutes = val;
+        PomodoroTimer.defaultWorkMinutes = val;
         if (PomodoroTimer.mode === "work" && !PomodoroTimer.isRunning) {
             resetPomoTimer();
         } else {
@@ -108,7 +127,10 @@ function setupPomodoroControls() {
     };
 
     const onRestInputChange = () => {
-        const val = Math.max(1, Math.min(60, parseInt(restInput.value, 10) || 5));
+        const maxLimit = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS?.LIMITS?.POMO_REST_MAX)
+            ? APP_CONSTANTS.LIMITS.POMO_REST_MAX
+            : 180;
+        const val = Math.max(1, Math.min(maxLimit, parseInt(restInput.value, 10) || 5));
         PomodoroTimer.restMinutes = val;
         if (PomodoroTimer.mode === "rest" && !PomodoroTimer.isRunning) {
             resetPomoTimer();
@@ -243,6 +265,67 @@ function populatePomoTaskSelect() {
 }
 
 /**
+ * Adapts work duration to the remaining time of a time-based task.
+ * If remaining time is <= 0 or >= default cached duration, retains cached default.
+ * If remaining time is > 0 and < default cached duration, sets duration to remaining minutes.
+ * Does not overwrite the user's permanent defaultWorkMinutes.
+ */
+function adaptWorkDurationForTask(task) {
+    const defaultMinutes = PomodoroTimer.defaultWorkMinutes || PomodoroTimer.workMinutes || APP_CONSTANTS.POMODORO_DEFAULTS.WORK_MINUTES;
+
+    if (!task) {
+        setSessionWorkMinutes(defaultMinutes);
+        return;
+    }
+
+    const isTime = typeof isTimeTask === "function" ? isTimeTask(task) : false;
+    if (!isTime) {
+        setSessionWorkMinutes(defaultMinutes);
+        return;
+    }
+
+    const appData = getActiveAppData();
+    const curDate = (typeof currentDateStr !== "undefined")
+        ? currentDateStr
+        : (typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().slice(0, 10));
+
+    const normTarget = (typeof getTaskNormalizedTarget === "function")
+        ? getTaskNormalizedTarget(task, curDate)
+        : (Number(task.target) || 0) * 60;
+
+    const val = Number(appData?.logs?.[curDate]?.taskProgress?.[task.id]?.achieved) || 0;
+    const remaining = normTarget - val;
+
+    let targetDuration = defaultMinutes;
+    if (remaining > 0 && remaining < defaultMinutes) {
+        targetDuration = Math.round(remaining);
+    } else {
+        targetDuration = defaultMinutes;
+    }
+
+    setSessionWorkMinutes(targetDuration);
+}
+
+/**
+ * Sets session work minutes directly without overwriting the user's default setting
+ */
+function setSessionWorkMinutes(minutes) {
+    const maxLimit = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS?.LIMITS?.POMO_WORK_MAX)
+        ? APP_CONSTANTS.LIMITS.POMO_WORK_MAX
+        : 720;
+    const cleanMin = Math.max(1, Math.min(maxLimit, Math.round(minutes)));
+    PomodoroTimer.workMinutes = cleanMin;
+    const workInput = document.getElementById("input-pomo-work-time");
+    if (workInput) workInput.value = cleanMin;
+
+    if (PomodoroTimer.mode === "work" && !PomodoroTimer.isRunning) {
+        resetPomoTimer();
+    } else {
+        savePomoState();
+    }
+}
+
+/**
  * Open Pomodoro Modal
  */
 function openPomodoroModal(taskId = null, taskName = "") {
@@ -250,11 +333,19 @@ function openPomodoroModal(taskId = null, taskName = "") {
         PomodoroTimer.taskId = String(taskId);
         PomodoroTimer.taskName = taskName || "";
         
-        // Find task name from appData if not provided
+        // Find task from appData if not provided
         const appData = getActiveAppData();
-        if (!PomodoroTimer.taskName && appData && Array.isArray(appData.tasks)) {
-            const found = appData.tasks.find(t => String(t.id) === String(taskId));
-            if (found) PomodoroTimer.taskName = found.name;
+        let targetTask = null;
+        if (appData && Array.isArray(appData.tasks)) {
+            targetTask = appData.tasks.find(t => String(t.id) === String(taskId));
+            if (targetTask && !PomodoroTimer.taskName) {
+                PomodoroTimer.taskName = targetTask.name;
+            }
+        }
+
+        // Adapt duration if timer is currently idle
+        if (!PomodoroTimer.isRunning && targetTask) {
+            adaptWorkDurationForTask(targetTask);
         }
     }
 
@@ -402,6 +493,7 @@ function startPomoTimer() {
         PomodoroTimer.totalSeconds = (PomodoroTimer.mode === "work" ? PomodoroTimer.workMinutes : PomodoroTimer.restMinutes) * 60;
         PomodoroTimer.remainingSeconds = PomodoroTimer.totalSeconds;
         PomodoroTimer.lastSavedRemainingSeconds = PomodoroTimer.totalSeconds;
+        PomodoroTimer.hasFiredFiveMinWarning = false;
     } else if (typeof PomodoroTimer.lastSavedRemainingSeconds !== "number") {
         PomodoroTimer.lastSavedRemainingSeconds = PomodoroTimer.remainingSeconds;
     }
@@ -450,6 +542,14 @@ function syncPomoTimer() {
             commitWorkMinutesToDisk(fiveMinBlocks * 5);
             PomodoroTimer.lastSavedRemainingSeconds -= (fiveMinBlocks * 300);
             savePomoState();
+        }
+
+        // 5-minute advance warning alert
+        if (PomodoroTimer.totalSeconds > 300 && remaining <= 300 && !PomodoroTimer.hasFiredFiveMinWarning) {
+            PomodoroTimer.hasFiredFiveMinWarning = true;
+            if (typeof dispatchFiveMinuteWarning === "function") {
+                dispatchFiveMinuteWarning();
+            }
         }
     }
 
@@ -505,6 +605,7 @@ function resetPomoTimer() {
     PomodoroTimer.remainingSeconds = PomodoroTimer.totalSeconds;
     PomodoroTimer.lastSavedRemainingSeconds = PomodoroTimer.totalSeconds;
     PomodoroTimer.targetEndTime = null;
+    PomodoroTimer.hasFiredFiveMinWarning = false;
 
     stopTitleBlinking();
     restoreDocumentTitle();
@@ -534,12 +635,20 @@ function handlePomoCompletion() {
         }
     }
 
+    const completedMins = PomodoroTimer.workMinutes;
+    // Restore user default duration if session was adapted to task remaining time
+    if (PomodoroTimer.defaultWorkMinutes && PomodoroTimer.workMinutes !== PomodoroTimer.defaultWorkMinutes) {
+        PomodoroTimer.workMinutes = PomodoroTimer.defaultWorkMinutes;
+        const workInput = document.getElementById("input-pomo-work-time");
+        if (workInput) workInput.value = PomodoroTimer.defaultWorkMinutes;
+    }
+
     resetPomoTimer();
 
     // Prompt user smoothly without cutting audio or blocking execution
     setTimeout(() => {
         const msg = isWork
-            ? `🎉 أحسنت! انتهت جلسة التركيز (${PomodoroTimer.workMinutes} دقيقة) وتم حفظ التقدم تلقائياً.\n\nهل ترغب في بدء فترة استراحة الآن؟`
+            ? `🎉 أحسنت! انتهت جلسة التركيز (${completedMins} دقيقة) وتم حفظ التقدم تلقائياً.\n\nهل ترغب في بدء فترة استراحة الآن؟`
             : "☕ انتهت فترة الاستراحة! هل ترغب في العودة للعمل والتركيز؟";
 
         if (confirm(msg)) {
@@ -648,7 +757,9 @@ function savePomoState() {
         taskId: PomodoroTimer.taskId,
         taskName: PomodoroTimer.taskName,
         workMinutes: PomodoroTimer.workMinutes,
-        restMinutes: PomodoroTimer.restMinutes
+        defaultWorkMinutes: PomodoroTimer.defaultWorkMinutes || PomodoroTimer.workMinutes,
+        restMinutes: PomodoroTimer.restMinutes,
+        hasFiredFiveMinWarning: PomodoroTimer.hasFiredFiveMinWarning
     };
 
     try {
@@ -665,6 +776,11 @@ function loadPomoState() {
         if (!raw) return;
         const s = JSON.parse(raw);
 
+        if (s.defaultWorkMinutes) {
+            PomodoroTimer.defaultWorkMinutes = s.defaultWorkMinutes;
+        } else if (s.workMinutes) {
+            PomodoroTimer.defaultWorkMinutes = s.workMinutes;
+        }
         if (s.workMinutes) {
             PomodoroTimer.workMinutes = s.workMinutes;
             const wIn = document.getElementById("input-pomo-work-time");
@@ -680,6 +796,9 @@ function loadPomoState() {
         if (s.mode) PomodoroTimer.mode = s.mode;
         if (typeof s.lastSavedRemainingSeconds === "number") {
             PomodoroTimer.lastSavedRemainingSeconds = s.lastSavedRemainingSeconds;
+        }
+        if (typeof s.hasFiredFiveMinWarning === "boolean") {
+            PomodoroTimer.hasFiredFiveMinWarning = s.hasFiredFiveMinWarning;
         }
 
         populatePomoTaskSelect();

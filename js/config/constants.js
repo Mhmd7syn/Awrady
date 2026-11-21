@@ -65,8 +65,8 @@ var APP_CONSTANTS = {
     LIMITS: {
         USERNAME_MIN: 3,
         PASSWORD_MIN: 6,
-        POMO_WORK_MAX: 180,
-        POMO_REST_MAX: 60,
+        POMO_WORK_MAX: 720,
+        POMO_REST_MAX: 180,
         TIME_STEP_MIN: 15,
         NAWAFEL_STEP: 2
     },

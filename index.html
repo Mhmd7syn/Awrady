@@ -717,7 +717,7 @@
         <div class="modal-container glass-card" style="max-width: 400px; text-align: center;">
             <div class="modal-header">
                 <h3 id="modal-pomodoro-title"><i class="fa-solid fa-clock"></i> مؤقت التركيز (Pomofocus)</h3>
-                <button class="btn-close" id="btn-close-pomodoro" aria-label="إغلاق مؤقت التركيز"><i class="fa-solid fa-xmark"></i></button>
+                <button class="btn-hide-pomo" id="btn-close-pomodoro" aria-label="إخفاء مؤقت التركيز"><i class="fa-solid fa-eye-slash"></i> <span>إخفاء</span></button>
             </div>
             
             <div class="pomodoro-content" style="padding: 20px 0;">
@@ -743,11 +743,11 @@
                 <div class="pomodoro-settings" style="display: flex; gap: 10px; justify-content: center; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; margin-bottom: 15px;">
                     <div style="flex: 1;">
                         <label style="font-size: 0.8rem; display: block; margin-bottom: 5px;">مدة العمل (دقيقة)</label>
-                        <input type="number" id="input-pomo-work-time" value="25" min="1" max="120" style="width: 100%; text-align: center;">
+                        <input type="number" id="input-pomo-work-time" value="25" min="1" max="720" style="width: 100%; text-align: center;">
                     </div>
                     <div style="flex: 1;">
                         <label style="font-size: 0.8rem; display: block; margin-bottom: 5px;">مدة الراحة (دقيقة)</label>
-                        <input type="number" id="input-pomo-rest-time" value="5" min="1" max="30" style="width: 100%; text-align: center;">
+                        <input type="number" id="input-pomo-rest-time" value="5" min="1" max="180" style="width: 100%; text-align: center;">
                     </div>
                 </div>
             </div>
@@ -854,15 +854,15 @@
 
 
     <!-- Scripts -->
-    <script src="js/config/constants.js?v=20261119_01"></script>
+    <script src="js/config/constants.js?v=20261121_01"></script>
     <script src="js/config/default-data.js?v=20261118_02"></script>
     <script src="js/api.js?v=20261118_03"></script>
     <script src="js/utils/date-utils.js?v=20261013_10"></script>
     <script src="js/core/schedule-engine.js?v=20261113_01"></script>
     <script src="js/core/scoring-engine.js?v=20261113_02"></script>
     <script src="js/core/task-rules.js?v=20261113_04"></script>
-    <script src="js/components/pomodoro.js?v=20261117_02"></script>
-    <script src="js/components/pomodoro-alerts.js?v=20261013_10"></script>
+    <script src="js/components/pomodoro.js?v=20261121_01"></script>
+    <script src="js/components/pomodoro-alerts.js?v=20261121_01"></script>
     <script src="js/components/nawafel-toast.js?v=20261117_02"></script>
     <script src="js/components/weekly-modal.js?v=20261113_04"></script>
     <script src="js/components/task-manager.js?v=20261117_02"></script>

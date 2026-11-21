@@ -250,3 +250,98 @@ function playWebAudioChime() {
         console.warn("[Pomodoro] playWebAudioChime error:", e);
     }
 }
+
+/**
+ * Synthesizes a gentle dual-tone advance warning chime (880Hz -> 1174Hz)
+ */
+function playFiveMinuteChime() {
+    try {
+        ensureAudioUnlocked();
+        const ctx = PomodoroTimer.audioContext;
+        if (!ctx) return;
+        if (ctx.state === "suspended") ctx.resume();
+
+        const now = ctx.currentTime;
+        const notes = [
+            { freq: 880, delay: 0, dur: 0.5 },
+            { freq: 1174.66, delay: 0.22, dur: 0.65 }
+        ];
+
+        notes.forEach(note => {
+            const startTime = now + note.delay;
+            const endTime = startTime + note.dur;
+
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(note.freq, startTime);
+
+            gain.gain.setValueAtTime(0.0001, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.25, startTime + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, endTime);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(startTime);
+            osc.stop(endTime);
+        });
+    } catch (e) {
+        console.warn("[Pomodoro] playFiveMinuteChime warning:", e);
+    }
+}
+
+/**
+ * Dispatches audio chime and notification when 5 minutes remain in session
+ */
+function dispatchFiveMinuteWarning() {
+    ensureAudioUnlocked();
+    playFiveMinuteChime();
+
+    const taskLabel = PomodoroTimer.taskName ? ` (${PomodoroTimer.taskName})` : "";
+    const notifTitle = "⏳ باقي 5 دقائق على نهاية وقت التركيز!";
+    const notifBody = `شارفت جلسة التركيز${taskLabel} على الانتهاء. استعد لإنهاء مهامك الحالية.`;
+
+    if (!("Notification" in window) || Notification.permission !== "granted") {
+        return;
+    }
+
+    try {
+        if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.ready.then(reg => {
+                if (reg && reg.showNotification) {
+                    reg.showNotification(notifTitle, {
+                        body: notifBody,
+                        icon: "app-icon.ico",
+                        badge: "app-icon.ico",
+                        tag: "pomodoro-5min-warning",
+                        silent: false,
+                        vibrate: [200, 100, 200]
+                    });
+                    return;
+                }
+                new Notification(notifTitle, { body: notifBody, icon: "app-icon.ico" });
+            }).catch(() => {
+                new Notification(notifTitle, { body: notifBody, icon: "app-icon.ico" });
+            });
+        } else {
+            new Notification(notifTitle, { body: notifBody, icon: "app-icon.ico" });
+        }
+    } catch (e) {
+        console.warn("[Pomodoro] 5-min warning notification failed:", e);
+    }
+}
+
+if (typeof window !== "undefined") {
+    window.ensureAudioUnlocked = ensureAudioUnlocked;
+    window.startAudioKeepalive = startAudioKeepalive;
+    window.stopAudioKeepalive = stopAudioKeepalive;
+    window.requestPomoNotificationPermission = requestPomoNotificationPermission;
+    window.restoreDocumentTitle = restoreDocumentTitle;
+    window.dispatchSystemNotification = dispatchSystemNotification;
+    window.dispatchFiveMinuteWarning = dispatchFiveMinuteWarning;
+    window.startTitleBlinking = startTitleBlinking;
+    window.stopTitleBlinking = stopTitleBlinking;
+    window.playPomoAlarm = playPomoAlarm;
+    window.playWebAudioChime = playWebAudioChime;
+    window.playFiveMinuteChime = playFiveMinuteChime;
+}
