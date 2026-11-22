@@ -477,6 +477,7 @@ export function saveTaskFromModal() {
             } else {
                 oldTask.oneTimeDate = null;
             }
+            oldTask._pendingSync = true;
             savedTask = oldTask;
         }
     } else {
@@ -489,7 +490,8 @@ export function saveTaskFromModal() {
             schedule: scheduleVal,
             isArchived: false,
             createdAt: (schedType === "OneTime") ? chosenOneTimeDate : (new Date().toISOString()),
-            oneTimeDate: (schedType === "OneTime") ? chosenOneTimeDate : null
+            oneTimeDate: (schedType === "OneTime") ? chosenOneTimeDate : null,
+            _pendingSync: true
         };
         if (dailyTargets) {
             newTask.dailyTargets = dailyTargets;
@@ -530,7 +532,12 @@ export function saveTaskFromModal() {
 
     // Persist to cloud
     if (awradyAPI?.client && savedTask) {
-        awradyAPI.saveTask(savedTask).catch(e => console.warn("[AwradyAPI] saveTask:", e.message));
+        awradyAPI.saveTask(savedTask).then(() => {
+            if (savedTask._pendingSync) {
+                delete savedTask._pendingSync;
+                saveData(true);
+            }
+        }).catch(e => console.warn("[AwradyAPI] saveTask:", e.message));
     }
 
     // Refresh UI

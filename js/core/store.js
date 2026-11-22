@@ -195,23 +195,31 @@ export const AppStore = {
         if (!localLog) return cloudLog;
 
         const dirtyTasks = localLog._dirtyTasks || {};
-        const mergedTaskProgress = {
-            ...(localLog.taskProgress || {}),
-            ...(cloudLog.taskProgress || {})
-        };
+        const isDirty = Boolean(localLog._dirty || Object.keys(dirtyTasks).length > 0);
+
+        // If local log has no unsaved dirty modifications, cloud record is authoritative
+        if (!isDirty) {
+            return {
+                ...cloudLog,
+                _loadedFromDB: true
+            };
+        }
+
+        // When locally dirty: Cloud is base, overlay ONLY pending dirty modifications
+        const mergedTaskProgress = { ...(cloudLog.taskProgress || {}) };
         const remainingDirtyTasks = {};
 
         for (const taskId in dirtyTasks) {
             if (!dirtyTasks[taskId]) continue;
             if (localLog.taskProgress && localLog.taskProgress[taskId]) {
                 mergedTaskProgress[taskId] = localLog.taskProgress[taskId];
+                remainingDirtyTasks[taskId] = dirtyTasks[taskId];
             }
-            remainingDirtyTasks[taskId] = dirtyTasks[taskId];
         }
 
         const mergedPrayerExtras = {
             ...(cloudLog.prayerExtras || {}),
-            ...(localLog.prayerExtras || {})
+            ...(localLog._dirtyExtras ? (localLog.prayerExtras || {}) : {})
         };
 
         const isStillDirty = Object.keys(remainingDirtyTasks).length > 0;
@@ -495,10 +503,19 @@ export const AppStore = {
                     });
 
                     const serverTaskIds = new Set(tasks.map(t => t.id));
-                    const localNewTasks = (appData.tasks || []).filter(t => !serverTaskIds.has(t.id));
-                    appData.tasks = [...tasks, ...localNewTasks];
-                    if (localNewTasks.length > 0) {
-                        localNewTasks.forEach(t => awradyAPI.saveTask(t).catch(() => {}));
+                    // Retain only local tasks explicitly created offline with pending sync flag
+                    const offlinePendingTasks = (appData.tasks || []).filter(t => !serverTaskIds.has(t.id) && t._pendingSync);
+                    appData.tasks = [...tasks, ...offlinePendingTasks];
+
+                    // Sync any pending tasks (created or modified offline) to cloud
+                    const pendingTasks = (appData.tasks || []).filter(t => t._pendingSync);
+                    if (pendingTasks.length > 0) {
+                        pendingTasks.forEach(t => {
+                            awradyAPI.saveTask(t).then(() => {
+                                delete t._pendingSync;
+                                this.saveLocalState();
+                            }).catch(() => {});
+                        });
                     }
                 } else if (tasks && tasks.length === 0 && appData.tasks && appData.tasks.length > 0) {
                     await awradyAPI.saveTasks(appData.tasks).catch(() => {});
@@ -586,6 +603,7 @@ export const AppStore = {
                                 if (typeof AppState !== "undefined" && AppState.setTasks) {
                                     AppState.setTasks(appData.tasks);
                                 }
+                                this.saveLocalState();
                             }
                         } else if (payload.new?.task_id) {
                             const row = payload.new;
@@ -613,6 +631,7 @@ export const AppStore = {
                             if (typeof AppState !== "undefined" && AppState.setTasks) {
                                 AppState.setTasks(appData.tasks);
                             }
+                            this.saveLocalState();
                         }
                         if (typeof window !== "undefined" && typeof window.renderDailyView === "function") window.renderDailyView();
                         if (typeof window !== "undefined" && typeof window.renderTaskManager === "function") window.renderTaskManager();
