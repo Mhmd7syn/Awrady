@@ -10,8 +10,8 @@ import { showToast } from './toast.js';
 class AuthManager {
     constructor() {
         this.SESSION_KEY = APP_CONSTANTS.STORAGE_KEYS.SESSION_USER;
-        this.SESSION_UID_KEY = "AWRAD_AUTH_UID";
-        this.SESSION_EMAIL_KEY = "AWRAD_AUTH_EMAIL";
+        this.SESSION_UID_KEY = APP_CONSTANTS.STORAGE_KEYS.SESSION_UID;
+        this.SESSION_EMAIL_KEY = APP_CONSTANTS.STORAGE_KEYS.SESSION_EMAIL;
         this.currentUser = null;
         this.currentUserId = null;
         this.currentUserEmail = null;

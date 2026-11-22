@@ -38,7 +38,7 @@ export async function startApp(username) {
     }
 
     if (awradyAPI) {
-        const uid = authManager?.getCurrentUserId?.() || (typeof localStorage !== "undefined" ? localStorage.getItem("AWRAD_AUTH_UID") : null);
+        const uid = authManager?.getCurrentUserId?.() || (typeof localStorage !== "undefined" ? localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS.SESSION_UID) : null);
         awradyAPI.setCurrentUser(username, uid);
     }
     if (AppStore) {

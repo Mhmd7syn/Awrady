@@ -483,7 +483,8 @@ export const AppStore = {
                         }
                     });
                     try {
-                        const backupMap = JSON.parse(localStorage.getItem("awrady_tasks_daily_targets") || "{}");
+                        const backupKey = APP_CONSTANTS.STORAGE_KEYS.DAILY_TARGETS_BACKUP;
+                        const backupMap = JSON.parse(localStorage.getItem(backupKey) || "{}");
                         Object.assign(localDailyMap, backupMap);
                     } catch (_) {}
 

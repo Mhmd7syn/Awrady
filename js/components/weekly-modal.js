@@ -540,11 +540,12 @@ async function saveWeeklyMatrix() {
 
     // Dedicated offline/local persistence backup
     try {
-        const backup = JSON.parse(localStorage.getItem("awrady_tasks_daily_targets") || "{}");
+        const backupKey = APP_CONSTANTS.STORAGE_KEYS.DAILY_TARGETS_BACKUP;
+        const backup = JSON.parse(localStorage.getItem(backupKey) || "{}");
         modifiedTasks.forEach(t => {
             if (t.dailyTargets) backup[t.id] = t.dailyTargets;
         });
-        localStorage.setItem("awrady_tasks_daily_targets", JSON.stringify(backup));
+        localStorage.setItem(backupKey, JSON.stringify(backup));
     } catch (_) {}
 
     // Update target snapshot in current date log so UI and scoring reflect the changes immediately

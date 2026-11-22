@@ -497,9 +497,10 @@ export function saveTaskFromModal() {
     // Save dedicated dailyTargets local backup
     if (savedTask && savedTask.dailyTargets) {
         try {
-            const backup = JSON.parse(localStorage.getItem("awrady_tasks_daily_targets") || "{}");
+            const backupKey = APP_CONSTANTS.STORAGE_KEYS.DAILY_TARGETS_BACKUP;
+            const backup = JSON.parse(localStorage.getItem(backupKey) || "{}");
             backup[savedTask.id] = savedTask.dailyTargets;
-            localStorage.setItem("awrady_tasks_daily_targets", JSON.stringify(backup));
+            localStorage.setItem(backupKey, JSON.stringify(backup));
         } catch (_) {}
     }
 

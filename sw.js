@@ -3,7 +3,7 @@
  * Provides offline caching, lightning-fast app shell loading, and network resilience.
  */
 
-const CACHE_NAME = "awrady-pwa-v96";
+const CACHE_NAME = "awrady-pwa-v97";
 
 const PRECACHE_ASSETS = [
     "./",
@@ -44,15 +44,13 @@ const PRECACHE_ASSETS = [
     "./js/app.js"
 ];
 
-// Install Event: Precache App Shell and activate immediately
+// Install Event: Precache App Shell and activate immediately (fail-fast on any precache failure)
 self.addEventListener("install", (event) => {
     self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             console.log("[ServiceWorker] Precaching fresh assets for", CACHE_NAME);
-            return cache.addAll(PRECACHE_ASSETS).catch((err) => {
-                console.warn("[ServiceWorker] Precache warning:", err);
-            });
+            return cache.addAll(PRECACHE_ASSETS);
         })
     );
 });

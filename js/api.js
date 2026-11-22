@@ -50,7 +50,7 @@ class AwradyAPI {
     }
 
     getEffectiveUserId() {
-        return this.currentUserId || (typeof localStorage !== "undefined" ? localStorage.getItem("AWRAD_AUTH_UID") : null);
+        return this.currentUserId || (typeof localStorage !== "undefined" ? localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS.SESSION_UID) : null);
     }
 
     setCurrentUser(username, userId = null, userEmail = null) {
@@ -70,7 +70,7 @@ class AwradyAPI {
         if (userId) {
             this.currentUserId = userId;
         } else if (!this.currentUserId) {
-            this.currentUserId = localStorage.getItem("AWRAD_AUTH_UID") || 
+            this.currentUserId = (typeof localStorage !== "undefined" ? localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS.SESSION_UID) : null) || 
                                  (window.authManager && window.authManager.getCurrentUserId?.()) || 
                                  null;
         }
@@ -78,7 +78,7 @@ class AwradyAPI {
         if (userEmail) {
             this.currentUserEmail = userEmail;
         } else if (!this.currentUserEmail) {
-            this.currentUserEmail = (typeof localStorage !== "undefined" ? localStorage.getItem("AWRAD_AUTH_EMAIL") : null) ||
+            this.currentUserEmail = (typeof localStorage !== "undefined" ? localStorage.getItem(APP_CONSTANTS.STORAGE_KEYS.SESSION_EMAIL) : null) ||
                                     (window.authManager && window.authManager.currentUserEmail) ||
                                     null;
         }

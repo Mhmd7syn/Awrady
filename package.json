@@ -1,0 +1,9 @@
+{
+  "name": "awrady",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Awrady Islamic Productivity Dashboard",
+  "scripts": {
+    "test": "node --test test/**/*.test.js"
+  }
+}

@@ -188,7 +188,7 @@ function setupDataManagement() {
                 }
                 loadDefaultAppData();
                 try {
-                    localStorage.removeItem("awrady_tasks_daily_targets");
+                    localStorage.removeItem(APP_CONSTANTS.STORAGE_KEYS.DAILY_TARGETS_BACKUP);
                 } catch (_) {}
                 saveData(true);
                 if (window.awradyAPI?.client) {

@@ -1,13 +1,21 @@
 /**
  * Awrady Dashboard - Application Constants
  */
+const STORAGE_KEYS = {
+    APP_DATA: "AWRAD_APP_DATA_V1",
+    SESSION_USER: "AWRAD_AUTH_USER",
+    SESSION_UID: "AWRAD_AUTH_UID",
+    SESSION_EMAIL: "AWRAD_AUTH_EMAIL",
+    POMODORO: "AWRAD_POMO_STATE",
+    USERS_DB: "AWRAD_USERS_DB",
+    DAILY_TARGETS_BACKUP: "awrady_tasks_daily_targets",
+    SUPABASE_URL: "AWRAD_SUPABASE_URL",
+    SUPABASE_ANON_KEY: "AWRAD_SUPABASE_ANON_KEY"
+};
+
 export const APP_CONSTANTS = {
-    STORAGE_KEY: "AWRAD_APP_DATA_V1",
-    STORAGE_KEYS: {
-        SESSION_USER: "AWRAD_AUTH_USER",
-        POMODORO: "AWRAD_POMO_STATE",
-        USERS_DB: "AWRAD_USERS_DB"
-    },
+    STORAGE_KEY: STORAGE_KEYS.APP_DATA,
+    STORAGE_KEYS,
     DB: {
         TABLES: {
             USERS: "users",
@@ -17,8 +25,8 @@ export const APP_CONSTANTS = {
         CHANNEL: "awrady_live_sync"
     },
     SUPABASE: {
-        URL: (typeof window !== "undefined" && (window.__ENV__?.SUPABASE_URL || localStorage.getItem("AWRAD_SUPABASE_URL"))) || "https://krmatocnrjzivwpmbxgu.supabase.co",
-        ANON_KEY: (typeof window !== "undefined" && (window.__ENV__?.SUPABASE_ANON_KEY || localStorage.getItem("AWRAD_SUPABASE_ANON_KEY"))) || "sb_publishable_JGajulg_tl67UJBKLyJZrA_E2tdQoZQ"
+        URL: (typeof window !== "undefined" && (window.__ENV__?.SUPABASE_URL || localStorage.getItem(STORAGE_KEYS.SUPABASE_URL))) || "https://krmatocnrjzivwpmbxgu.supabase.co",
+        ANON_KEY: (typeof window !== "undefined" && (window.__ENV__?.SUPABASE_ANON_KEY || localStorage.getItem(STORAGE_KEYS.SUPABASE_ANON_KEY))) || "sb_publishable_JGajulg_tl67UJBKLyJZrA_E2tdQoZQ"
     },
     SCHEDULE_TYPES: {
         EVERYDAY: "Everyday",
