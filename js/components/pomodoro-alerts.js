@@ -10,8 +10,13 @@ let _titleBlinkFocusHandler = null;
 
 /**
  * Unlock Web Audio Context upon user interaction
+ * @param {Event} [e] Optional DOM event triggering the unlock
  */
-function ensureAudioUnlocked() {
+function ensureAudioUnlocked(e) {
+    if (e && !e.isTrusted) return false;
+    if (typeof navigator !== "undefined" && navigator.userActivation && !navigator.userActivation.hasBeenActive) {
+        return false;
+    }
     try {
         if (!_audioContext || _audioContext.state === "closed") {
             const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -20,10 +25,12 @@ function ensureAudioUnlocked() {
             }
         }
         if (_audioContext && _audioContext.state === "suspended") {
-            _audioContext.resume();
+            _audioContext.resume().catch(() => {});
         }
-    } catch (e) {
-        console.warn("[Pomodoro] Audio unlock warning:", e);
+        return true;
+    } catch (err) {
+        console.warn("[Pomodoro] Audio unlock warning:", err);
+        return false;
     }
 }
 
@@ -38,7 +45,7 @@ function startAudioKeepalive() {
         const ctx = _audioContext;
         if (!ctx) return;
         if (ctx.state === "suspended") {
-            ctx.resume();
+            ctx.resume().catch(() => {});
         }
 
         // Sub-audible oscillator at 1Hz with microscopic gain (0.00005)
@@ -201,7 +208,7 @@ function playWebAudioChime() {
         if (!ctx) return;
 
         if (ctx.state === "suspended") {
-            ctx.resume();
+            ctx.resume().catch(() => {});
         }
 
         const now = ctx.currentTime;
@@ -269,7 +276,7 @@ function playFiveMinuteChime() {
         ensureAudioUnlocked();
         const ctx = _audioContext;
         if (!ctx) return;
-        if (ctx.state === "suspended") ctx.resume();
+        if (ctx.state === "suspended") ctx.resume().catch(() => {});
 
         const now = ctx.currentTime;
         const notes = [

@@ -50,6 +50,41 @@ function getActiveAppData() {
 }
 
 /**
+ * Safe gesture audio unlock for restored sessions
+ */
+let gestureUnlockRegistered = false;
+let gestureUnlockHandler = null;
+
+function registerGestureAudioUnlock() {
+    if (gestureUnlockRegistered) return;
+    gestureUnlockRegistered = true;
+
+    gestureUnlockHandler = (e) => {
+        if (e && !e.isTrusted) return;
+        cleanupGestureAudioUnlock();
+        ensureAudioUnlocked(e);
+        if (PomodoroTimer.isRunning && !PomodoroTimer.keepAliveNode) {
+            startAudioKeepalive();
+        }
+    };
+
+    document.addEventListener("pointerdown", gestureUnlockHandler, { capture: true, once: true });
+    document.addEventListener("click", gestureUnlockHandler, { capture: true, once: true });
+    document.addEventListener("keydown", gestureUnlockHandler, { capture: true, once: true });
+}
+
+function cleanupGestureAudioUnlock() {
+    if (!gestureUnlockRegistered) return;
+    if (gestureUnlockHandler) {
+        document.removeEventListener("pointerdown", gestureUnlockHandler, true);
+        document.removeEventListener("click", gestureUnlockHandler, true);
+        document.removeEventListener("keydown", gestureUnlockHandler, true);
+        gestureUnlockHandler = null;
+    }
+    gestureUnlockRegistered = false;
+}
+
+/**
  * Initialize DOM listeners for Pomodoro controls
  */
 let pomoControlsInitialized = false;
@@ -68,14 +103,13 @@ function setupPomodoroControls() {
     const btnClose = document.getElementById("btn-close-pomodoro");
 
     if (btnStart) {
-        btnStart.addEventListener("click", () => {
-            ensureAudioUnlocked();
+        btnStart.addEventListener("click", (e) => {
+            ensureAudioUnlocked(e);
             startPomoTimer();
         });
     }
     if (btnPause) {
         btnPause.addEventListener("click", () => {
-            ensureAudioUnlocked();
             pausePomoTimer();
         });
     }
@@ -86,13 +120,11 @@ function setupPomodoroControls() {
 
     if (btnTabWork) {
         btnTabWork.addEventListener("click", () => {
-            ensureAudioUnlocked();
             setPomoMode("work");
         });
     }
     if (btnTabRest) {
         btnTabRest.addEventListener("click", () => {
-            ensureAudioUnlocked();
             setPomoMode("rest");
         });
     }
@@ -172,21 +204,10 @@ function setupPomodoroControls() {
         if (!document.hidden) {
             stopTitleBlinking();
             if (PomodoroTimer.isRunning) {
-                ensureAudioUnlocked();
                 syncPomoTimer();
             }
         }
     });
-
-    // One-time gesture listener to unlock audio if page was refreshed while timer is running
-    const unlockOnAnyGesture = () => {
-        ensureAudioUnlocked();
-        if (PomodoroTimer.isRunning && !PomodoroTimer.keepAliveNode) {
-            startAudioKeepalive();
-        }
-    };
-    document.addEventListener("click", unlockOnAnyGesture, { once: true });
-    document.addEventListener("keydown", unlockOnAnyGesture, { once: true });
 
     // Request notification permission smoothly if not already decided
     if (typeof requestPomoNotificationPermission === "function") {
@@ -508,6 +529,8 @@ function stopWorkerTicker() {
 function startPomoTimer() {
     if (PomodoroTimer.isRunning) return;
 
+    cleanupGestureAudioUnlock();
+
     // 1. Immediately unlock audio context on this click gesture
     ensureAudioUnlocked();
 
@@ -594,6 +617,8 @@ function syncPomoTimer() {
  * Pause the timer countdown
  */
 function pausePomoTimer() {
+    cleanupGestureAudioUnlock();
+
     if (PomodoroTimer.isRunning && PomodoroTimer.targetEndTime) {
         const now = Date.now();
         PomodoroTimer.remainingSeconds = Math.max(0, Math.ceil((PomodoroTimer.targetEndTime - now) / 1000));
@@ -857,6 +882,8 @@ function loadPomoState() {
                 if (PomodoroTimer.intervalId) clearInterval(PomodoroTimer.intervalId);
                 PomodoroTimer.intervalId = setInterval(syncPomoTimer, 1000);
                 syncPomoTimer();
+
+                registerGestureAudioUnlock();
             } else {
                 // Timer expired while page was closed: reset safely
                 resetPomoTimer();
