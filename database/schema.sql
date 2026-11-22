@@ -237,8 +237,6 @@ BEGIN
     END IF;
 
     RETURN NEW;
-EXCEPTION WHEN OTHERS THEN
-    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -269,8 +267,6 @@ BEGIN
     SET username = EXCLUDED.username,
         email = clean_email,
         updated_at = timezone('utc'::text, now());
-    RETURN NEW;
-EXCEPTION WHEN OTHERS THEN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -489,7 +485,16 @@ BEGIN
         LIMIT 1;
     END IF;
 
-    RETURN found_email;
+    -- Security & Privacy: Never leak real personal emails to unauthenticated callers
+    -- Return synthetic internal emails directly for username-only accounts
+    IF found_email IS NOT NULL AND (found_email LIKE '%@awrady.internal' OR found_email LIKE '%.awrady@gmail.com') THEN
+        RETURN found_email;
+    ELSIF found_email IS NOT NULL THEN
+        -- Real email backing account: return signal token to prompt email entry without exposing raw address
+        RETURN 'USE_REAL_EMAIL';
+    END IF;
+
+    RETURN NULL;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

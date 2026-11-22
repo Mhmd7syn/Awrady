@@ -10,6 +10,7 @@ class AwradyAPI {
         this.client = null;
         this.currentUser = null;
         this.currentUserId = null;
+        this.currentUserEmail = null;
         this._listeners = new Set();
         this._syncChannel = null;
     }
@@ -30,9 +31,12 @@ class AwradyAPI {
                     if (session?.user) {
                         this.currentUserId = session.user.id;
                         this.currentUser = session.user.user_metadata?.username || session.user.email?.split("@")[0] || session.user.id;
+                        this.currentUserEmail = session.user.email || null;
                         this._setupRealtimeSync();
                     }
-                }).catch(() => {});
+                }).catch((err) => {
+                    console.warn("[AwradyAPI] getSession error:", err);
+                });
             }
             return true;
         } catch (e) {
@@ -49,10 +53,11 @@ class AwradyAPI {
         return this.currentUserId || (typeof localStorage !== "undefined" ? localStorage.getItem("AWRAD_AUTH_UID") : null);
     }
 
-    setCurrentUser(username, userId = null) {
+    setCurrentUser(username, userId = null, userEmail = null) {
         if (!username) {
             this.currentUser = null;
             this.currentUserId = null;
+            this.currentUserEmail = null;
             if (this._syncChannel) {
                 try { this.client.removeChannel(this._syncChannel); } catch (_) {}
                 this._syncChannel = null;
@@ -68,6 +73,14 @@ class AwradyAPI {
             this.currentUserId = localStorage.getItem("AWRAD_AUTH_UID") || 
                                  (window.authManager && window.authManager.getCurrentUserId?.()) || 
                                  null;
+        }
+
+        if (userEmail) {
+            this.currentUserEmail = userEmail;
+        } else if (!this.currentUserEmail) {
+            this.currentUserEmail = (typeof localStorage !== "undefined" ? localStorage.getItem("AWRAD_AUTH_EMAIL") : null) ||
+                                    (window.authManager && window.authManager.currentUserEmail) ||
+                                    null;
         }
 
         if (this.client && this.currentUserId) {
@@ -356,7 +369,7 @@ class AwradyAPI {
         }
 
         this.currentUser = cleanName;
-        return data;
+        return { success: true, username: cleanName };
     }
 
     async updateEmail(newEmail) {
@@ -406,6 +419,7 @@ class AwradyAPI {
                 }
             }
 
+            this.currentUserEmail = null;
             return { removed: true };
         }
 
@@ -425,6 +439,7 @@ class AwradyAPI {
                 });
                 if (!rpcErr && rpcRes && rpcRes.success) {
                     try { await this.client.auth.refreshSession(); } catch (_) {}
+                    this.currentUserEmail = cleanEmail;
                     return { directUpdate: true, user: { email: cleanEmail } };
                 }
                 if (rpcErr && rpcErr.message && (rpcErr.message.includes("مسجل بالفعل") || rpcErr.message.includes("already registered"))) {
@@ -479,6 +494,7 @@ class AwradyAPI {
             console.warn("[AwradyAPI] Direct public.users email update note:", dbErr);
         }
 
+        this.currentUserEmail = cleanEmail;
         return data;
     }
 

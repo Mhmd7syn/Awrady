@@ -414,6 +414,9 @@ class AuthManager {
                             p_username: username
                         });
                         if (resolvedEmail) {
+                            if (resolvedEmail === "USE_REAL_EMAIL") {
+                                return this.showMsg("هذا الحساب مسجل ببريد إلكتروني حقيقي. يرجى إدخال البريد الإلكتروني لتسجيل الدخول.");
+                            }
                             loginEmail = resolvedEmail;
                         }
                     } catch (_) {}
@@ -458,6 +461,49 @@ class AuthManager {
             } catch (e) {
                 this.showMsg("فشل الاتصال بخادم المصادقة: " + (e.message || ""));
             }
+        }
+    }
+
+    async _registerViaSignUp(client, email, password, username, rawInput) {
+        try {
+            const isWeb = typeof window !== "undefined" && window.location.origin && !window.location.origin.startsWith("file:");
+            const redirectTo = isWeb ? (window.location.origin + window.location.pathname) : "https://awrady.vercel.app/";
+
+            const { data, error } = await client.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: { username },
+                    emailRedirectTo: redirectTo
+                }
+            });
+
+            if (error) {
+                if (error.message && (error.message.includes("already registered") || error.message.includes("User already registered") || error.code === "23505")) {
+                    return this.showMsg("اسم المستخدم أو البريد الإلكتروني مسجل مسبقاً، يمكنك تسجيل الدخول به.");
+                }
+                if (error.message && (error.message.includes("rate limit") || error.message.includes("rate_limit"))) {
+                    return this.showMsg("تم تجاوز حد إرسال الإيميلات. يرجى الانتظار قليلاً والمحاولة لاحقاً.");
+                }
+                return this.showMsg(error.message || "فشل إنشاء الحساب.");
+            }
+
+            const isRealEmail = rawInput.includes("@");
+            if (data?.session) {
+                const uid = data.user?.id || null;
+                const displayName = data.user?.user_metadata?.username || username;
+                this.loginSuccess(displayName, uid);
+                return;
+            }
+
+            if (isRealEmail) {
+                this.showMsg(`📨 تم إرسال رابط تأكيد وتفعيل الحساب إلى: ${rawInput}.\nيرجى فتح بريدك والضغط على الرابط لتفعيل الحساب ثم تسجيل الدخول.`, false);
+            } else {
+                const uid = data?.user?.id || null;
+                this.loginSuccess(username, uid);
+            }
+        } catch (err) {
+            this.showMsg(err.message || "حدث خطأ غير متوقع أثناء التسجيل.");
         }
     }
 
@@ -826,6 +872,10 @@ class AuthManager {
                     const { data: res } = await client.rpc("resolve_login_email", { p_username: cleanUser });
                     resolved = res;
                 } catch (_) {}
+
+                if (resolved === "USE_REAL_EMAIL") {
+                    return this.showMsg("هذا الحساب مسجل ببريد إلكتروني. يرجى إدخال عنوان البريد الإلكتروني في الحقل أعلاه لاستلام رابط استعادة كلمة المرور.", true);
+                }
 
                 if (!resolved) {
                     const { data: userRow } = await client
