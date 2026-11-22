@@ -200,6 +200,14 @@ class AuthManager {
         const btnUpdatePwd = document.getElementById("btn-update-password");
         const btnDeleteAccount = document.getElementById("btn-delete-account");
         const btnForgot = document.getElementById("btn-auth-forgot");
+        const authForm = document.getElementById("auth-form");
+
+        if (authForm) {
+            authForm.addEventListener("submit", (e) => {
+                e.preventDefault();
+                this.submit();
+            });
+        }
 
         if (btnLoginTab) btnLoginTab.addEventListener("click", () => this.setMode("login"));
         if (btnRegisterTab) btnRegisterTab.addEventListener("click", () => this.setMode("register"));

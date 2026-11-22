@@ -43,7 +43,7 @@
         <div class="header-container">
             <div class="brand">
                 <div class="brand-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-moon" style="width: 32px; height: 32px; color: #10b981;">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-moon brand-icon-svg">
                         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
                     </svg>
                 </div>
@@ -75,23 +75,23 @@
                         <span class="stat-value" id="header-total-days">0</span>
                     </div>
                 </div>
-                <div class="stat-pill glass-card sync-status-pill" id="header-cloud-pill" title="حالة المزامنة السحابية 24/7 (Supabase)" style="cursor: pointer;">
+                <div class="stat-pill glass-card sync-status-pill cursor-pointer" id="header-cloud-pill" title="حالة المزامنة السحابية 24/7 (Supabase)">
                     <div class="stat-icon emerald-icon" id="header-cloud-icon"><i class="fa-solid fa-cloud"></i></div>
                     <div class="stat-info">
                         <span class="stat-label">المزامنة السحابية</span>
-                        <span class="stat-value" id="header-cloud-text" style="font-size: 0.8rem; font-weight: 600;">سحابي ⚡</span>
+                        <span class="stat-value stat-value-sm" id="header-cloud-text">سحابي ⚡</span>
                     </div>
                 </div>
-                <div class="stat-pill glass-card user-account-pill" id="header-user-pill" title="الحساب النشط" style="display: flex; align-items: center; gap: 8px;">
-                    <div class="stat-icon emerald-icon" id="header-user-icon" style="cursor: pointer;" title="إعدادات الحساب"><i class="fa-solid fa-circle-user"></i></div>
-                    <div class="stat-info" id="header-user-info" style="cursor: pointer;" title="إعدادات الحساب">
+                <div class="stat-pill glass-card user-account-pill" id="header-user-pill" title="الحساب النشط">
+                    <div class="stat-icon emerald-icon cursor-pointer" id="header-user-icon" title="إعدادات الحساب"><i class="fa-solid fa-circle-user"></i></div>
+                    <div class="stat-info cursor-pointer" id="header-user-info" title="إعدادات الحساب">
                         <span class="stat-label">المستخدم</span>
-                        <span class="stat-value" id="header-username-display" style="font-size: 0.82rem; font-weight: 700;">-</span>
+                        <span class="stat-value stat-value-user" id="header-username-display">-</span>
                     </div>
-                    <button id="btn-header-settings" title="إعدادات الحساب (تعديل الاسم وكلمة المرور)" aria-label="إعدادات الحساب" style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.75rem;">
+                    <button id="btn-header-settings" class="btn-header-action btn-header-settings" title="إعدادات الحساب (تعديل الاسم وكلمة المرور)" aria-label="إعدادات الحساب">
                         <i class="fa-solid fa-gear"></i>
                     </button>
-                    <button id="btn-header-logout" title="تسجيل الخروج" aria-label="تسجيل الخروج" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.75rem;">
+                    <button id="btn-header-logout" class="btn-header-action btn-header-logout" title="تسجيل الخروج" aria-label="تسجيل الخروج">
                         <i class="fa-solid fa-arrow-right-from-bracket"></i>
                     </button>
                 </div>
@@ -112,7 +112,7 @@
             <button class="nav-tab" data-tab="view-data">
                 <i class="fa-solid fa-database"></i> <span>البيانات</span>
             </button>
-            <button id="btn-open-header-pomo" style="display:flex; align-items:center; gap:6px; padding:8px 14px; border-radius:12px; background:rgba(16,185,129,0.12); color:#10b981; border:1px dashed rgba(16,185,129,0.5); font-family:inherit; font-weight:600; cursor:pointer; transition:all 0.2s ease;">
+            <button id="btn-open-header-pomo" class="btn-nav-pomo">
                 <i class="fa-solid fa-stopwatch"></i> <span>مؤقت التركيز</span>
             </button>
         </nav>
@@ -125,13 +125,13 @@
         <section id="view-daily" class="tab-view active">
 
             <!-- Tomorrow Fasting Reminder (The Day Before: Monday, Thursday, White Days) -->
-            <div id="tomorrow-fasting-banner" class="lunar-banner glass-card hidden" style="background: linear-gradient(90deg, rgba(59, 130, 246, 0.15), rgba(16, 27, 22, 0.7)); border-color: rgba(59, 130, 246, 0.45); box-shadow: 0 0 25px rgba(59, 130, 246, 0.15); margin-bottom: 20px;">
-                <div class="lunar-icon" style="background: rgba(59, 130, 246, 0.2);"><i class="fa-solid fa-bell" style="color: #60a5fa;"></i></div>
+            <div id="tomorrow-fasting-banner" class="lunar-banner lunar-banner-blue glass-card hidden">
+                <div class="lunar-icon"><i class="fa-solid fa-bell"></i></div>
                 <div class="lunar-text">
-                    <h4 id="tomorrow-fasting-title" style="color: #93c5fd;">تذكير بصيام الغد</h4>
+                    <h4 id="tomorrow-fasting-title">تذكير بصيام الغد</h4>
                     <p id="tomorrow-fasting-desc">غداً يوم يستحب فيه الصيام.</p>
                 </div>
-                <span class="badge badge-blue" id="tomorrow-fasting-badge" style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; font-weight: 700;">سُنة</span>
+                <span class="badge badge-blue" id="tomorrow-fasting-badge">سُنة</span>
             </div>
 
             <!-- Date Controls and Seasonal Bar -->
@@ -158,7 +158,7 @@
             <div class="daily-summary-hero glass-card">
                 <div class="summary-text-sec">
                     <h3 id="daily-quote-title">"أَحَبُّ الْأَعْمَالِ إِلَى اللَّهِ أَدْوَمُهَا وَإِنْ قَلَّ"</h3>
-                    <div class="quick-stats-bar" id="daily-summary-stats" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px;">
+                    <div class="quick-stats-bar" id="daily-summary-stats">
                         <span class="badge badge-emerald" id="daily-completed-badge" title="المهام المكتملة"><i class="fa-solid fa-circle-check"></i> 0 مكتمل</span>
                         <span class="badge badge-emerald" id="daily-completed-time-badge" title="إجمالي الوقت المنجز"><i class="fa-solid fa-stopwatch"></i> المنجز: 0 دقيقة</span>
                     </div>
@@ -313,17 +313,17 @@
                         <i class="fa-solid fa-layer-group emerald-text"></i> النشطة (<span id="count-active-tasks">0</span>)
                     </button>
                     <button class="sub-tab" data-sub="onetime-tasks" title="مهام لمرة واحدة">
-                        <i class="fa-solid fa-bolt gold-text" style="color:#f59e0b;"></i> لمرة واحدة (<span id="count-onetime-tasks">0</span>)
+                        <i class="fa-solid fa-bolt gold-text"></i> لمرة واحدة (<span id="count-onetime-tasks">0</span>)
                     </button>
                     <button class="sub-tab" data-sub="archived-tasks" title="الأرشيف">
                         <i class="fa-solid fa-box-archive gold-text"></i> الأرشيف (<span id="count-archived-tasks">0</span>)
                     </button>
                     <button class="sub-tab" data-sub="categories">
-                        <i class="fa-solid fa-tags blue-text" style="color:#3b82f6;"></i> التصنيفات (<span id="count-categories">0</span>)
+                        <i class="fa-solid fa-tags blue-text"></i> التصنيفات (<span id="count-categories">0</span>)
                     </button>
                 </div>
-                <div class="toolbar-buttons-group" style="display: flex; gap: 10px; align-items: center;">
-                    <button class="btn-secondary" id="btn-manager-weekly-schedule" style="display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:12px; font-weight:600; cursor:pointer;" title="عرض وتعديل جدول الساعات الأسبوعي">
+                <div class="toolbar-buttons-group">
+                    <button class="btn-secondary btn-manager-schedule" id="btn-manager-weekly-schedule" title="عرض وتعديل جدول الساعات الأسبوعي">
                         <i class="fa-solid fa-table-cells gold-text"></i> <span>الجدول الأسبوعي</span>
                     </button>
                     <button class="btn-primary btn-glow" id="btn-open-add-task-modal">
@@ -364,18 +364,18 @@
         <!-- TAB 4: DATA MANAGEMENT & BACKUP -->
         <section id="view-data" class="tab-view">
             <!-- Featured Card: 24/7 Cloud Database Sync (Supabase) -->
-            <div class="glass-card gold-border-hover" style="margin-bottom: 25px; padding: 25px; background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 20px;">
-                <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
-                    <div style="display: flex; align-items: center; gap: 15px;">
-                        <div style="width: 50px; height: 50px; border-radius: 14px; background: rgba(59, 130, 246, 0.2); color: #3b82f6; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+            <div class="glass-card gold-border-hover sync-card-status">
+                <div class="sync-status-row">
+                    <div class="sync-status-info">
+                        <div class="sync-status-icon-wrap">
                             <i class="fa-solid fa-cloud"></i>
                         </div>
                         <div>
-                            <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: #fff;">المزامنة السحابية 24/7 (من أي هاتف أو كمبيوتر)</h3>
-                            <p style="margin: 4px 0 0 0; color: #9ca3af; font-size: 0.9rem;">وصول مستمر من الجوال أو التابلت في أي وقت دون الحاجة لتشغيل جهاز الكمبيوتر، مع مزامنة لحظية فورية.</p>
+                            <h3>المزامنة السحابية 24/7 (من أي هاتف أو كمبيوتر)</h3>
+                            <p>وصول مستمر من الجوال أو التابلت في أي وقت دون الحاجة لتشغيل جهاز الكمبيوتر، مع مزامنة لحظية فورية.</p>
                         </div>
                     </div>
-                    <div id="cloud-sync-status-badge" style="padding: 8px 16px; border-radius: 30px; background: rgba(255, 255, 255, 0.08); color: #94a3b8; font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 8px; border: 1px solid rgba(255, 255, 255, 0.15);">
+                    <div id="cloud-sync-status-badge" class="sync-status-badge">
                         <i class="fa-solid fa-cloud"></i> <span id="cloud-sync-status-text">تخزين محلي (غير مقترن بالسحابة)</span>
                     </div>
                 </div>
@@ -411,11 +411,11 @@
 
                         <hr class="divider">
 
-                        <button class="btn-outline btn-block" id="btn-reset-progress" style="border-color: #f59e0b; color: #f59e0b;">
+                        <button class="btn-warning-outline btn-block" id="btn-reset-progress">
                             <i class="fa-solid fa-eraser"></i> مسح السجلات
                         </button>
 
-                        <button class="btn-danger-outline btn-block" id="btn-reset-data" style="margin-top: 10px;">
+                        <button class="btn-danger-outline btn-block" id="btn-reset-data">
                             <i class="fa-solid fa-rotate-left"></i> إعادة ضبط افتراضي
                         </button>
                     </div>
@@ -427,42 +427,42 @@
     <!-- SMART NAWAFEL INTERACTIVE TOAST MODAL/POPUP -->
     <div id="nawafel-toast-overlay" class="toast-overlay hidden">
         <div class="nawafel-card glass-card gold-glow">
-            <div class="nawafel-header" style="display: flex; align-items: center; justify-content: space-between; gap: 14px;">
-                <div style="display: flex; align-items: center; gap: 14px;">
+            <div class="nawafel-header">
+                <div class="flex-center gap-md">
                     <div class="nawafel-icon-pulse"><i class="fa-solid fa-hands-praying"></i></div>
                     <div>
                         <h4>✨ تَقَبَّلَ اللَّهُ صلاتك وعبادتك!</h4>
                         <p>اختر السنن والأذكار المرتبطة بهذه الصلاة.</p>
                     </div>
                 </div>
-                <button class="btn-icon btn-sm" id="btn-close-nawafel" title="إغلاق" aria-label="إغلاق" style="width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;">
+                <button class="btn-icon btn-sm" id="btn-close-nawafel" class="btn-icon btn-sm btn-counter-ctrl" title="إغلاق" aria-label="إغلاق">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
             
-            <div class="nawafel-options" style="display: flex; flex-direction: column; gap: 15px; margin-top: 15px;">
+            <div class="nawafel-options">
                 <!-- Nawafel Counter -->
-                <div class="option-row" style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); padding: 10px 15px; border-radius: 12px;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <i class="fa-solid fa-person-praying" style="color: #10b981;"></i>
+                <div class="option-row">
+                    <div class="flex-center gap-sm">
+                        <i class="fa-solid fa-person-praying emerald-text"></i>
                         <span>السنن / النوافل (ركعات)</span>
                     </div>
-                    <div class="counter-group" style="display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 8px;">
-                        <button class="btn-icon btn-sm" id="btn-nawafel-minus" style="width: 28px; height: 28px; border-radius: 6px;"><i class="fa-solid fa-minus"></i></button>
-                        <span id="nawafel-counter-val" style="font-weight: bold; width: 20px; text-align: center;">0</span>
-                        <button class="btn-icon btn-sm" id="btn-nawafel-plus" style="width: 28px; height: 28px; border-radius: 6px;"><i class="fa-solid fa-plus"></i></button>
+                    <div class="counter-group">
+                        <button class="btn-icon btn-sm" id="btn-nawafel-minus" class="btn-icon btn-sm btn-counter-ctrl"><i class="fa-solid fa-minus"></i></button>
+                        <span id="nawafel-counter-val" class="btn-counter-val">0</span>
+                        <button class="btn-icon btn-sm" id="btn-nawafel-plus" class="btn-icon btn-sm btn-counter-ctrl"><i class="fa-solid fa-plus"></i></button>
                     </div>
                 </div>
 
                 <!-- Azkar Toggle -->
-                <div class="option-row" style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); padding: 10px 15px; border-radius: 12px;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <i class="fa-solid fa-book-open" style="color: #3b82f6;"></i>
+                <div class="option-row">
+                    <div class="flex-center gap-sm">
+                        <i class="fa-solid fa-book-open blue-text"></i>
                         <span>أذكار بعد الصلاة</span>
                     </div>
-                    <label class="toggle-switch-card" style="padding:0; background:transparent; border:none; margin:0;">
+                    <label class="toggle-switch-card">
                         <input type="checkbox" id="toggle-azkar-prayer">
-                        <span class="toggle-slider" style="margin:0;"></span>
+                        <span class="toggle-slider"></span>
                     </label>
                 </div>
             </div>
@@ -473,30 +473,30 @@
     <div id="qiyam-toast-overlay" class="toast-overlay hidden">
         <div class="nawafel-card glass-card gold-glow">
             <div class="nawafel-header">
-                <div class="nawafel-icon-pulse" style="color: #f59e0b;"><i class="fa-solid fa-moon"></i></div>
+                <div class="nawafel-icon-pulse gold-text"><i class="fa-solid fa-moon"></i></div>
                 <div>
                     <h4>✨ تَقَبَّلَ اللَّهُ قيامك!</h4>
                     <p>هل قرأت من ورد التلاوة؟ (عدد الصفحات)</p>
                 </div>
             </div>
             
-            <div class="nawafel-options" style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px;">
-                <div class="option-row" style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); padding: 10px 15px; border-radius: 12px;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <i class="fa-solid fa-book-open" style="color: #3b82f6;"></i>
+            <div class="nawafel-options">
+                <div class="option-row">
+                    <div class="flex-center gap-sm">
+                        <i class="fa-solid fa-book-open blue-text"></i>
                         <span>ورد التلاوة (صفحة)</span>
                     </div>
-                    <div class="counter-group" style="display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 8px;">
-                        <button class="btn-icon btn-sm" id="btn-qiyam-wird-minus" style="width: 28px; height: 28px; border-radius: 6px;"><i class="fa-solid fa-minus"></i></button>
-                        <span id="qiyam-wird-counter-val" style="font-weight: bold; width: 20px; text-align: center;">0</span>
-                        <button class="btn-icon btn-sm" id="btn-qiyam-wird-plus" style="width: 28px; height: 28px; border-radius: 6px;"><i class="fa-solid fa-plus"></i></button>
+                    <div class="counter-group">
+                        <button class="btn-icon btn-sm" id="btn-qiyam-wird-minus" class="btn-icon btn-sm btn-counter-ctrl"><i class="fa-solid fa-minus"></i></button>
+                        <span id="qiyam-wird-counter-val" class="btn-counter-val">0</span>
+                        <button class="btn-icon btn-sm" id="btn-qiyam-wird-plus" class="btn-icon btn-sm btn-counter-ctrl"><i class="fa-solid fa-plus"></i></button>
                     </div>
                 </div>
             </div>
 
-            <div class="nawafel-actions" style="display: flex; gap: 10px;">
-                <button class="btn-primary btn-glow" id="btn-qiyam-save" style="flex: 1;"><i class="fa-solid fa-check"></i> حفظ وإغلاق</button>
-                <button class="btn-secondary" id="btn-qiyam-cancel" style="flex: 1;">إلغاء</button>
+            <div class="nawafel-actions">
+                <button class="btn-primary btn-glow" id="btn-qiyam-save" class="btn-primary btn-glow flex-1"><i class="fa-solid fa-check"></i> حفظ وإغلاق</button>
+                <button class="btn-secondary" id="btn-qiyam-cancel" class="btn-secondary flex-1">إلغاء</button>
             </div>
         </div>
     </div>
@@ -644,10 +644,10 @@
                         </div>
                     </div>
 
-                    <div id="onetime-date-selector-box" class="form-group hidden" style="margin-top: 12px; background: rgba(245, 158, 11, 0.08); padding: 12px 14px; border-radius: 10px; border: 1px dashed rgba(245, 158, 11, 0.35);">
-                        <label for="task-onetime-date-input" style="font-size:0.9rem; color:#f59e0b; font-weight:700;"><i class="fa-solid fa-calendar-day"></i> تاريخ تنفيذ المهمة (Date)</label>
-                        <input type="date" id="task-onetime-date-input" style="padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.4); background: #0f172a; color: #fff; font-size: 0.9rem; width: 100%; margin-top: 6px;">
-                        <small class="hint-text" style="color: #cbd5e1; margin-top: 4px; display: block;">تاريخ اليوم الذي ستظهر فيه هذه المهمة لمرة واحدة فقط.</small>
+                    <div id="onetime-date-selector-box" class="form-group task-target-input-row hidden">
+                        <label for="task-onetime-date-input" class="gold-text"><i class="fa-solid fa-calendar-day"></i> تاريخ تنفيذ المهمة (Date)</label>
+                        <input type="date" id="task-onetime-date-input" class="task-target-input w-full">
+                        <small class="hint-text text-secondary">تاريخ اليوم الذي ستظهر فيه هذه المهمة لمرة واحدة فقط.</small>
                     </div>
                 </div>
 
@@ -661,57 +661,57 @@
 
     <!-- QUICK ADD MODAL -->
     <div id="quick-add-modal" class="modal-overlay hidden">
-        <div class="modal-container glass-card" style="max-width: 500px;">
+        <div class="modal-container modal-container-qa glass-card">
             <div class="modal-header">
                 <h3 id="quick-add-modal-title"><i class="fa-solid fa-plus gold-text"></i> إضافة ورد أو مهمة لليوم</h3>
                 <button class="btn-close" id="btn-close-quick-add-modal" aria-label="إغلاق النافذة"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
             <!-- Step 1: Choose existing or new -->
-            <div id="quick-add-step1" style="padding: 20px 0;">
-                <p style="font-size:0.88rem; color:#94a3b8; margin-bottom:18px;">ما الذي تريد إضافته اليوم؟</p>
-                <div style="display:flex; flex-direction:column; gap:12px;">
+            <div id="quick-add-step1" class="qa-step-body">
+                <p class="text-secondary">ما الذي تريد إضافته اليوم؟</p>
+                <div class="flex-col gap-md">
                     <button class="quick-add-option-btn" id="btn-qa-existing">
-                        <div class="qa-option-icon" style="background:rgba(16,185,129,0.15); color:#10b981;">
+                        <div class="qa-option-icon emerald-icon">
                             <i class="fa-solid fa-list-check"></i>
                         </div>
                         <div>
                             <h4>مهمة سابقة</h4>
                             <p>اختيار من المهام السابقة (مجدولة / مرة واحدة / مؤرشفة) وإضافتها كـ بونص</p>
                         </div>
-                        <i class="fa-solid fa-chevron-left" style="margin-right:auto; opacity:0.4;"></i>
+                        <i class="fa-solid fa-chevron-left text-muted"></i>
                     </button>
                     <button class="quick-add-option-btn" id="btn-qa-new">
-                        <div class="qa-option-icon" style="background:rgba(245,158,11,0.15); color:#f59e0b;">
+                        <div class="qa-option-icon gold-icon">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </div>
                         <div>
                             <h4>مهمة جديدة</h4>
                             <p>فتح نافذة إنشاء مهمة جديدة مباشرةً</p>
                         </div>
-                        <i class="fa-solid fa-chevron-left" style="margin-right:auto; opacity:0.4;"></i>
+                        <i class="fa-solid fa-chevron-left text-muted"></i>
                     </button>
                 </div>
             </div>
 
             <!-- Step 2: Choose existing task (treated as bonus) -->
-            <div id="quick-add-step2-existing" style="display:none; padding: 15px 0;">
-                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
-                    <button class="btn-icon btn-sm" id="btn-qa-back-from-existing" style="font-size:0.85rem; gap:6px; padding:6px 12px; border-radius:8px; background:rgba(255,255,255,0.06); color:#cbd5e1;">
+            <div id="quick-add-step2-existing" class="qa-step-body hidden">
+                <div class="flex-between">
+                    <button class="btn-icon btn-sm" id="btn-qa-back-from-existing" class="btn-icon btn-sm">
                         <i class="fa-solid fa-arrow-right"></i> رجوع
                     </button>
-                    <span style="font-size:0.82rem; color:#f59e0b; font-weight:600;"><i class="fa-solid fa-gift"></i> تُضاف كـ ورد بونص</span>
+                    <span class="gold-text"><i class="fa-solid fa-gift"></i> تُضاف كـ ورد بونص</span>
                 </div>
-                <div style="margin-bottom:10px;">
-                    <input type="text" id="quick-add-search-input" placeholder="🔍 ابحث في المهام..." aria-label="ابحث في المهام" style="width:100%; box-sizing:border-box; padding:10px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.12); background:rgba(0,0,0,0.3); color:#fff; font-family:inherit; font-size:0.9rem; outline:none;">
+                <div class="mb-sm">
+                    <input type="text" id="quick-add-search-input" class="qa-search-input" placeholder="🔍 ابحث في المهام..." aria-label="ابحث في المهام">
                 </div>
-                <div id="quick-add-filter-chips" style="display:flex; gap:6px; margin-bottom:12px; overflow-x:auto;">
+                <div id="quick-add-filter-chips" class="qa-categories-scroll">
                     <button class="qa-chip active" data-filter="all">الكل</button>
                     <button class="qa-chip" data-filter="scheduled">مجدولة</button>
                     <button class="qa-chip" data-filter="onetime">مرة واحدة</button>
                     <button class="qa-chip" data-filter="archived">مؤرشفة</button>
                 </div>
-                <div id="quick-add-existing-list" role="list" aria-label="قائمة المهام السابقة" style="display:flex; flex-direction:column; gap:8px; max-height:280px; overflow-y:auto; padding-right:2px;">
+                <div id="quick-add-existing-list" class="qa-tasks-list" role="list" aria-label="قائمة المهام السابقة">
                     <!-- Populated by JS -->
                 </div>
             </div>
@@ -722,40 +722,40 @@
 
     <!-- POMODORO TIMER MODAL -->
     <div id="pomodoro-modal" class="modal-overlay hidden">
-        <div class="modal-container glass-card" style="max-width: 400px;">
+        <div class="modal-container modal-container-pomo glass-card">
             <div class="modal-header">
                 <h3 id="modal-pomodoro-title"><i class="fa-solid fa-clock"></i> <span>مؤقت التركيز</span> <span class="modal-header-sub">(Pomofocus)</span></h3>
                 <button class="btn-hide-pomo" id="btn-close-pomodoro" aria-label="إخفاء مؤقت التركيز" title="إخفاء مؤقت التركيز"><i class="fa-solid fa-eye-slash"></i></button>
             </div>
             
-            <div class="pomodoro-content" style="padding: 10px 0 0 0; text-align: center;">
-                <h4 id="pomodoro-task-name" style="margin-bottom: 10px; color: #10b981;">اسم المهمة</h4>
-                <select id="pomo-task-select" style="width: 100%; margin-bottom: 15px; background: rgba(15,23,42,0.9); color: #f8fafc; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 8px 12px; font-family: inherit; font-size: 0.9rem; cursor: pointer;">
+            <div class="pomodoro-content pomo-body">
+                <h4 id="pomodoro-task-name" class="emerald-text">اسم المهمة</h4>
+                <select id="pomo-task-select" class="pomo-task-select">
                     <option value="">🎯 جلسة تركيز عامة (بدون تحديد مهمة)</option>
                 </select>
                 
-                <div class="pomodoro-mode-selector" style="display: flex; justify-content: center; gap: 10px; margin-bottom: 20px;">
-                    <button id="btn-pomo-work" class="btn-secondary active" style="flex: 1;">وقت العمل</button>
-                    <button id="btn-pomo-rest" class="btn-secondary" style="flex: 1;">وقت الراحة</button>
+                <div class="pomodoro-mode-selector flex-center gap-sm">
+                    <button id="btn-pomo-work" class="btn-secondary active flex-1">وقت العمل</button>
+                    <button id="btn-pomo-rest" class="btn-secondary flex-1">وقت الراحة</button>
                 </div>
                 
-                <div class="pomodoro-timer-display" style="font-size: 4rem; font-weight: bold; font-family: 'Outfit', sans-serif; margin: 20px 0; color: #f8fafc; text-shadow: 0 0 10px rgba(255,255,255,0.2);">
+                <div class="pomodoro-timer-display pomo-display">
                     <span id="pomo-mins">25</span>:<span id="pomo-secs">00</span>
                 </div>
                 
-                <div class="pomodoro-controls" style="display: flex; justify-content: center; gap: 8px; margin-bottom: 20px; flex-wrap: wrap;">
-                    <button id="btn-pomo-start" class="btn-primary btn-glow" style="padding: 10px 18px; font-size: 1rem;"><i class="fa-solid fa-play"></i> ابدأ</button>
-                    <button id="btn-pomo-pause" class="btn-secondary hidden" style="padding: 10px 18px; font-size: 1rem;"><i class="fa-solid fa-pause"></i> إيقاف مؤقت</button>
+                <div class="pomodoro-controls flex-center gap-sm">
+                    <button id="btn-pomo-start" class="btn-primary btn-glow"><i class="fa-solid fa-play"></i> ابدأ</button>
+                    <button id="btn-pomo-pause" class="btn-secondary hidden"><i class="fa-solid fa-pause"></i> إيقاف مؤقت</button>
                 </div>
                 
-                <div class="pomodoro-settings" style="display: flex; gap: 10px; justify-content: center; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; margin-bottom: 15px;">
-                    <div style="flex: 1;">
-                        <label style="font-size: 0.8rem; display: block; margin-bottom: 5px;">مدة العمل (دقيقة)</label>
-                        <input type="number" id="input-pomo-work-time" value="25" min="1" max="720" style="width: 100%; text-align: center;">
+                <div class="pomodoro-settings pomo-settings-box">
+                    <div class="flex-1">
+                        <label class="auth-form-label text-center">مدة العمل (دقيقة)</label>
+                        <input type="number" id="input-pomo-work-time" value="25" min="1" max="720" class="w-full text-center">
                     </div>
-                    <div style="flex: 1;">
-                        <label style="font-size: 0.8rem; display: block; margin-bottom: 5px;">مدة الراحة (دقيقة)</label>
-                        <input type="number" id="input-pomo-rest-time" value="5" min="1" max="180" style="width: 100%; text-align: center;">
+                    <div class="flex-1">
+                        <label class="auth-form-label text-center">مدة الراحة (دقيقة)</label>
+                        <input type="number" id="input-pomo-rest-time" value="5" min="1" max="180" class="w-full text-center">
                     </div>
                 </div>
             </div>
@@ -766,9 +766,9 @@
     <div id="weekly-hours-modal" class="modal-overlay hidden">
         <div class="modal-container glass-card weekly-sheet-modal">
             <div class="modal-header">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <i class="fa-solid fa-calendar-week gold-text" style="font-size:1.2rem;"></i>
-                    <h3 style="margin:0;">جدول الساعات الأسبوعي (Weekly Schedule Sheet)</h3>
+                <div class="weekly-header-title">
+                    <i class="fa-solid fa-calendar-week gold-text"></i>
+                    <h3>جدول الساعات الأسبوعي (Weekly Schedule Sheet)</h3>
                 </div>
                 <button class="btn-close" id="btn-close-weekly-modal" aria-label="إغلاق الجدول الأسبوعي"><i class="fa-solid fa-xmark"></i></button>
             </div>
@@ -784,7 +784,7 @@
                     </div>
                     <div class="weekly-filter-item">
                         <div class="weekly-combobox-wrapper" id="weekly-category-combobox">
-                            <label style="font-size:0.85rem; color:#cbd5e1; margin-left:6px;">التصنيف:</label>
+                            <label class="weekly-legend-label">التصنيف:</label>
                             <div class="weekly-combobox-anchor">
                                 <button type="button" class="weekly-combobox-btn" id="btn-weekly-cat-toggle" aria-expanded="false" aria-haspopup="true">
                                     <span id="weekly-cat-btn-text">كل التصنيفات (All)</span>
@@ -803,9 +803,9 @@
                             </div>
                         </div>
                     </div>
-                    <div style="margin-right:auto; display:flex; align-items:center; gap:10px;">
+                    <div class="flex-center gap-sm">
                         <span id="weekly-save-feedback" class="weekly-feedback-text"></span>
-                        <button id="btn-weekly-save" class="btn-primary btn-glow btn-sm" style="display:flex; align-items:center; gap:6px; padding:6px 14px; font-size:0.88rem; cursor:pointer;">
+                        <button id="btn-weekly-save" class="btn-primary btn-glow btn-sm">
                             <i class="fa-solid fa-floppy-disk"></i> <span>حفظ وإعادة تحميل</span>
                         </button>
                     </div>
@@ -821,27 +821,27 @@
 
     <!-- ACCOUNT SETTINGS MODAL (FOR AUTHENTICATED USERS) -->
     <div id="account-settings-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="account-modal-title">
-        <div class="modal-container glass-card" style="max-width: 480px;">
+        <div class="modal-container modal-container-account glass-card">
             <div class="modal-header">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <div style="width: 36px; height: 36px; border-radius: 10px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); display: flex; align-items: center; justify-content: center; color: #10b981;">
+                <div class="flex-center gap-sm">
+                    <div class="stat-icon emerald-icon">
                         <i class="fa-solid fa-user-gear"></i>
                     </div>
-                    <h3 id="account-modal-title" style="margin: 0;">إعدادات الحساب <span class="modal-header-sub">Account Settings</span></h3>
+                    <h3 id="account-modal-title">إعدادات الحساب <span class="modal-header-sub">Account Settings</span></h3>
                 </div>
                 <button class="btn-close" id="btn-close-account-modal" aria-label="إغلاق إعدادات الحساب"><i class="fa-solid fa-xmark"></i></button>
             </div>
 
-            <div class="modal-body" style="padding-top: 4px;">
+            <div class="modal-body">
                 <div id="account-msg" class="auth-msg"></div>
 
                 <!-- Section 1: Display Name -->
-                <div class="account-section" style="margin-bottom: 22px;">
-                    <h4 style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; margin: 0 0 6px; display: flex; align-items: center; gap: 8px;">
-                        <i class="fa-solid fa-signature" style="color: #10b981; font-size: 0.85rem;"></i>
+                <div class="account-section">
+                    <h4 class="account-section-title">
+                        <i class="fa-solid fa-signature emerald-text"></i>
                         <span>الاسم المعروض (اسم المستخدم)</span>
                     </h4>
-                    <p style="font-size: 0.78rem; color: #94a3b8; margin: 0 0 10px; line-height: 1.5;">
+                    <p class="account-section-desc">
                         الاسم المعروض في اللوحة والمزامنة (3 أحرف على الأقل).
                     </p>
                     <div class="account-input-group">
@@ -852,15 +852,15 @@
                     </div>
                 </div>
 
-                <div style="height: 1px; background: rgba(255, 255, 255, 0.08); margin: 20px 0;"></div>
+                <div class="divider"></div>
 
                 <!-- Section 2: Email Address -->
-                <div class="account-section" style="margin-bottom: 22px;">
-                    <h4 style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; margin: 0 0 6px; display: flex; align-items: center; gap: 8px;">
-                        <i class="fa-solid fa-envelope" style="color: #10b981; font-size: 0.85rem;"></i>
+                <div class="account-section">
+                    <h4 class="account-section-title">
+                        <i class="fa-solid fa-envelope emerald-text"></i>
                         <span>البريد الإلكتروني</span>
                     </h4>
-                    <p style="font-size: 0.78rem; color: #94a3b8; margin: 0 0 10px; line-height: 1.5;">
+                    <p class="account-section-desc">
                         البريد الإلكتروني المرتبط بحسابك لتسجيل الدخول والمزامنة (يمكنك إفراغه وحفظ التغيير لحذفه والاعتماد على اسم المستخدم فقط).
                     </p>
                     <div class="account-input-group">
@@ -871,46 +871,46 @@
                     </div>
                 </div>
 
-                <div style="height: 1px; background: rgba(255, 255, 255, 0.08); margin: 20px 0;"></div>
+                <div class="divider"></div>
 
                 <!-- Section 3: Change Password -->
                 <div class="account-section">
-                    <h4 style="font-size: 0.95rem; font-weight: 700; color: #f8fafc; margin: 0 0 6px; display: flex; align-items: center; gap: 8px;">
-                        <i class="fa-solid fa-key" style="color: #10b981; font-size: 0.85rem;"></i>
+                    <h4 class="account-section-title">
+                        <i class="fa-solid fa-key emerald-text"></i>
                         <span>تغيير كلمة المرور</span>
                     </h4>
-                    <p style="font-size: 0.78rem; color: #94a3b8; margin: 0 0 12px; line-height: 1.5;">
+                    <p class="account-section-desc">
                         أدخل كلمة المرور الجديدة (6 أحرف على الأقل).
                     </p>
-                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div class="flex-col gap-sm">
                         <div>
-                            <label for="account-new-password" style="font-size: 0.8rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 4px;">كلمة المرور الجديدة</label>
-                            <input type="password" id="account-new-password" class="auth-input-field" placeholder="أدخل كلمة المرور الجديدة" autocomplete="new-password" style="margin-bottom: 0;">
+                            <label for="account-new-password" class="auth-form-label">كلمة المرور الجديدة</label>
+                            <input type="password" id="account-new-password" class="auth-input-field" placeholder="أدخل كلمة المرور الجديدة" autocomplete="new-password">
                         </div>
                         <div>
-                            <label for="account-confirm-password" style="font-size: 0.8rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 4px;">تأكيد كلمة المرور الجديدة</label>
-                            <input type="password" id="account-confirm-password" class="auth-input-field" placeholder="أعد إدخال كلمة المرور للتأكيد" autocomplete="new-password" style="margin-bottom: 0;">
+                            <label for="account-confirm-password" class="auth-form-label">تأكيد كلمة المرور الجديدة</label>
+                            <input type="password" id="account-confirm-password" class="auth-input-field" placeholder="أعد إدخال كلمة المرور للتأكيد" autocomplete="new-password">
                         </div>
-                        <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
-                            <button type="button" id="btn-update-password" class="btn-primary btn-glow btn-account-action" style="width: 100%;">
+                        <div class="flex-between">
+                            <button type="button" id="btn-update-password" class="btn-primary btn-glow btn-account-action w-full">
                                 <i class="fa-solid fa-lock"></i> <span>تحديث كلمة المرور</span>
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <div style="height: 1px; background: rgba(239, 68, 68, 0.2); margin: 20px 0;"></div>
+                <div class="divider-danger"></div>
 
                 <!-- Section 4: Delete Account -->
-                <div class="account-section" style="border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 12px; padding: 14px 16px; background: rgba(239, 68, 68, 0.05);">
-                    <h4 style="font-size: 0.95rem; font-weight: 700; color: #f87171; margin: 0 0 6px; display: flex; align-items: center; gap: 8px;">
-                        <i class="fa-solid fa-triangle-exclamation" style="color: #ef4444; font-size: 0.85rem;"></i>
+                <div class="account-section account-danger-zone">
+                    <h4 class="account-danger-title">
+                        <i class="fa-solid fa-triangle-exclamation text-danger"></i>
                         <span>حذف الحساب نهائياً</span>
                     </h4>
-                    <p style="font-size: 0.78rem; color: #fca5a5; margin: 0 0 12px; line-height: 1.5; opacity: 0.9;">
+                    <p class="account-danger-desc">
                         تحذير: سيؤدي حذف الحساب إلى مسح كافة المهام، سجلات الإنجاز، وبيانات الحساب نهائياً وبشكل لا يمكن استرجاعه.
                     </p>
-                    <button type="button" id="btn-delete-account" class="btn-danger-outline btn-account-action" style="width: 100%; border-color: rgba(239, 68, 68, 0.6); color: #f87171; background: rgba(239, 68, 68, 0.1);">
+                    <button type="button" id="btn-delete-account" class="btn-danger-outline btn-account-action w-full">
                         <i class="fa-solid fa-user-xmark"></i> <span>حذف الحساب وكافة البيانات نهائياً</span>
                     </button>
                 </div>
@@ -921,13 +921,13 @@
     <!-- FULLSCREEN AUTHENTICATION GATEWAY (LOGIN / REGISTER) -->
     <div id="auth-overlay" class="auth-overlay">
         <div class="auth-card glass-card">
-            <div style="width: 58px; height: 58px; border-radius: 18px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 30px; height: 30px; color: #10b981;">
+            <div class="auth-brand-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="auth-brand-svg">
                     <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
                 </svg>
             </div>
-            <h2 style="margin: 0 0 4px; font-size: 1.5rem; font-weight: 800; color: #fff;">أورادي <span class="tag-badge">Pro</span></h2>
-            <p style="margin: 0 0 16px; font-size: 0.85rem; color: #94a3b8;">لوحة ذكية لمتابعة الأوراد والعبادات اليومية</p>
+            <h2 class="auth-title">أورادي <span class="tag-badge">Pro</span></h2>
+            <p class="auth-subtitle">لوحة ذكية لمتابعة الأوراد والعبادات اليومية</p>
 
             <div class="auth-tabs">
                 <button type="button" class="auth-tab-btn active" id="btn-auth-tab-login">تسجيل الدخول</button>
@@ -936,22 +936,22 @@
 
             <div id="auth-msg" class="auth-msg"></div>
 
-            <form id="auth-form" onsubmit="return false;" style="text-align: right;">
-                <label style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 5px;">اسم المستخدم أو البريد الإلكتروني</label>
+            <form id="auth-form">
+                <label class="auth-form-label">اسم المستخدم أو البريد الإلكتروني</label>
                 <input type="text" id="auth-username" class="auth-input-field" placeholder="أدخل اسم المستخدم أو البريد الإلكتروني" required dir="ltr" autocomplete="username">
 
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; margin-bottom: 5px;">
-                    <label style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; margin: 0;">كلمة المرور</label>
-                    <button type="button" id="btn-auth-forgot" style="background: none; border: none; color: #10b981; font-size: 0.78rem; font-weight: 600; cursor: pointer; padding: 0; text-decoration: underline;">نسيت كلمة المرور؟</button>
+                <div class="flex-between">
+                    <label class="auth-form-label">كلمة المرور</label>
+                    <button type="button" id="btn-auth-forgot" class="auth-forgot-btn">نسيت كلمة المرور؟</button>
                 </div>
                 <input type="password" id="auth-password" class="auth-input-field" placeholder="أدخل كلمة المرور (6 أحرف على الأقل)" required autocomplete="current-password">
 
-                <div id="auth-confirm-container" style="display: none; margin-top: 10px;">
-                    <label style="font-size: 0.82rem; font-weight: 600; color: #cbd5e1; display: block; margin-bottom: 5px;">تأكيد كلمة المرور</label>
+                <div id="auth-confirm-container" class="hidden">
+                    <label class="auth-form-label">تأكيد كلمة المرور</label>
                     <input type="password" id="auth-confirm-password" class="auth-input-field" placeholder="أعد إدخال كلمة المرور" autocomplete="new-password">
                 </div>
 
-                <button type="button" id="btn-auth-submit" class="btn-primary btn-block btn-glow" style="margin-top: 8px; width: 100%; padding: 12px; font-size: 1rem;">
+                <button type="button" id="btn-auth-submit" class="btn-primary btn-block btn-glow btn-auth-submit">
                     <span>تسجيل الدخول</span>
                 </button>
             </form>

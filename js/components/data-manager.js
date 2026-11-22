@@ -31,7 +31,7 @@ function updateCloudSyncUI(syncInfo) {
             headerPill.className = "stat-pill glass-card sync-status-pill sync-active";
             headerPill.title = syncInfo.message || "متزامن مع السحابة 24/7";
         }
-        if (headerIcon) headerIcon.innerHTML = `<i class="fa-solid fa-cloud-bolt" style="color:#10b981;"></i>`;
+        if (headerIcon) headerIcon.innerHTML = `<i class="fa-solid fa-cloud-bolt emerald-text"></i>`;
         if (headerText) {
             headerText.textContent = "سحابي ⚡";
             headerText.style.color = "#10b981";
@@ -47,7 +47,7 @@ function updateCloudSyncUI(syncInfo) {
             headerPill.className = "stat-pill glass-card sync-status-pill sync-pulse";
             headerPill.title = syncInfo.message || "جارِ مزامنة التغييرات...";
         }
-        if (headerIcon) headerIcon.innerHTML = `<i class="fa-solid fa-arrows-rotate fa-spin" style="color:#f59e0b;"></i>`;
+        if (headerIcon) headerIcon.innerHTML = `<i class="fa-solid fa-arrows-rotate fa-spin gold-text"></i>`;
         if (headerText) {
             headerText.textContent = "مزامنة...";
             headerText.style.color = "#f59e0b";
@@ -63,7 +63,7 @@ function updateCloudSyncUI(syncInfo) {
             headerPill.className = "stat-pill glass-card sync-status-pill sync-offline";
             headerPill.title = syncInfo.message || "وضع عدم الاتصال (محفوظ محلياً)";
         }
-        if (headerIcon) headerIcon.innerHTML = `<i class="fa-solid fa-cloud-slash" style="color:#ef4444;"></i>`;
+        if (headerIcon) headerIcon.innerHTML = `<i class="fa-solid fa-cloud-slash text-danger"></i>`;
         if (headerText) {
             headerText.textContent = "أوفلاين";
             headerText.style.color = "#ef4444";
@@ -79,7 +79,7 @@ function updateCloudSyncUI(syncInfo) {
             headerPill.className = "stat-pill glass-card sync-status-pill";
             headerPill.title = syncInfo.message || "تخزين محلي (غير مقترن بالسحابة)";
         }
-        if (headerIcon) headerIcon.innerHTML = `<i class="fa-solid fa-cloud" style="color:#94a3b8;"></i>`;
+        if (headerIcon) headerIcon.innerHTML = `<i class="fa-solid fa-cloud text-secondary"></i>`;
         if (headerText) {
             headerText.textContent = "محلي";
             headerText.style.color = "#94a3b8";

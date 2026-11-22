@@ -35,6 +35,10 @@
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
 }
 
+.modal-body {
+    padding-top: 4px;
+}
+
 .modal-header { 
     display: flex; 
     justify-content: space-between; 
@@ -733,5 +737,130 @@
     opacity: 0.35;
     cursor: not-allowed;
     background: rgba(0, 0, 0, 0.3);
+}
+
+/* Task Target Input Row in Task Modal */
+.task-target-input-row {
+    margin-top: 12px;
+    background: rgba(245, 158, 11, 0.08);
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px dashed rgba(245, 158, 11, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.task-target-input {
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(0, 0, 0, 0.4);
+    color: #fff;
+    width: 100px;
+}
+
+/* Quick Add Modal Variants */
+.modal-container-qa {
+    max-width: 500px !important;
+}
+
+.qa-step-body {
+    padding: 20px 0;
+}
+
+.qa-search-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.qa-categories-scroll {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+    overflow-x: auto;
+}
+
+.qa-tasks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.qa-task-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: all 0.2s ease;
+}
+
+.qa-task-row.is-active {
+    opacity: 0.6;
+}
+
+.qa-task-row:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Pomodoro Focus Modal */
+.modal-container-pomo {
+    max-width: 400px !important;
+}
+
+.pomo-body {
+    padding: 10px 0 0 0;
+    text-align: center;
+}
+
+.pomo-task-select {
+    width: 100%;
+    margin-bottom: 15px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 8px;
+}
+
+.pomo-display {
+    font-size: 4rem;
+    font-weight: bold;
+    font-family: var(--font-ui);
+    margin-bottom: 20px;
+    color: var(--emerald-primary);
+}
+
+.pomo-settings-box {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 10px;
+    border-radius: 8px;
+}
+
+/* Weekly Schedule Matrix */
+.weekly-header-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.weekly-legend-label {
+    font-size: 0.85rem;
+    color: #cbd5e1;
+    margin-left: 6px;
 }
 

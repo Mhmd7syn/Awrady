@@ -137,7 +137,7 @@ function renderGroupedTasks(containerEl, tasksList, isArchivedList = false, isOn
 
                 const subHeader = document.createElement("div");
                 subHeader.className = "manager-subcat-header";
-                subHeader.innerHTML = `<i class="fa-solid fa-layer-group"></i> <span>${subName}</span> <span style="font-size:0.8rem; font-weight:normal; opacity:0.8;">(${subTasks.length})</span>`;
+                subHeader.innerHTML = `<i class="fa-solid fa-layer-group"></i> <span>${subName}</span> <span class="text-xs font-normal opacity-80">(${subTasks.length})</span>`;
                 catCard.appendChild(subHeader);
 
                 const tasksBox = document.createElement("div");
@@ -149,7 +149,7 @@ function renderGroupedTasks(containerEl, tasksList, isArchivedList = false, isOn
             if (generalTasks.length > 0) {
                 const subHeader = document.createElement("div");
                 subHeader.className = "manager-subcat-header";
-                subHeader.innerHTML = `<i class="fa-solid fa-list-check"></i> <span>عام</span> <span style="font-size:0.8rem; font-weight:normal; opacity:0.8;">(${generalTasks.length})</span>`;
+                subHeader.innerHTML = `<i class="fa-solid fa-list-check"></i> <span>عام</span> <span class="text-xs font-normal opacity-80">(${generalTasks.length})</span>`;
                 catCard.appendChild(subHeader);
 
                 const tasksBox = document.createElement("div");
@@ -209,14 +209,14 @@ function createTaskRowElement(task, isArchived) {
         : (task.target ? `🎯 الهدف: ${task.target} ${displayType}` : `🏷️ وحدة: ${displayType}`);
 
     const catBadgeText = task.subcategory ? `${task.category} - ${task.subcategory}` : (task.category || 'عام');
-    const otBadge = isOt ? `<span class="badge" style="font-size:0.75rem; background:rgba(245,158,11,0.18); color:#f59e0b; border:1px solid rgba(245,158,11,0.35);"><i class="fa-solid fa-bolt"></i> لمرة واحدة</span>` : '';
+    const otBadge = isOt ? `<span class="badge badge-amber text-xs"><i class="fa-solid fa-bolt"></i> لمرة واحدة</span>` : '';
 
     if (!isArchived) {
         row.innerHTML = `
             <div class="manager-info">
                 <div class="manager-icon">${iconHtml}</div>
                 <div class="manager-details">
-                    <h4>${task.name} <span class="tag-badge" style="font-size:0.75rem">${catBadgeText}</span> ${otBadge}</h4>
+                    <h4>${task.name} <span class="tag-badge" class="text-xs">${catBadgeText}</span> ${otBadge}</h4>
                     <p>
                         <span>${targetText}</span>
                         <span>${schedText}</span>
@@ -234,7 +234,7 @@ function createTaskRowElement(task, isArchived) {
             <div class="manager-info">
                 <div class="manager-icon">${iconHtml}</div>
                 <div class="manager-details">
-                    <h4>${task.name} <span class="tag-badge" style="font-size:0.75rem">${catBadgeText}</span> ${otBadge} <span class="badge badge-amber" style="font-size:0.75rem">✨ مؤرشف</span></h4>
+                    <h4>${task.name} <span class="tag-badge" class="text-xs">${catBadgeText}</span> ${otBadge} <span class="badge badge-amber" class="text-xs">✨ مؤرشف</span></h4>
                     <p>
                         <span>${targetText}</span>
                         ${isOt ? `<span>${schedText}</span>` : ''}

@@ -156,22 +156,20 @@ function renderDailyView() {
         const completedInCat = cat.tasks.filter(item => item.isDone);
 
         const catCard = document.createElement("div");
-        catCard.className = "category-card glass-card";
-        catCard.style.cssText = "grid-column: 1 / -1; margin-bottom: 16px; overflow: hidden; border-radius: var(--radius-md); border: 1px solid var(--glass-border); background: rgba(13, 22, 18, 0.6);";
+        catCard.className = "category-card glass-card daily-cat-card";
 
         const catHeader = document.createElement("div");
-        catHeader.className = "category-card-header";
-        catHeader.style.cssText = "display:flex; align-items:center; justify-content:space-between; padding: 14px 18px; cursor:pointer; user-select:none; background: rgba(255,255,255,0.02); transition: background 0.2s ease;";
+        catHeader.className = "category-card-header daily-cat-header";
         catHeader.innerHTML = `
-            <div style="display:flex; align-items:center; gap:12px;">
-                <div style="width:36px; height:36px; border-radius:10px; background:rgba(245,158,11,0.12); color:var(--gold-primary); display:flex; align-items:center; justify-content:center; font-size:1.1rem;">
+            <div class="flex-center gap-md">
+                <div class="stat-icon gold-icon">
                     <i class="fa-solid ${iconClass}"></i>
                 </div>
                 <div>
-                    <h3 style="font-size:1.1rem; font-weight:700; color:#fff; margin:0;">${cat.label || cat.name}</h3>
+                    <h3 class="text-primary font-bold">${cat.label || cat.name}</h3>
                 </div>
             </div>
-            <div style="display:flex; align-items:center; gap:12px;">
+            <div class="flex-center gap-md">
                 <span class="badge" style="font-size:0.75rem; background:${completedInCat.length === cat.tasks.length ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.08)'}; color:${completedInCat.length === cat.tasks.length ? '#10b981' : 'var(--text-secondary)'}; border:1px solid ${completedInCat.length === cat.tasks.length ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.1)'}; padding:4px 10px; border-radius:12px;">
                     ${completedInCat.length}/${cat.tasks.length} مكتمل
                 </span>
@@ -184,19 +182,18 @@ function renderDailyView() {
         const isExpanded = window.expandedCategoryNames.has(catName);
 
         const tasksBody = document.createElement("div");
-        tasksBody.className = "category-tasks-body";
-        tasksBody.style.cssText = `padding: 16px; display: ${isExpanded ? 'block' : 'none'};`;
+        tasksBody.className = `category-tasks-body daily-cat-body${isExpanded ? "" : " hidden"}`;
 
         const chevronTransform = isExpanded ? "rotate(0deg)" : "rotate(-90deg)";
         catHeader.querySelector(".toggle-chevron").style.transform = chevronTransform;
 
         catHeader.addEventListener("click", () => {
-            const isHidden = tasksBody.style.display === "none";
+            const isHidden = tasksBody.classList.contains("hidden");
             if (isHidden) {
-                tasksBody.style.display = "block";
+                tasksBody.classList.remove("hidden");
                 window.expandedCategoryNames.add(catName);
             } else {
-                tasksBody.style.display = "none";
+                tasksBody.classList.add("hidden");
                 window.expandedCategoryNames.delete(catName);
             }
             const chevron = catHeader.querySelector(".toggle-chevron");
@@ -206,8 +203,7 @@ function renderDailyView() {
         // 1) Render Pending Tasks as full .task-card elements inside pendingGrid
         if (pendingInCat.length > 0) {
             const pendingGrid = document.createElement("div");
-            pendingGrid.className = "pending-tasks-grid";
-            pendingGrid.style.cssText = "display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; margin-bottom: 10px;";
+            pendingGrid.className = "pending-tasks-grid daily-tasks-grid";
             
             pendingInCat.forEach(({ task, val, target }) => {
                 const card = document.createElement("div");
@@ -236,7 +232,7 @@ function renderDailyView() {
 
                 card.innerHTML = `
                     <div class="task-header">
-                        <div class="task-title-group" style="cursor:pointer;" data-edit-id="${task.id}" title="انقر لتعديل الورد">
+                        <div class="task-title-group cursor-pointer" data-edit-id="${task.id}" title="انقر لتعديل الورد">
                             <div class="task-icon">${iconHtml}</div>
                             <div>
                                 <h4>${task.name} ${bonusBadge}${coincidenceBadge}</h4>
@@ -261,11 +257,10 @@ function renderDailyView() {
         // 2) Render Completed Tasks as minimal cards INSIDE THIS CATEGORY
         if (completedInCat.length > 0) {
             const completedSection = document.createElement("div");
-            completedSection.className = "completed-tasks-in-cat";
-            completedSection.style.cssText = "margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.08);";
+            completedSection.className = "completed-tasks-in-cat daily-completed-section";
             
             const labelText = document.createElement("p");
-            labelText.style.cssText = "font-size: 0.8rem; font-weight: 700; color: #10b981; margin: 0 0 8px 4px;";
+            labelText.className = "daily-completed-label";
             labelText.innerHTML = `<i class="fa-solid fa-circle-check"></i> مكتملة (${completedInCat.length})`;
             completedSection.appendChild(labelText);
 
@@ -278,9 +273,8 @@ function renderDailyView() {
                         ? ScheduleEngine.isBonusTaskForDate(task, currentDateStr, appData, val)
                         : Boolean(task.isBonus));
 
-                pill.className = `task-item-minimal glass-card ${isBonus ? 'is-bonus-card' : ''}`;
+                pill.className = `task-item-minimal glass-card daily-completed-pill ${isBonus ? 'is-bonus is-bonus-card' : ''}`;
                 pill.setAttribute("data-task-id", task.id);
-                pill.style.cssText = `display:flex; flex-direction:column; padding:10px 14px; margin-bottom:8px; border-radius:10px; background:${isBonus ? 'rgba(245,158,11,0.08)' : 'rgba(16,185,129,0.08)'}; border:1px solid ${isBonus ? 'rgba(245,158,11,0.35)' : 'rgba(16,185,129,0.25)'}; gap:6px;`;
                 
                 const iconHtml = getCategoryIconHtml(task);
                 const overTarget = !isBonus && target > 0 && val > target;
@@ -347,16 +341,16 @@ function renderDisabledSection(grid, disabledTasks) {
 
     const disabledSection = document.createElement("div");
     disabledSection.className = "disabled-tasks-section";
-    disabledSection.style.cssText = "grid-column: 1 / -1; margin-top: 20px; width: 100%;";
+    disabledSection.className = "disabled-tasks-section daily-disabled-section";
     disabledSection.innerHTML = `<p style="font-size:0.85rem; color:#94a3b8; margin: 12px 0 10px; padding-right:4px; font-weight:600;"><i class="fa-solid fa-pause-circle"></i> مهمات موقوفة لهذا اليوم (${disabledTasks.length}):</p>`;
 
     const disabledGrid = document.createElement("div");
-    disabledGrid.style.cssText = "display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px;";
+    disabledGrid.className = "disabled-tasks-grid daily-disabled-grid";
 
     sortedDisabled.forEach(task => {
         const pill = document.createElement("div");
         pill.className = "task-item-minimal glass-card";
-        pill.style.cssText = "display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-radius:8px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06);";
+        pill.className = "task-item-minimal daily-disabled-pill";
         const iconHtml = getCategoryIconHtml(task);
         pill.innerHTML = `
             <span style="opacity:0.85; font-size:0.9rem; color:#cbd5e1;">${iconHtml} ${task.name}</span>

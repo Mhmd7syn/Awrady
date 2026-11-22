@@ -28,13 +28,13 @@ export function renderCategoriesManager() {
             <div class="manager-info">
                 <div class="manager-icon"><i class="fa-solid ${cat.icon || 'fa-tag'}"></i></div>
                 <div class="manager-details">
-                    <h4>${cat.label || cat.name} <span class="tag-badge" style="font-size:0.75rem">${cat.name}</span></h4>
-                    <p style="margin: 4px 0; color: #94a3b8; font-size: 0.85rem;">
+                    <h4>${cat.label || cat.name} <span class="tag-badge text-xs">${cat.name}</span></h4>
+                    <p class="text-secondary text-sm">
                         <span>عدد المهام: <strong>${taskCount}</strong></span>
                         ${cat.defaultUnit ? ` | <span>الوحدة الافتراضية: <strong>${cat.defaultUnit}</strong></span>` : ''}
                         ${cat.defaultEstimatedMinutes ? ` | <span>الوقت التقديري: <strong>${cat.defaultEstimatedMinutes} دقيقة</strong></span>` : ''}
                     </p>
-                    ${subList ? `<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;">${subList}</div>` : ''}
+                    ${subList ? `<div class="flex-wrap gap-xs">${subList}</div>` : ''}
                 </div>
             </div>
         `;

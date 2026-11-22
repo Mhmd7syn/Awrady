@@ -384,7 +384,7 @@ function renderTaskBreakdown(allDates) {
             card.className = "breakdown-card horizontal";
             card.innerHTML = `
                 <div class="breakdown-info">
-                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <div class="flex-center gap-sm flex-wrap">
                         <span class="breakdown-title">${iconHtml} <span>${task.name}</span></span>
                         ${statusBadgeHtml}
                     </div>
@@ -420,7 +420,7 @@ function renderTaskBreakdown(allDates) {
 
                 const subHeader = document.createElement("div");
                 subHeader.className = "manager-subcat-header";
-                subHeader.innerHTML = `<i class="fa-solid fa-layer-group"></i> <span>${subName}</span> <span style="font-size:0.8rem; font-weight:normal; opacity:0.8;">(${subTasks.length})</span>`;
+                subHeader.innerHTML = `<i class="fa-solid fa-layer-group"></i> <span>${subName}</span> <span class="text-xs font-normal opacity-80">(${subTasks.length})</span>`;
                 catBody.appendChild(subHeader);
 
                 catBody.appendChild(renderTaskGrid(subTasks));
@@ -429,7 +429,7 @@ function renderTaskBreakdown(allDates) {
             if (generalTasks.length > 0) {
                 const subHeader = document.createElement("div");
                 subHeader.className = "manager-subcat-header";
-                subHeader.innerHTML = `<i class="fa-solid fa-list-check"></i> <span>عام</span> <span style="font-size:0.8rem; font-weight:normal; opacity:0.8;">(${generalTasks.length})</span>`;
+                subHeader.innerHTML = `<i class="fa-solid fa-list-check"></i> <span>عام</span> <span class="text-xs font-normal opacity-80">(${generalTasks.length})</span>`;
                 catBody.appendChild(subHeader);
 
                 catBody.appendChild(renderTaskGrid(generalTasks));
@@ -446,8 +446,8 @@ function renderTaskBreakdown(allDates) {
                 <i class="fa-solid ${iconClass}"></i>
                 <span>${catGroupData.label || catGroupData.name}</span>
             </div>
-            <div style="display:flex; gap:10px; align-items:center;">
-                <span class="manager-cat-count-badge" style="background:rgba(59,130,246,0.15); color:#60a5fa; border-color:rgba(59,130,246,0.3);">${catHoursFormatted > 0 ? `${catHoursFormatted} س • ` : ''}الالتزام: ${catAvgPct}%</span>
+            <div class="flex-center gap-sm">
+                <span class="manager-cat-count-badge badge-blue">${catHoursFormatted > 0 ? `${catHoursFormatted} س • ` : ''}الالتزام: ${catAvgPct}%</span>
                 <span class="manager-cat-count-badge">${catTasks.length} ${catTasks.length === 1 ? 'مهمة' : (catTasks.length <= 10 ? 'مهام' : 'مهمة')}</span>
             </div>
         `;

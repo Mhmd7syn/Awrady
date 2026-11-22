@@ -32,6 +32,31 @@
 .lunar-text h4 { font-size: 1.15rem; font-weight: 800; color: #fff; }
 .lunar-text p { font-size: 0.95rem; color: var(--text-secondary); margin-top: 2px; }
 
+.lunar-banner-blue {
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.15), rgba(16, 27, 22, 0.7)) !important;
+    border-color: rgba(59, 130, 246, 0.45) !important;
+    box-shadow: 0 0 25px rgba(59, 130, 246, 0.15) !important;
+    margin-bottom: 20px;
+}
+
+.lunar-banner-blue .lunar-icon {
+    background: rgba(59, 130, 246, 0.2) !important;
+}
+
+.lunar-banner-blue .lunar-icon i {
+    color: #60a5fa !important;
+}
+
+.lunar-banner-blue h4 {
+    color: #93c5fd !important;
+}
+
+.badge-blue {
+    background: rgba(59, 130, 246, 0.2) !important;
+    color: #60a5fa !important;
+    font-weight: 700;
+}
+
 /* Daily Controls Strip */
 .daily-controls-strip {
     padding: 16px 24px;
@@ -182,6 +207,7 @@
 
 .badge-emerald { background: rgba(16, 185, 129, 0.15); color: var(--emerald-primary); border: 1px solid rgba(16, 185, 129, 0.3); }
 .badge-amber { background: rgba(245, 158, 11, 0.15); color: var(--gold-primary); border: 1px solid rgba(245, 158, 11, 0.3); }
+.badge-neutral { background: rgba(255, 255, 255, 0.08); color: var(--text-secondary); border: 1px solid rgba(255, 255, 255, 0.1); }
 
 /* Progress Ring Gauge */
 .radial-progress-container {
@@ -670,5 +696,123 @@
 .task-item-minimal.is-bonus-card:hover {
     background: rgba(245, 158, 11, 0.12);
     border-color: rgba(245, 158, 11, 0.5);
+}
+
+/* Dynamic Daily View Classes (used by daily-view.js) */
+.daily-cat-card {
+    grid-column: 1 / -1;
+    margin-bottom: 16px;
+    overflow: hidden;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--glass-border);
+    background: rgba(13, 22, 18, 0.6);
+}
+
+.daily-cat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    cursor: pointer;
+    user-select: none;
+    background: rgba(255, 255, 255, 0.02);
+    transition: background 0.2s ease;
+}
+
+.daily-cat-body {
+    padding: 16px;
+}
+
+.daily-tasks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 16px;
+    margin-bottom: 10px;
+}
+
+.daily-completed-section {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.daily-completed-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--emerald-primary);
+    margin: 0 0 8px 4px;
+}
+
+.daily-completed-pill {
+    display: flex;
+    flex-direction: column;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    border-radius: 10px;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    gap: 6px;
+}
+
+.daily-completed-pill.is-bonus {
+    background: rgba(245, 158, 11, 0.08);
+    border-color: rgba(245, 158, 11, 0.35);
+}
+
+.daily-disabled-section {
+    grid-column: 1 / -1;
+    margin-top: 20px;
+    width: 100%;
+}
+
+.daily-disabled-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 10px;
+}
+
+.daily-disabled-pill {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Smart Nawafel Sub-elements */
+.nawafel-options {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 14px;
+}
+
+.option-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.counter-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 5px;
+    border-radius: 8px;
+}
+
+.btn-counter-val {
+    font-weight: bold;
+    width: 20px;
+    text-align: center;
+}
+
+.btn-counter-ctrl {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
 }
 

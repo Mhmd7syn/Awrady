@@ -280,7 +280,7 @@ function renderWeeklyMatrixTable() {
     if (tasks.length === 0) {
         tableHtml += `
             <tr>
-                <td colspan="10" style="padding:24px; color:#94a3b8; text-align:center;">
+                <td colspan="10" class="text-secondary text-center">
                     لا توجد مهام تطابق معايير التصفية المحددة. جرب اختيار تصنيفات أخرى أو إلغاء استثناء المهام اليومية.
                 </td>
             </tr>
@@ -322,8 +322,8 @@ function renderWeeklyMatrixTable() {
         tableHtml += `
             <tr data-task-row="${t.id}">
                 <td class="col-task" title="${t.name} (${unit})">
-                    <span style="font-weight:700; color:#f8fafc;">${t.name}</span>
-                    <span style="display:block; font-size:0.75rem; color:#94a3b8;">${unit}</span>
+                    <span class="text-primary font-bold">${t.name}</span>
+                    <span class="text-secondary text-xs block">${unit}</span>
                 </td>
                 <td class="col-cat">
                     <span class="badge" style="background:rgba(255,255,255,0.06); font-size:0.75rem; padding:3px 8px; border-radius:6px; color:#cbd5e1;">${cat}</span>
@@ -597,7 +597,7 @@ async function saveWeeklyMatrix() {
     renderWeeklyMatrixTable();
 
     if (feedback) {
-        feedback.innerHTML = `<span style="color:#10b981;">✔ تم الحفظ وإعادة التحميل بنجاح</span>`;
+        feedback.innerHTML = `<span class="emerald-text">✔ تم الحفظ وإعادة التحميل بنجاح</span>`;
         setTimeout(() => { if (feedback) feedback.textContent = ""; }, 3000);
     }
 }

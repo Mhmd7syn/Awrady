@@ -167,3 +167,110 @@
     box-sizing: border-box;
 }
 
+/* Account Settings Modal Classes */
+.modal-container-account {
+    max-width: 480px !important;
+}
+
+.account-section {
+    margin-bottom: 22px;
+}
+
+.account-section-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.account-section-desc {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    margin: 0 0 10px;
+    line-height: 1.5;
+}
+
+.account-danger-zone {
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    border-radius: 12px;
+    padding: 16px;
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.account-danger-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #f87171;
+    margin: 0 0 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.account-danger-desc {
+    font-size: 0.78rem;
+    color: #fca5a5;
+    margin: 0 0 12px;
+    line-height: 1.5;
+    opacity: 0.9;
+}
+
+/* Auth Modal Gateway Elements */
+.auth-brand-icon {
+    width: 58px;
+    height: 58px;
+    border-radius: 18px;
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+}
+
+.auth-brand-svg {
+    width: 30px;
+    height: 30px;
+    color: var(--emerald-primary);
+}
+
+.auth-title {
+    margin: 0 0 4px;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #fff;
+}
+
+.auth-subtitle {
+    margin: 0 0 16px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.auth-form-label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #cbd5e1;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.auth-forgot-btn {
+    background: none;
+    border: none;
+    color: var(--emerald-primary);
+    font-size: 0.78rem;
+    cursor: pointer;
+    padding: 0;
+}
+
+.btn-auth-submit {
+    margin-top: 8px;
+    width: 100%;
+    padding: 12px;
+    font-size: 1rem;
+}
+
