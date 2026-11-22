@@ -191,14 +191,7 @@ class AwradyAPI {
         if (!this.client || this.isGuest()) return null;
         const tblTasks = APP_CONSTANTS.DB.TABLES.TASKS;
         const row = this._taskToRow(task);
-        let { data, error } = await this.client.from(tblTasks).upsert(row, { onConflict: "user_id, task_id" }).select();
-        if (error && error.message && (error.message.includes("daily_targets") || error.message.includes("column"))) {
-            const fallbackRow = { ...row };
-            delete fallbackRow.daily_targets;
-            const res = await this.client.from(tblTasks).upsert(fallbackRow, { onConflict: "user_id, task_id" }).select();
-            if (res.error) throw res.error;
-            return res.data?.[0] || null;
-        }
+        const { data, error } = await this.client.from(tblTasks).upsert(row, { onConflict: "user_id, task_id" }).select();
         if (error) throw error;
         return data?.[0] || null;
     }
@@ -208,17 +201,7 @@ class AwradyAPI {
         if (!Array.isArray(tasks) || tasks.length === 0) return [];
         const tblTasks = APP_CONSTANTS.DB.TABLES.TASKS;
         const rows = tasks.map(t => this._taskToRow(t));
-        let { data, error } = await this.client.from(tblTasks).upsert(rows, { onConflict: "user_id, task_id" }).select();
-        if (error && error.message && (error.message.includes("daily_targets") || error.message.includes("column"))) {
-            const fallbackRows = rows.map(r => {
-                const copy = { ...r };
-                delete copy.daily_targets;
-                return copy;
-            });
-            const res = await this.client.from(tblTasks).upsert(fallbackRows, { onConflict: "user_id, task_id" }).select();
-            if (res.error) throw res.error;
-            return res.data || [];
-        }
+        const { data, error } = await this.client.from(tblTasks).upsert(rows, { onConflict: "user_id, task_id" }).select();
         if (error) throw error;
         return data || [];
     }

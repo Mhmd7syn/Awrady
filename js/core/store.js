@@ -21,7 +21,28 @@ const _isSavingDay = {};
 const _queuedSaveDay = {};
 const _lastSavedCloudTimestamp = {};
 const _dbCheckedDates = new Set();
-let _dbSaveTimer = null;
+const _dbSaveTimers = {};
+
+/**
+ * Single source of truth predicate to evaluate whether a day log has meaningful activity
+ * @param {Object} log 
+ * @returns {boolean}
+ */
+export function hasDayActivity(log) {
+    if (!log) return false;
+    const hasDirty = Boolean(log._dirty || (log._dirtyTasks && Object.keys(log._dirtyTasks).length > 0));
+    if (hasDirty) return true;
+    const hasProgress = Boolean(log.taskProgress && Object.values(log.taskProgress).some(p => 
+        (Number(p?.achieved) || 0) > 0 || p?.status === "disabled" || p?.status === "bonus" || p?._explicit
+    ));
+    if (hasProgress) return true;
+    const hasExtras = Boolean(log.prayerExtras && Object.values(log.prayerExtras).some(v => 
+        (Number(v?.nawafel) || 0) > 0 || Boolean(v?.azkar)
+    ));
+    if (hasExtras) return true;
+    const hasScore = (Number(log.total_score ?? log.precomputedScore) || 0) > 0 || (Number(log.total_hours ?? log.totalHours) || 0) > 0;
+    return hasScore;
+}
 
 function getActiveState() {
     if (typeof AppState !== "undefined" && AppState.getAppData) {
@@ -116,14 +137,7 @@ export const AppStore = {
                             delete appData.logs[dateStr];
                             continue;
                         }
-                        const hasAchieved = log.taskProgress && Object.values(log.taskProgress).some(p => (Number(p?.achieved) || 0) > 0);
-                        const hasScore = (Number(log.total_score) || 0) > 0 || (Number(log.precomputedScore) || 0) > 0;
-                        const hasDisabled = Boolean(log.taskProgress && Object.values(log.taskProgress).some(p => p?.status === "disabled"));
-                        const hasBonus = Boolean(log.taskProgress && Object.values(log.taskProgress).some(p => p?.status === "bonus" || p?._explicit));
-                        const hasExtras = Boolean(log.prayerExtras && Object.values(log.prayerExtras).some(v => (Number(v?.nawafel) || 0) > 0 || Boolean(v?.azkar)));
-                        const hasDirty = Boolean(log._dirty || (log._dirtyTasks && Object.keys(log._dirtyTasks).length > 0));
-
-                        if (!hasAchieved && !hasScore && !hasDisabled && !hasBonus && !hasExtras && !hasDirty) {
+                        if (!hasDayActivity(log)) {
                             delete appData.logs[dateStr];
                         }
                     }
@@ -235,13 +249,7 @@ export const AppStore = {
         _isSavingDay[dateStr] = true;
 
         try {
-            const hasDirtyTasks = Boolean(log._dirtyTasks && Object.keys(log._dirtyTasks).length > 0);
-            const hasAchieved = Boolean(log.taskProgress && Object.values(log.taskProgress).some(p => (Number(p?.achieved) || 0) > 0));
-            const hasDisabled = Boolean(log.taskProgress && Object.values(log.taskProgress).some(p => p?.status === "disabled"));
-            const hasBonus = Boolean(log.taskProgress && Object.values(log.taskProgress).some(p => p?.status === "bonus" || p?._explicit));
-            const hasExtras = Boolean(log.prayerExtras && Object.values(log.prayerExtras).some(v => (Number(v?.nawafel) || 0) > 0 || Boolean(v?.azkar)));
-
-            if (!hasDirtyTasks && !hasAchieved && !hasDisabled && !hasBonus && !hasExtras) {
+            if (!hasDayActivity(log)) {
                 log._dirty = false;
                 return;
             }
@@ -344,9 +352,12 @@ export const AppStore = {
             const stillDirty = Boolean(appData.logs?.[dateStr]?._dirty);
             if (_queuedSaveDay[dateStr] || stillDirty) {
                 _queuedSaveDay[dateStr] = false;
-                if (_dbSaveTimer) clearTimeout(_dbSaveTimer);
-                const debounceMs = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.UI?.SAVE_DEBOUNCE_MS) || 2000;
-                _dbSaveTimer = setTimeout(() => this.pushDayToCloud(dateStr), debounceMs);
+                if (_dbSaveTimers[dateStr]) clearTimeout(_dbSaveTimers[dateStr]);
+                const debounceMs = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.UI?.SAVE_DEBOUNCE_MS) || 350;
+                _dbSaveTimers[dateStr] = setTimeout(() => {
+                    delete _dbSaveTimers[dateStr];
+                    this.pushDayToCloud(dateStr);
+                }, debounceMs);
             }
         }
     },
@@ -373,13 +384,7 @@ export const AppStore = {
         const curDate = targetDate || getActiveDate();
         const appData = getActiveState();
         const log = appData.logs?.[curDate];
-        const hasActivity = Boolean(
-            log && (
-                (log._dirtyTasks && Object.keys(log._dirtyTasks).length > 0) ||
-                (log.taskProgress && Object.values(log.taskProgress).some(p => (Number(p?.achieved) || 0) > 0 || p?.status === "disabled" || p?.status === "bonus" || p?._explicit)) ||
-                (log.prayerExtras && Object.values(log.prayerExtras).some(v => (Number(v?.nawafel) || 0) > 0 || Boolean(v?.azkar)))
-            )
-        );
+        const hasActivity = hasDayActivity(log);
 
         if (hasActivity && log) {
             log._dirty = true;
@@ -393,16 +398,20 @@ export const AppStore = {
         // 2. Direct database persistence via AwradyAPI
         if (awradyAPI?.client && hasActivity) {
             const executeDbSave = () => {
+                delete _dbSaveTimers[curDate];
                 this.pushDayToCloud(curDate);
             };
 
             if (immediate) {
-                if (_dbSaveTimer) clearTimeout(_dbSaveTimer);
+                if (_dbSaveTimers[curDate]) {
+                    clearTimeout(_dbSaveTimers[curDate]);
+                    delete _dbSaveTimers[curDate];
+                }
                 executeDbSave();
             } else {
-                if (_dbSaveTimer) clearTimeout(_dbSaveTimer);
-                const debounceMs = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.UI?.SAVE_DEBOUNCE_MS) || 2000;
-                _dbSaveTimer = setTimeout(executeDbSave, debounceMs);
+                if (_dbSaveTimers[curDate]) clearTimeout(_dbSaveTimers[curDate]);
+                const debounceMs = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.UI?.SAVE_DEBOUNCE_MS) || 350;
+                _dbSaveTimers[curDate] = setTimeout(executeDbSave, debounceMs);
             }
         }
     },
@@ -411,9 +420,10 @@ export const AppStore = {
      * Flush pending debounced saves immediately (e.g. before unload)
      */
     flush() {
-        if (_dbSaveTimer) {
-            clearTimeout(_dbSaveTimer);
-            _dbSaveTimer = null;
+        for (const dateStr in _dbSaveTimers) {
+            clearTimeout(_dbSaveTimers[dateStr]);
+            delete _dbSaveTimers[dateStr];
+            this.pushDayToCloud(dateStr);
         }
         this.saveData(true);
     },
@@ -497,15 +507,7 @@ export const AppStore = {
 
                 if (allProgress && allProgress.length > 0) {
                     allProgress.forEach(row => {
-                        const tp = row.task_progress || {};
-                        const pe = row.prayer_extras || {};
-                        const hasAchieved = Object.values(tp).some(p => (Number(p?.achieved) || 0) > 0);
-                        const hasDisabled = Object.values(tp).some(p => p?.status === "disabled");
-                        const hasBonus = Object.values(tp).some(p => p?.status === "bonus" || p?._explicit);
-                        const hasExtras = Object.values(pe).some(v => (Number(v?.nawafel) || 0) > 0 || Boolean(v?.azkar));
-                        const hasScore = (Number(row.total_score) || 0) > 0 || (Number(row.total_hours) || 0) > 0;
-
-                        if (hasAchieved || hasDisabled || hasBonus || hasExtras || hasScore) {
+                        if (hasDayActivity({ taskProgress: row.task_progress, prayerExtras: row.prayer_extras, total_score: row.total_score, total_hours: row.total_hours })) {
                             const localLog = appData.logs[row.date];
                             appData.logs[row.date] = localLog ? this.mergeDayLog(localLog, row) : (typeof rowToLog === "function" ? rowToLog(row) : row);
                         }
@@ -536,26 +538,54 @@ export const AppStore = {
                     const tblProgress = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.DB?.TABLES?.PROGRESS) || "daily_progress";
                     const tblTasks = (typeof APP_CONSTANTS !== "undefined" && APP_CONSTANTS.DB?.TABLES?.TASKS) || "tasks";
 
-                    if (table === tblProgress && payload.new?.date === curDate) {
-                        const row = payload.new;
-                        if (!appData.logs) appData.logs = {};
-                        const currentLog = appData.logs[curDate];
-                        const hasDirty = Boolean(currentLog && (currentLog._dirty || (currentLog._dirtyTasks && Object.keys(currentLog._dirtyTasks).length > 0)));
+                    if (table === tblProgress) {
+                        const targetDate = payload.new?.date || payload.old?.date;
+                        if (!targetDate) return;
 
-                        const rowUpdatedAt = row.updated_at ? new Date(row.updated_at).getTime() : 0;
-                        if (!hasDirty && _lastSavedCloudTimestamp[curDate] && Math.abs(rowUpdatedAt - _lastSavedCloudTimestamp[curDate]) < 2000) {
+                        if (payload.eventType === "DELETE") {
+                            if (appData.logs?.[targetDate]) {
+                                delete appData.logs[targetDate];
+                                if (targetDate === curDate) {
+                                    if (typeof window !== "undefined" && typeof window.renderDailyView === "function") window.renderDailyView();
+                                    if (typeof window !== "undefined" && typeof window.updateHeaderTodayScore === "function") window.updateHeaderTodayScore();
+                                }
+                            }
                             return;
                         }
 
-                        appData.logs[curDate] = hasDirty
-                            ? this.mergeDayLog(currentLog, row)
-                            : (typeof rowToLog === "function" ? rowToLog(row) : row);
+                        if (targetDate === curDate) {
+                            const row = payload.new;
+                            if (!row) return;
+                            if (!appData.logs) appData.logs = {};
+                            const currentLog = appData.logs[curDate];
+                            const hasDirty = Boolean(currentLog && (currentLog._dirty || (currentLog._dirtyTasks && Object.keys(currentLog._dirtyTasks).length > 0)));
 
-                        if (typeof window !== "undefined" && typeof window.renderDailyView === "function") window.renderDailyView();
-                        if (typeof window !== "undefined" && typeof window.updateHeaderTodayScore === "function") window.updateHeaderTodayScore();
+                            const rowUpdatedAt = row.updated_at ? new Date(row.updated_at).getTime() : 0;
+                            if (!hasDirty && _lastSavedCloudTimestamp[curDate] && Math.abs(rowUpdatedAt - _lastSavedCloudTimestamp[curDate]) < 2000) {
+                                return;
+                            }
+
+                            appData.logs[curDate] = hasDirty
+                                ? this.mergeDayLog(currentLog, row)
+                                : (typeof rowToLog === "function" ? rowToLog(row) : row);
+
+                            if (typeof window !== "undefined" && typeof window.renderDailyView === "function") window.renderDailyView();
+                            if (typeof window !== "undefined" && typeof window.updateHeaderTodayScore === "function") window.updateHeaderTodayScore();
+                        } else if (payload.new) {
+                            const row = payload.new;
+                            if (appData.logs?.[targetDate]) {
+                                appData.logs[targetDate] = typeof rowToLog === "function" ? rowToLog(row) : row;
+                            }
+                        }
                     } else if (table === tblTasks) {
                         if (payload.eventType === "DELETE") {
-                            appData.tasks = appData.tasks.filter(t => t.id !== payload.old?.task_id);
+                            const deletedId = payload.old?.task_id;
+                            if (deletedId) {
+                                appData.tasks = (appData.tasks || []).filter(t => t.id !== deletedId);
+                                if (typeof AppState !== "undefined" && AppState.setTasks) {
+                                    AppState.setTasks(appData.tasks);
+                                }
+                            }
                         } else if (payload.new?.task_id) {
                             const row = payload.new;
                             const fields = {
@@ -572,14 +602,19 @@ export const AppStore = {
                             if (row.daily_targets) {
                                 fields.dailyTargets = row.daily_targets;
                             }
+                            if (!appData.tasks) appData.tasks = [];
                             const task = appData.tasks.find(t => t.id === row.task_id);
                             if (task) {
                                 Object.assign(task, fields);
                             } else {
                                 appData.tasks.push({ id: row.task_id, ...fields, createdAt: row.created_at });
                             }
+                            if (typeof AppState !== "undefined" && AppState.setTasks) {
+                                AppState.setTasks(appData.tasks);
+                            }
                         }
                         if (typeof window !== "undefined" && typeof window.renderDailyView === "function") window.renderDailyView();
+                        if (typeof window !== "undefined" && typeof window.renderTaskManager === "function") window.renderTaskManager();
                     }
                 });
 
