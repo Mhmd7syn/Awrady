@@ -2,19 +2,25 @@
  * Pomodoro alerts: keep-alive audio, chime, notification, title blink
  */
 
+let _audioContext = null;
+let _keepAliveNode = null;
+let _originalDocTitle = (typeof document !== "undefined" ? document.title : "");
+let _titleBlinkInterval = null;
+let _titleBlinkFocusHandler = null;
+
 /**
  * Unlock Web Audio Context upon user interaction
  */
 function ensureAudioUnlocked() {
     try {
-        if (!PomodoroTimer.audioContext || PomodoroTimer.audioContext.state === "closed") {
+        if (!_audioContext || _audioContext.state === "closed") {
             const AudioCtx = window.AudioContext || window.webkitAudioContext;
             if (AudioCtx) {
-                PomodoroTimer.audioContext = new AudioCtx({ latencyHint: "playback" });
+                _audioContext = new AudioCtx({ latencyHint: "playback" });
             }
         }
-        if (PomodoroTimer.audioContext && PomodoroTimer.audioContext.state === "suspended") {
-            PomodoroTimer.audioContext.resume();
+        if (_audioContext && _audioContext.state === "suspended") {
+            _audioContext.resume();
         }
     } catch (e) {
         console.warn("[Pomodoro] Audio unlock warning:", e);
@@ -29,7 +35,7 @@ function startAudioKeepalive() {
     ensureAudioUnlocked();
     stopAudioKeepalive();
     try {
-        const ctx = PomodoroTimer.audioContext;
+        const ctx = _audioContext;
         if (!ctx) return;
         if (ctx.state === "suspended") {
             ctx.resume();
@@ -47,7 +53,7 @@ function startAudioKeepalive() {
         gain.connect(ctx.destination);
         osc.start();
 
-        PomodoroTimer.keepAliveNode = { osc, gain };
+        _keepAliveNode = { osc, gain };
     } catch (e) {
         console.warn("[Pomodoro] Keepalive error:", e);
     }
@@ -58,8 +64,8 @@ function startAudioKeepalive() {
  */
 function stopAudioKeepalive() {
     try {
-        if (PomodoroTimer.keepAliveNode) {
-            const { osc, gain } = PomodoroTimer.keepAliveNode;
+        if (_keepAliveNode) {
+            const { osc, gain } = _keepAliveNode;
             if (osc) {
                 try { osc.stop(); } catch (e) {}
                 try { osc.disconnect(); } catch (e) {}
@@ -67,7 +73,7 @@ function stopAudioKeepalive() {
             if (gain) {
                 try { gain.disconnect(); } catch (e) {}
             }
-            PomodoroTimer.keepAliveNode = null;
+            _keepAliveNode = null;
         }
     } catch (e) {}
 }
@@ -87,8 +93,8 @@ function requestPomoNotificationPermission() {
  * Restore default document title
  */
 function restoreDocumentTitle() {
-    if (PomodoroTimer.originalTitle) {
-        document.title = PomodoroTimer.originalTitle;
+    if (_originalDocTitle) {
+        document.title = _originalDocTitle;
     } else {
         document.title = "أورادي | Awrady Dashboard";
     }
@@ -96,9 +102,12 @@ function restoreDocumentTitle() {
 
 /**
  * Dispatch desktop / OS level notification using Service Worker or Notification API
+ * @param {Object} [options]
+ * @param {string} [options.mode="work"] 'work' | 'rest'
  */
-function dispatchSystemNotification() {
-    const isWork = PomodoroTimer.mode === "work";
+function dispatchSystemNotification(options = {}) {
+    const mode = (typeof options === "string" ? options : options?.mode) || (typeof window !== "undefined" && window.PomodoroTimer?.mode) || "work";
+    const isWork = mode === "work";
     const notifTitle = isWork ? "انتهى وقت التركيز! 🎯" : "انتهت فترة الاستراحة! ☕";
     const notifBody = isWork ? "أحسنت! تم حفظ وقت العمل تلقائياً." : "هل ترغب في بدء جلسة تركيز جديدة؟";
 
@@ -133,19 +142,20 @@ function dispatchSystemNotification() {
     }
 }
 
-let _titleBlinkFocusHandler = null;
-
 /**
  * Start tab title flashing when alarm fires
+ * @param {Object} [options]
+ * @param {string} [options.mode="work"]
  */
-function startTitleBlinking() {
+function startTitleBlinking(options = {}) {
     stopTitleBlinking();
-    const isWork = PomodoroTimer.mode === "work";
+    const mode = (typeof options === "string" ? options : options?.mode) || (typeof window !== "undefined" && window.PomodoroTimer?.mode) || "work";
+    const isWork = mode === "work";
     const alertTitle = isWork ? "🔔 انتهى وقت التركيز! ⏰" : "☕ انتهت فترة الاستراحة! ⏰";
     let state = false;
 
-    PomodoroTimer.titleBlinkInterval = setInterval(() => {
-        document.title = state ? alertTitle : (PomodoroTimer.originalTitle || "أورادي");
+    _titleBlinkInterval = setInterval(() => {
+        document.title = state ? alertTitle : (_originalDocTitle || "أورادي");
         state = !state;
     }, 600);
 
@@ -160,9 +170,9 @@ function startTitleBlinking() {
  * Stop tab title flashing and restore normal title
  */
 function stopTitleBlinking() {
-    if (PomodoroTimer.titleBlinkInterval) {
-        clearInterval(PomodoroTimer.titleBlinkInterval);
-        PomodoroTimer.titleBlinkInterval = null;
+    if (_titleBlinkInterval) {
+        clearInterval(_titleBlinkInterval);
+        _titleBlinkInterval = null;
     }
     if (_titleBlinkFocusHandler) {
         window.removeEventListener("focus", _titleBlinkFocusHandler);
@@ -187,7 +197,7 @@ function playPomoAlarm() {
 function playWebAudioChime() {
     try {
         ensureAudioUnlocked();
-        const ctx = PomodoroTimer.audioContext;
+        const ctx = _audioContext;
         if (!ctx) return;
 
         if (ctx.state === "suspended") {
@@ -257,7 +267,7 @@ function playWebAudioChime() {
 function playFiveMinuteChime() {
     try {
         ensureAudioUnlocked();
-        const ctx = PomodoroTimer.audioContext;
+        const ctx = _audioContext;
         if (!ctx) return;
         if (ctx.state === "suspended") ctx.resume();
 
@@ -292,12 +302,15 @@ function playFiveMinuteChime() {
 
 /**
  * Dispatches audio chime and notification when 5 minutes remain in session
+ * @param {Object} [options]
+ * @param {string} [options.taskName=""]
  */
-function dispatchFiveMinuteWarning() {
+function dispatchFiveMinuteWarning(options = {}) {
     ensureAudioUnlocked();
     playFiveMinuteChime();
 
-    const taskLabel = PomodoroTimer.taskName ? ` (${PomodoroTimer.taskName})` : "";
+    const taskName = (typeof options === "string" ? options : options?.taskName) || (typeof window !== "undefined" && window.PomodoroTimer?.taskName) || "";
+    const taskLabel = taskName ? ` (${taskName})` : "";
     const notifTitle = "⏳ باقي 5 دقائق على نهاية وقت التركيز!";
     const notifBody = `شارفت جلسة التركيز${taskLabel} على الانتهاء. استعد لإنهاء مهامك الحالية.`;
 
@@ -330,6 +343,36 @@ function dispatchFiveMinuteWarning() {
         console.warn("[Pomodoro] 5-min warning notification failed:", e);
     }
 }
+
+if (typeof window !== "undefined") {
+    window.ensureAudioUnlocked = ensureAudioUnlocked;
+    window.startAudioKeepalive = startAudioKeepalive;
+    window.stopAudioKeepalive = stopAudioKeepalive;
+    window.requestPomoNotificationPermission = requestPomoNotificationPermission;
+    window.restoreDocumentTitle = restoreDocumentTitle;
+    window.dispatchSystemNotification = dispatchSystemNotification;
+    window.dispatchFiveMinuteWarning = dispatchFiveMinuteWarning;
+    window.startTitleBlinking = startTitleBlinking;
+    window.stopTitleBlinking = stopTitleBlinking;
+    window.playPomoAlarm = playPomoAlarm;
+    window.playWebAudioChime = playWebAudioChime;
+    window.playFiveMinuteChime = playFiveMinuteChime;
+}
+
+export {
+    ensureAudioUnlocked,
+    startAudioKeepalive,
+    stopAudioKeepalive,
+    requestPomoNotificationPermission,
+    restoreDocumentTitle,
+    dispatchSystemNotification,
+    dispatchFiveMinuteWarning,
+    startTitleBlinking,
+    stopTitleBlinking,
+    playPomoAlarm,
+    playWebAudioChime,
+    playFiveMinuteChime
+};
 
 if (typeof window !== "undefined") {
     window.ensureAudioUnlocked = ensureAudioUnlocked;

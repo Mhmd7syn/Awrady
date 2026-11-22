@@ -153,6 +153,9 @@ function renderDailyView() {
     grid.innerHTML = "";
     grid.classList.remove("hidden"); // make sure grid is visible
 
+    const currentDateStr = AppState.getCurrentDate();
+    const appData = AppState.getAppData();
+
     // Update date header
     const dateTitle = document.getElementById("display-date-title");
     const datePicker = document.getElementById("date-picker-input");
@@ -546,9 +549,7 @@ function attachTaskControlListeners(grid) {
         const m = Math.max(0, Math.min(59, parseInt(minutesEl ? minutesEl.value : input.value, 10) || 0));
         const newTotal = (h * 60) + m;
 
-        const log = typeof ensureDayRecord === "function"
-            ? ensureDayRecord(currentDateStr)
-            : (appData.logs[currentDateStr] || (appData.logs[currentDateStr] = { taskProgress: {} }));
+        const log = AppState.ensureDayRecord(currentDateStr);
         if (!log._dirtyTasks) log._dirtyTasks = {};
         log._dirtyTasks[taskId] = Date.now();
         log._dirty = true;
@@ -674,15 +675,15 @@ function attachTaskControlListeners(grid) {
 }
 
 function toggleDeactivateTaskForDate(taskId, dateStr) {
-    const log = typeof ensureDayRecord === "function"
-        ? ensureDayRecord(dateStr)
-        : (appData.logs[dateStr] || (appData.logs[dateStr] = { taskProgress: {} }));
+    const curDate = dateStr || AppState.getCurrentDate();
+    const appData = AppState.getAppData();
+    const log = AppState.ensureDayRecord(curDate);
     if (!log.taskProgress) log.taskProgress = {};
     const task = (appData.tasks || []).find(t => t.id === taskId);
     const tp = log.taskProgress[taskId];
     const isBonus = (tp && typeof tp === "object" && tp.status !== undefined)
         ? tp.status === "bonus"
-        : (task ? ScheduleEngine.isBonusTaskForDate(task, dateStr, appData) : false);
+        : (task ? ScheduleEngine.isBonusTaskForDate(task, curDate, appData) : false);
 
     if (isBonus) {
         // Bonus tasks do not belong to this day's recurring schedule.
@@ -694,7 +695,7 @@ function toggleDeactivateTaskForDate(taskId, dateStr) {
             delete log._dirtyTasks[taskId];
         }
         log._dirty = true;
-        ScoringEngine.invalidateScoreCache(dateStr, appData);
+        ScoringEngine.invalidateScoreCache(curDate, appData);
         saveData();
         renderDailyView();
         updateDailyScoreSummary();
@@ -728,7 +729,7 @@ function toggleDeactivateTaskForDate(taskId, dateStr) {
     if (!log._dirtyTasks) log._dirtyTasks = {};
     log._dirtyTasks[taskId] = Date.now();
     log._dirty = true;
-    ScoringEngine.invalidateScoreCache(dateStr, appData);
+    ScoringEngine.invalidateScoreCache(curDate, appData);
     saveData();
     renderDailyView();
     updateDailyScoreSummary();
@@ -736,7 +737,9 @@ function toggleDeactivateTaskForDate(taskId, dateStr) {
 }
 
 function getTaskVal(taskId) {
-    const log = appData.logs?.[currentDateStr];
+    const curDate = AppState.getCurrentDate();
+    const appData = AppState.getAppData();
+    const log = appData.logs?.[curDate];
     return Number(log?.taskProgress?.[taskId]?.achieved) || 0;
 }
 
@@ -746,12 +749,15 @@ function adjustTaskVal(taskId, delta) {
 }
 
 function isQiyamTask(taskId) {
+    const appData = AppState.getAppData();
     const t = (appData.tasks || []).find(x => x.id === taskId);
     if (!t) return false;
     return (t.subcategory === "قيام ليل" || t.name.includes("قيام") || t.name.includes("تهجد"));
 }
 
 function updateTaskCardInPlace(taskId, val, task = null) {
+    const curDate = AppState.getCurrentDate();
+    const appData = AppState.getAppData();
     if (!task) {
         task = (appData && appData.tasks) ? appData.tasks.find(t => t.id === taskId) : null;
     }
@@ -764,7 +770,6 @@ function updateTaskCardInPlace(taskId, val, task = null) {
     }
     if (!card) return false;
 
-    const curDate = currentDateStr;
     const target = getTaskNormalizedTarget(task, curDate);
     const progressPct = target > 0 ? Math.round((val / target) * 100) : (val > 0 ? 100 : 0);
     const log = (appData && appData.logs) ? appData.logs[curDate] : null;
@@ -836,21 +841,21 @@ function updateTaskCardInPlace(taskId, val, task = null) {
 }
 
 function setTaskVal(taskId, val) {
-    const log = typeof ensureDayRecord === "function"
-        ? ensureDayRecord(currentDateStr)
-        : (appData.logs[currentDateStr] || (appData.logs[currentDateStr] = { taskProgress: {} }));
+    const curDate = AppState.getCurrentDate();
+    const appData = AppState.getAppData();
+    const log = AppState.ensureDayRecord(curDate);
     if (!log._dirtyTasks) {
         log._dirtyTasks = {};
     }
     log._dirtyTasks[taskId] = Date.now();
     log._dirty = true;
-    ScoringEngine.invalidateScoreCache(currentDateStr, appData);
+    ScoringEngine.invalidateScoreCache(curDate, appData);
 
     const task = (appData.tasks || []).find(t => t.id === taskId);
     const existingProgress = log.taskProgress[taskId];
     const prevVal = Number(existingProgress?.achieved) || 0;
-    const normTarget = task ? getTaskNormalizedTarget(task, currentDateStr) : 0;
-    const status = existingProgress?.status || (task && ScheduleEngine.isTaskScheduledForDate(task, currentDateStr, appData, val) ? "scheduled" : (val > 0 ? "bonus" : "scheduled"));
+    const normTarget = task ? getTaskNormalizedTarget(task, curDate) : 0;
+    const status = existingProgress?.status || (task && ScheduleEngine.isTaskScheduledForDate(task, curDate, appData, val) ? "scheduled" : (val > 0 ? "bonus" : "scheduled"));
 
     const { hours: _h, score: _s, ...cleanExisting } = existingProgress || {};
     log.taskProgress[taskId] = {
@@ -862,8 +867,8 @@ function setTaskVal(taskId, val) {
 
     saveData();
 
-    const wasDone = task ? isTaskCompleted(task, prevVal, currentDateStr) : false;
-    const nowDone = task ? isTaskCompleted(task, val, currentDateStr) : false;
+    const wasDone = task ? isTaskCompleted(task, prevVal, curDate) : false;
+    const nowDone = task ? isTaskCompleted(task, val, curDate) : false;
 
     // Fast path: In-place DOM update when task completion status has not flipped
     if (task && wasDone === nowDone && updateTaskCardInPlace(taskId, val, task)) {

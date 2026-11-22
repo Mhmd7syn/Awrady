@@ -561,7 +561,7 @@ function syncPomoTimer() {
         if (PomodoroTimer.totalSeconds > 300 && remaining <= 300 && !PomodoroTimer.hasFiredFiveMinWarning) {
             PomodoroTimer.hasFiredFiveMinWarning = true;
             if (typeof dispatchFiveMinuteWarning === "function") {
-                dispatchFiveMinuteWarning();
+                dispatchFiveMinuteWarning({ taskName: PomodoroTimer.taskName });
             }
         }
     }
@@ -632,8 +632,8 @@ function resetPomoTimer() {
 function handlePomoCompletion() {
     pausePomoTimer();
     playPomoAlarm();
-    startTitleBlinking();
-    dispatchSystemNotification();
+    startTitleBlinking({ mode: PomodoroTimer.mode });
+    dispatchSystemNotification({ mode: PomodoroTimer.mode });
 
     const isWork = PomodoroTimer.mode === "work";
 

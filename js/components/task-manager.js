@@ -5,6 +5,7 @@
  * ============================================================================
  */
 
+import { APP_CONSTANTS } from '../config/constants.js';
 import { groupTasksByCategory, getTaskUnit, isTimeTask, isPrayerSelector } from '../core/task-rules.js';
 import { getCategoryIconHtml } from './category-manager.js';
 import { ScoringEngine } from '../core/scoring-engine.js';
@@ -259,9 +260,11 @@ function renderTaskManager() {
     const archivedList = document.getElementById("manager-archived-list");
     if (!activeList || !archivedList) return;
 
-    const activeTasks = appData.tasks.filter(t => !t.isArchived && !t.isOneTime && t.schedule !== "OneTime");
-    const onetimeTasks = appData.tasks.filter(t => !t.isArchived && (t.isOneTime || t.schedule === "OneTime"));
-    const archivedTasks = appData.tasks.filter(t => t.isArchived);
+    const appData = AppState.getAppData();
+    const tasks = AppState.getTasks();
+    const activeTasks = tasks.filter(t => !t.isArchived && !t.isOneTime && t.schedule !== "OneTime");
+    const onetimeTasks = tasks.filter(t => !t.isArchived && (t.isOneTime || t.schedule === "OneTime"));
+    const archivedTasks = tasks.filter(t => t.isArchived);
 
     const activeCount = renderGroupedTasks(activeList, activeTasks, false, false);
     const onetimeCount = onetimeList ? renderGroupedTasks(onetimeList, onetimeTasks, false, true) : 0;
@@ -275,7 +278,7 @@ function renderTaskManager() {
     if (elActive) elActive.textContent = activeCount;
     if (elOnetime) elOnetime.textContent = onetimeCount;
     if (elArchived) elArchived.textContent = archivedCount;
-    if (elCats) elCats.textContent = appData.categories.length;
+    if (elCats) elCats.textContent = (appData?.categories || APP_CONSTANTS.CATEGORIES || []).length;
 
     document.querySelectorAll(".btn-edit").forEach(b => b.addEventListener("click", e => openTaskModal(e.currentTarget.getAttribute("data-id"))));
     document.querySelectorAll(".btn-archive").forEach(b => b.addEventListener("click", e => archiveTask(e.currentTarget.getAttribute("data-id"), true)));
@@ -288,10 +291,12 @@ function renderTaskManager() {
 }
 
 function archiveTask(id, isArchive) {
-    const t = appData.tasks.find(x => x.id === id);
+    const appData = AppState.getAppData();
+    const tasks = AppState.getTasks();
+    const t = tasks.find(x => x.id === id);
     if (t) {
         t.isArchived = isArchive;
-        const curDate = currentDateStr;
+        const curDate = AppState.getCurrentDate();
         t.archivedAt = isArchive ? curDate : null;
         if (isArchive) {
             const log = appData.logs?.[curDate];
@@ -325,11 +330,13 @@ function archiveTask(id, isArchive) {
 }
 
 function deleteForever(id) {
-    const t = appData.tasks.find(x => x.id === id);
+    const appData = AppState.getAppData();
+    const tasks = AppState.getTasks();
+    const t = tasks.find(x => x.id === id);
     if (!t) return;
     if (confirm(`هل أنت متأكد من حذف مهمة (${t.name}) نهائياً؟\nسيتم إزالة المهمة وجميع بياناتها تماماً من النظام ولن يمكن استعادتها.`)) {
-        // 1. Remove permanently from appData.tasks
-        appData.tasks = appData.tasks.filter(x => x.id !== id);
+        // 1. Remove permanently from AppState tasks
+        AppState.setTasks(tasks.filter(x => x.id !== id));
 
         // 2. Purge all references and logs for this task
         if (appData.logs) {
@@ -366,9 +373,8 @@ function deleteForever(id) {
 }
 
 function addBonusTaskToDate(taskId, dateStr) {
-    const log = typeof ensureDayRecord === "function"
-        ? ensureDayRecord(dateStr)
-        : (appData.logs[dateStr] || (appData.logs[dateStr] = { taskProgress: {} }));
+    const appData = AppState.getAppData();
+    const log = AppState.ensureDayRecord(dateStr);
 
     log.taskProgress[taskId] = {
         target: 0,

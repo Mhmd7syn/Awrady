@@ -18,6 +18,7 @@ if (typeof window !== "undefined") {
 }
 
 function getRecordedDates() {
+    const appData = AppState.getAppData();
     if (!appData || !appData.logs) return [];
     const todayStr = typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().slice(0, 10);
     return Object.keys(appData.logs).filter(d => {
@@ -92,6 +93,7 @@ function getSelectedDates() {
 
 function calculateScoreForDates(dates) {
     if (!dates || dates.length === 0) return { avgPercent: 0, count: 0 };
+    const appData = AppState.getAppData();
     let sumScores = 0;
     let count = 0;
     dates.forEach(d => {
@@ -130,6 +132,7 @@ function updateAnalyticsHeroMetrics(selectedDates = null) {
 
     const { avgPercent } = calculateScoreForDates(targetDates);
 
+    const appData = AppState.getAppData();
     let totalPeriodHours = 0;
     targetDates.forEach(d => {
         totalPeriodHours += ScoringEngine.calculateDayScore(d, appData, true);
@@ -145,6 +148,7 @@ function updateAnalyticsHeroMetrics(selectedDates = null) {
 }
 
 function renderAllTimeStats() {
+    const appData = AppState.getAppData();
     if (!appData || !appData.logs) return;
     const allDates = getRecordedDates();
 
@@ -518,6 +522,7 @@ function updateChartAndAnalytics() {
     let bestDayScore = 0;
     let bestDayLabel = "--";
 
+    const appData = AppState.getAppData();
     selectedDates.forEach((dateStr, idx) => {
         const hours = ScoringEngine.calculateDayScore(dateStr, appData, true);
         const hoursFormatted = Math.round(hours * 10) / 10;

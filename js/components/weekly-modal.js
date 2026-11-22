@@ -108,7 +108,7 @@ function isTaskEligibleForWeeklySheet(task) {
  * @returns {Array<Object>}
  */
 function getEligibleWeeklyTasks() {
-    const dataStore = window.appData || { tasks: [], logs: {} };
+    const dataStore = AppState.getAppData();
     return (dataStore.tasks || []).filter(isTaskEligibleForWeeklySheet);
 }
 
@@ -439,7 +439,7 @@ function recalculateWeeklySheetTotals() {
     const taskRows = container.querySelectorAll("tbody tr[data-task-row]");
     const colTotalSpans = container.querySelectorAll(".col-day-total");
     const grandTotalSpan = document.getElementById("weekly-grand-total");
-    const dataStore = window.appData || { tasks: [] };
+    const dataStore = AppState.getAppData();
 
     const dayWeightedSums = {};
     colTotalSpans.forEach(span => {
@@ -500,7 +500,7 @@ async function saveWeeklyMatrix() {
         return;
     }
 
-    const dataStore = window.appData || { tasks: [], logs: {} };
+    const dataStore = AppState.getAppData();
     const modifiedTasks = new Set();
 
     keys.forEach(key => {
@@ -548,7 +548,7 @@ async function saveWeeklyMatrix() {
     } catch (_) {}
 
     // Update target snapshot in current date log so UI and scoring reflect the changes immediately
-    const curDate = (typeof currentDateStr !== "undefined") ? currentDateStr : null;
+    const curDate = AppState.getCurrentDate();
     if (curDate && dataStore.logs?.[curDate]) {
         const curLog = dataStore.logs[curDate];
         if (curLog.taskProgress) {
