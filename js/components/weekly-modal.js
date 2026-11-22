@@ -58,7 +58,7 @@ function getTaskTargetForDay(task, dayKey) {
         return Math.round((Number(task.dailyTargets[dayKey]) || 0) * 100) / 100;
     }
     const sched = (task.schedule || "Everyday").trim();
-    const isScheduled = (sched === "Everyday" || sched === "" || sched === "Weekdays") ? true : sched.includes(dayKey);
+    const isScheduled = (sched === "Everyday" || sched === "") ? true : sched.includes(dayKey);
     return isScheduled ? Math.round((Number(task.target) || 1) * 100) / 100 : 0;
 }
 
@@ -525,12 +525,10 @@ async function saveWeeklyMatrix() {
 
         // Determine active days
         const activeDays = WEEKLY_WEEKDAYS.filter(d => (task.dailyTargets[d.key] || 0) > 0).map(d => d.key);
-        if (activeDays.length === 7) {
+        if (activeDays.length === 7 || activeDays.length === 0) {
             task.schedule = "Everyday";
-        } else if (activeDays.length > 0) {
-            task.schedule = activeDays.join(", ");
         } else {
-            task.schedule = "Weekdays";
+            task.schedule = activeDays.join(", ");
         }
 
         // Set base target to primary positive day target

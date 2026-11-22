@@ -40,33 +40,17 @@ class ScoringEngine {
     }
 
     /**
-     * Calculates the overall completion score (0.0 to 1.0+) or total achieved hours for a given date.
-     * @param {string} dateStr Format "YYYY-MM-DD"
-     * @param {Object} [appDataRef] Optional data store reference
-     * @param {boolean} [returnHours=false] If true, returns total achieved hours instead of score percentage ratio
-     * @returns {number} Floating point score (e.g. 0.85 = 85%) or achieved hours if returnHours is true
+     * Pure scoring calculation for a given date, tasks, and log.
+     * Does not mutate input objects.
+     * @param {Array} tasks
+     * @param {Object} log
+     * @param {string} dateStr
+     * @param {Object} [appData]
+     * @returns {{ score: number, hours: number }}
      */
-    static calculateDayScore(dateStr, appDataRef = null, returnHours = false) {
-        const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
-        if (!appData || !appData.logs) return 0;
-
-        const log = appData.logs[dateStr];
-        if (!log) return 0;
-
-        const isDirty = Boolean(log._dirty ||
-            (log._dirtyTasks && Object.keys(log._dirtyTasks).length > 0));
-
-        const todayStr = typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().slice(0, 10);
-        const isHistorical = dateStr < todayStr;
-
-        // Freeze historical days: if clean and loaded from DB (or stored totals exist), return in O(1)
-        if (isHistorical && !isDirty && log._loadedFromDB) {
-            const storedScore = log.total_score ?? log.precomputedScore;
-            const storedHours = log.total_hours ?? log.totalHours;
-            if (storedScore !== undefined && storedScore !== null) {
-                return returnHours ? (Number(storedHours) || 0) : (Number(storedScore) || 0);
-            }
-        }
+    static compute(tasks, log, dateStr, appData = null) {
+        if (!log) return { score: 0, hours: 0 };
+        const taskList = Array.isArray(tasks) ? tasks : [];
 
         let reqWeightedScore = 0.0;
         let reqTotalWeight = 0.0;
@@ -78,14 +62,16 @@ class ScoringEngine {
             hijriInfo: getHijriDateDetails(dateStr)
         };
 
-        (appData.tasks || []).forEach(task => {
+        const dataRef = appData || { tasks: taskList, logs: { [dateStr]: log } };
+
+        taskList.forEach(task => {
             const tp = log.taskProgress?.[task.id];
             const val = Number(tp?.achieved) || 0;
             if (task.isArchived && val <= 0 && tp?.status !== "bonus") return;
-            if (ScheduleEngine.isTaskDisabledForDate(task, log, appData)) return;
+            if (ScheduleEngine.isTaskDisabledForDate(task, log, dataRef)) return;
 
-            const isBonus = tp?.status === "bonus" || Boolean(task.isBonus) || ScheduleEngine.isBonusTaskForDate(task, dateStr, appData, val, dateContext);
-            const isScheduled = tp?.status === "scheduled" || (!isBonus && ScheduleEngine.isTaskScheduledForDate(task, dateStr, appData, val, dateContext));
+            const isBonus = tp?.status === "bonus" || Boolean(task.isBonus) || ScheduleEngine.isBonusTaskForDate(task, dateStr, dataRef, val, dateContext);
+            const isScheduled = tp?.status === "scheduled" || (!isBonus && ScheduleEngine.isTaskScheduledForDate(task, dateStr, dataRef, val, dateContext));
 
             if (isScheduled || (isBonus && val > 0)) {
                 const isTime = isTimeTask(task);
@@ -126,31 +112,59 @@ class ScoringEngine {
             : (reqWeightedScore + bonusWeightedScore) / reqTotalWeight;
         const calculatedHours = (reqWeightedScore + bonusWeightedScore) / 60;
 
-        // Cache precalculated values onto the log object
-        log.precomputedScore = calculatedScore;
-        log.totalHours = calculatedHours;
-
-        return returnHours ? calculatedHours : calculatedScore;
+        return { score: calculatedScore, hours: calculatedHours };
     }
 
     /**
-     * Invalidate cached day score and hours when task values change
-     * @param {string} dateStr 
-     * @param {Object} [appDataRef] 
+     * Calculates the overall completion score (0.0 to 1.0+) or total achieved hours for a given date.
+     * Pure function: does not mutate log or store objects.
+     * @param {string} dateStr Format "YYYY-MM-DD"
+     * @param {Object} [appDataRef] Optional data store reference
+     * @param {boolean} [returnHours=false] If true, returns total achieved hours instead of score percentage ratio
+     * @returns {number} Floating point score (e.g. 0.85 = 85%) or achieved hours if returnHours is true
      */
-    static invalidateScoreCache(dateStr, appDataRef = null) {
+    static calculateDayScore(dateStr, appDataRef = null, returnHours = false) {
         const appData = appDataRef || (typeof window !== "undefined" ? window.appData : null);
-        if (appData?.logs?.[dateStr]) {
-            delete appData.logs[dateStr].precomputedScore;
-            delete appData.logs[dateStr].totalHours;
+        if (!appData || !appData.logs) return 0;
+
+        const log = appData.logs[dateStr];
+        if (!log) return 0;
+
+        const isDirty = Boolean(log._dirty ||
+            (log._dirtyTasks && Object.keys(log._dirtyTasks).length > 0));
+
+        const todayStr = typeof getLocalTodayString === "function" ? getLocalTodayString() : new Date().toISOString().slice(0, 10);
+        const isHistorical = dateStr < todayStr;
+
+        // Freeze historical days: if clean and loaded from DB (or stored totals exist), return in O(1)
+        if (isHistorical && !isDirty && log._loadedFromDB) {
+            const storedScore = log.total_score ?? log.precomputedScore;
+            const storedHours = log.total_hours ?? log.totalHours;
+            if (storedScore !== undefined && storedScore !== null) {
+                return returnHours ? (Number(storedHours) || 0) : (Number(storedScore) || 0);
+            }
         }
+
+        const res = ScoringEngine.compute(appData.tasks || [], log, dateStr, appData);
+        return returnHours ? res.hours : res.score;
+    }
+
+    /**
+     * Invalidate cached day score and hours when task values change (pure no-op)
+     * @param {string} _dateStr 
+     * @param {Object} [_appDataRef] 
+     */
+    static invalidateScoreCache(_dateStr, _appDataRef = null) {
+        // Pure scoring engine: does not mutate log cache
     }
 }
 
 if (typeof window !== "undefined") {
     window.ScoringEngine = ScoringEngine;
     window.calculateDayScore = ScoringEngine.calculateDayScore.bind(ScoringEngine);
+    window.computeDayScore = ScoringEngine.compute.bind(ScoringEngine);
 }
 
 export { ScoringEngine };
 export const calculateDayScore = ScoringEngine.calculateDayScore.bind(ScoringEngine);
+export const computeDayScore = ScoringEngine.compute.bind(ScoringEngine);

@@ -4,7 +4,7 @@
 
 import { AppState } from '../core/state.js';
 import { ScheduleEngine } from '../core/schedule-engine.js';
-import { getCategoryIconHtml } from '../core/task-rules.js';
+import { getCategoryIconHtml } from './category-manager.js';
 import { openTaskModal } from './task-modal.js';
 
 let _qaCurrentFilter = "all";

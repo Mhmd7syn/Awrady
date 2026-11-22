@@ -57,13 +57,13 @@ export function updateDailyTargetsUIState() {
 
 /**
  * Updates task edit modal UI elements according to the chosen schedule type
- * @param {string} schedType ("Everyday", "Daily", "Weekdays", "WhiteDays", "Ramadan", "OneTime")
+ * @param {string} schedType ("Everyday", "Daily", "WhiteDays", "Ramadan", "OneTime")
  */
 export function updateTaskModalScheduleUI(schedType) {
     const dailyBox = document.getElementById("daily-targets-box");
     const otBox = document.getElementById("onetime-date-selector-box");
     const targetGroup = document.getElementById("task-target-group");
-    const isDaily = (schedType === "Everyday" || schedType === "Daily" || schedType === "Weekdays" || !schedType);
+    const isDaily = (schedType === "Everyday" || schedType === "Daily" || !schedType);
 
     if (isDaily) {
         // Daily: Show per-day vertical collapsible targets; hide scalar target input

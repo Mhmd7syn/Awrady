@@ -16,6 +16,28 @@ function getLocalTodayString(dateObj = new Date()) {
     return `${year}-${month}-${day}`;
 }
 
+/**
+ * Safely parses a YYYY-MM-DD string into a local Date object at midday to prevent UTC timezone date shifting
+ * @param {string|Date} dateStr 
+ * @returns {Date}
+ */
+function parseLocalDate(dateStr) {
+    if (!dateStr) return new Date();
+    if (dateStr instanceof Date) return new Date(dateStr.getTime());
+    const str = String(dateStr).trim();
+    if (str.includes("T")) return new Date(str);
+    const parts = str.split("-");
+    if (parts.length === 3) {
+        const y = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        const d = parseInt(parts[2], 10);
+        if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+            return new Date(y, m, d, 12, 0, 0);
+        }
+    }
+    return new Date(str + "T12:00:00");
+}
+
 
 /**
  * Formats minutes into human-readable Arabic hours & minutes
@@ -83,7 +105,7 @@ const _hijriDetailsCache = new Map();
  */
 function getDayOfWeekAbbrev(dateStr) {
     if (!dateStr) return "";
-    const date = new Date(dateStr.includes("T") ? dateStr : dateStr + "T12:00:00");
+    const date = parseLocalDate(dateStr);
     return WEEKDAY_ABBREVS[date.getDay()] || "";
 }
 
@@ -94,7 +116,7 @@ function getDayOfWeekAbbrev(dateStr) {
  */
 function getArabicDateFormatted(dateStr) {
     if (!dateStr) return "";
-    const date = new Date(dateStr.includes("T") ? dateStr : dateStr + "T12:00:00");
+    const date = parseLocalDate(dateStr);
     try {
         return getArabicDateFormatter().format(date);
     } catch (e) {
@@ -120,7 +142,7 @@ function getHijriDateDetails(dateStr) {
         return _hijriDetailsCache.get(cleanKey);
     }
 
-    const date = new Date(cleanKey + "T12:00:00");
+    const date = parseLocalDate(cleanKey);
     try {
         const dateStringAr = getHijriArFormatter().format(date);
         const parts = getHijriEnPartsFormatter().formatToParts(date);
@@ -163,9 +185,7 @@ function getHijriDateDetails(dateStr) {
  * @returns {Array<{ dateStr: string, dayNameAr: string, dayNameEn: string, isToday: boolean }>}
  */
 function getDatesForCurrentWeek(referenceDate = new Date()) {
-    const curr = typeof referenceDate === 'string' 
-        ? new Date(referenceDate.includes("T") ? referenceDate : referenceDate + "T12:00:00")
-        : new Date(referenceDate);
+    const curr = parseLocalDate(referenceDate);
         
     const day = curr.getDay(); // 0 is Sun, 6 is Sat
     // Saturday is day 6. Calculate offset to previous Saturday
@@ -198,13 +218,14 @@ function getDatesForCurrentWeek(referenceDate = new Date()) {
  * @returns {string} New date in YYYY-MM-DD
  */
 function addDays(dateStr, days) {
-    const d = new Date(dateStr.includes("T") ? dateStr : dateStr + "T12:00:00");
+    const d = parseLocalDate(dateStr);
     d.setDate(d.getDate() + days);
     return getLocalTodayString(d);
 }
 
 if (typeof window !== "undefined") {
     window.getLocalTodayString = getLocalTodayString;
+    window.parseLocalDate = parseLocalDate;
     window.formatTimeHM = formatTimeHM;
     window.getDayOfWeekAbbrev = getDayOfWeekAbbrev;
     window.getArabicDateFormatted = getArabicDateFormatted;
@@ -215,6 +236,7 @@ if (typeof window !== "undefined") {
 
 export {
     getLocalTodayString,
+    parseLocalDate,
     formatTimeHM,
     getDayOfWeekAbbrev,
     getArabicDateFormatted,

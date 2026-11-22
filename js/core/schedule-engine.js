@@ -102,7 +102,7 @@ class ScheduleEngine {
             // Priority 3: Regular Monday / Thursday voluntary fasting
             if (sched.includes("WhiteDays")) return false;
             if (sched === "Ramadan") return false;
-            if (sched === "Everyday" || sched === "" || sched === "Weekdays") return true;
+            if (sched === "Everyday" || sched === "") return true;
 
             return sched.includes(dayAbbrev);
         }
@@ -114,7 +114,7 @@ class ScheduleEngine {
         }
 
         if (sched.includes("WhiteDays")) return hijriInfo.isWhiteDay;
-        if (sched === "Everyday" || sched === "" || sched === "Weekdays") return true;
+        if (sched === "Everyday" || sched === "") return true;
         if (sched === "Ramadan") return hijriInfo.isRamadan;
 
         return sched.includes(dayAbbrev);

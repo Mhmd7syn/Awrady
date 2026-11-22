@@ -64,7 +64,7 @@ awrady/
 │   ├── config/
 │   │   └── constants.js         # Centralized constants, limits, and keys
 │   ├── core/
-│   │   ├── schedule-engine.js   # Schedule logic (Everyday, Weekdays, White Days)
+│   │   ├── schedule-engine.js   # Schedule logic (Everyday, White Days, Ramadan, OneTime)
 │   │   └── scoring-engine.js    # Day score & completion calculation
 │   └── components/
 │       ├── task-manager.js      # Task creation, editing, and archiving

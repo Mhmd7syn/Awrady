@@ -5,7 +5,8 @@
  * ============================================================================
  */
 
-import { groupTasksByCategory, getCategoryIconHtml, getTaskUnit, isTimeTask } from '../core/task-rules.js';
+import { groupTasksByCategory, getTaskUnit, isTimeTask, isPrayerSelector } from '../core/task-rules.js';
+import { getCategoryIconHtml } from './category-manager.js';
 import { ScoringEngine } from '../core/scoring-engine.js';
 import { AppState } from '../core/state.js';
 import { saveData } from '../core/store.js';

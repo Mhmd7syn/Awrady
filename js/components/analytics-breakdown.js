@@ -2,7 +2,8 @@
  * Per-task consistency breakdown
  */
 
-import { isTimeTask, getTaskNormalizedTarget, groupTasksByCategory, getCategoryIconHtml } from '../core/task-rules.js';
+import { isTimeTask, getTaskNormalizedTarget, groupTasksByCategory } from '../core/task-rules.js';
+import { getCategoryIconHtml } from './category-manager.js';
 import { ScheduleEngine } from '../core/schedule-engine.js';
 import { ScoringEngine } from '../core/scoring-engine.js';
 import { AppState } from '../core/state.js';

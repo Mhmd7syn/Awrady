@@ -5,7 +5,7 @@
  * ============================================================================
  */
 
-import { getLocalTodayString, addDays, getArabicDateFormatted } from '../utils/date-utils.js';
+import { getLocalTodayString, addDays, getArabicDateFormatted, parseLocalDate } from '../utils/date-utils.js';
 import { ScoringEngine } from '../core/scoring-engine.js';
 import { AppState } from '../core/state.js';
 import { renderTaskBreakdown, renderTaskRankings, setupAnalyticsFilters } from './analytics-breakdown.js';
@@ -40,9 +40,9 @@ function shiftDateDays(dateStr, days) {
     if (typeof addDays === "function") {
         return addDays(dateStr, days);
     }
-    const d = new Date(dateStr.includes("T") ? dateStr : dateStr + "T12:00:00");
+    const d = parseLocalDate(dateStr);
     d.setDate(d.getDate() + days);
-    return (typeof getLocalTodayString === "function") ? getLocalTodayString(d) : d.toISOString().slice(0, 10);
+    return (typeof getLocalTodayString === "function") ? getLocalTodayString(d) : getLocalTodayString(d);
 }
 
 function generateDateRange(startDate, endDate) {
@@ -69,7 +69,7 @@ function getSelectedDates() {
         return theoreticalStart < earliestDate ? earliestDate : theoreticalStart;
     };
 
-    const totalDays = Math.round((new Date(todayStr + "T12:00:00") - new Date(earliestDate + "T12:00:00")) / 86400000) + 1;
+    const totalDays = Math.round((parseLocalDate(todayStr) - parseLocalDate(earliestDate)) / 86400000) + 1;
 
     let effectiveRange = chartTimeRange;
     if (totalDays <= 7) {

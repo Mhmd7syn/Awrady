@@ -22,7 +22,6 @@ export const APP_CONSTANTS = {
     },
     SCHEDULE_TYPES: {
         EVERYDAY: "Everyday",
-        WEEKDAYS: "Weekdays",
         WHITE_DAYS: "WhiteDays",
         RAMADAN: "Ramadan",
         ONE_TIME: "OneTime"

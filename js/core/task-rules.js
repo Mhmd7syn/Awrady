@@ -48,7 +48,7 @@ function isTimeTask(task) {
 function isEverydayOrSpecificDaysSchedule(schedule) {
     if (!schedule) return true;
     const s = schedule.trim();
-    if (s === "Everyday" || s === "Daily" || s === "Weekdays" || s === "") return true;
+    if (s === "Everyday" || s === "Daily" || s === "") return true;
     if (s === "OneTime" || s === "WhiteDays" || s === "Ramadan") return false;
     return ["Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri"].some(d => s.includes(d));
 }
@@ -87,7 +87,7 @@ function getTaskDayTarget(task, dayOrDateKey = null) {
 
         let isScheduled = false;
         const s = sched.trim();
-        if (s === "Everyday" || s === "" || s === "Weekdays") {
+        if (s === "Everyday" || s === "") {
             isScheduled = true;
         } else if (dayKey) {
             isScheduled = s.includes(dayKey);
@@ -309,139 +309,6 @@ function rowToLog(row) {
     };
 }
 
-/**
- * Renders unified interactive controls HTML for prayer, time, or counter tasks
- * @param {Object} task
- * @param {number} val
- * @param {{ compact?: boolean }} [options]
- * @returns {string}
- */
-function getTaskActionBtn(task, compact = false) {
-    const isBonus = (typeof ScheduleEngine !== "undefined" && typeof currentDateStr !== "undefined")
-        ? ScheduleEngine.isBonusTaskForDate(task, currentDateStr, typeof appData !== "undefined" ? appData : null)
-        : Boolean(task?.isBonus);
-
-    if (compact) {
-        if (isBonus) {
-            return `<button class="btn-action-sm btn-task-off" data-id="${task.id}" title="حذف من هذا اليوم" style="padding:2px 6px; color:#ef4444; font-size:0.75rem;"><i class="fa-solid fa-trash"></i></button>`;
-        }
-        return `<button class="btn-action-sm" data-edit-id="${task.id}" title="تعديل الورد" style="padding:2px 6px; color:var(--gold-primary); font-size:0.75rem;"><i class="fa-solid fa-pen"></i></button>`;
-    }
-
-    if (isBonus) {
-        return `<button class="btn-action-sm btn-task-off" data-id="${task.id}" title="حذف من هذا اليوم" style="font-size:0.75rem; padding:4px 8px; opacity:0.8; color:#ef4444;"><i class="fa-solid fa-trash"></i></button>`;
-    }
-
-    return `<button class="btn-action-sm btn-task-off" data-id="${task.id}" title="إيقاف لهذا اليوم" style="font-size:0.75rem; padding:4px 8px; opacity:0.6;">⏸</button>`;
-}
-
-function renderTaskControls(task, val, { compact = false } = {}) {
-    const actionBtn = getTaskActionBtn(task, compact);
-    const isBonus = (typeof ScheduleEngine !== "undefined" && typeof currentDateStr !== "undefined")
-        ? ScheduleEngine.isBonusTaskForDate(task, currentDateStr, typeof appData !== "undefined" ? appData : null)
-        : Boolean(task?.isBonus);
-
-    if (isPrayerSelector(task)) {
-        const pVals = APP_CONSTANTS.PRAYER_VALUES;
-        const pad = compact ? "padding:3px 8px; font-size:0.75rem;" : "";
-        const wrapStyle = compact ? "" : "margin-top:14px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.05);";
-        return `
-            <div class="prayer-toggles" data-id="${task.id}" style="${wrapStyle}">
-                <button class="btn-prayer ${val === pVals.CONGREGATION ? 'active-mosque' : ''}" data-prayer-val="${pVals.CONGREGATION}" data-id="${task.id}" style="${pad}" title="صلاة جماعة / مسجد">🕌 جماعة</button>
-                <button class="btn-prayer ${val === pVals.ALONE ? 'active-home' : ''}" data-prayer-val="${pVals.ALONE}" data-id="${task.id}" style="${pad}" title="صلاة منفرد">🏠 منفرد</button>
-                <button class="btn-prayer ${val === pVals.MISSED ? 'active-none' : ''}" data-prayer-val="${pVals.MISSED}" data-id="${task.id}" style="${pad}" title="لم تُصلَّ بعد">❌ لم أصل</button>
-                ${actionBtn}
-            </div>
-        `;
-    }
-
-    if (isTimeTask(task)) {
-        const hours = Math.floor(val / 60);
-        const minutes = val % 60;
-
-        if (compact) {
-            const timeColor = isBonus ? "#f59e0b" : "#10b981";
-            const timeBorder = isBonus ? "rgba(245,158,11,0.35)" : "rgba(16,185,129,0.3)";
-            const pomoBg = isBonus ? "rgba(245,158,11,0.12)" : "rgba(16,185,129,0.12)";
-            return `
-                <div class="task-controls" data-id="${task.id}" style="display:flex; align-items:center; gap:6px;">
-                    <div style="display:flex; align-items:center; background:rgba(0,0,0,0.3); border:1px solid ${timeBorder}; border-radius:6px; padding:1px 4px;">
-                        <input type="number" class="input-time-hours" data-id="${task.id}" value="${hours}" min="0" max="24" style="width:28px; background:transparent; border:none; color:${timeColor}; font-weight:700; font-size:0.8rem; text-align:center;">
-                        <span style="font-size:0.7rem; color:${timeColor};">س</span>
-                    </div>
-                    <div style="display:flex; align-items:center; background:rgba(0,0,0,0.3); border:1px solid ${timeBorder}; border-radius:6px; padding:1px 4px;">
-                        <input type="number" class="input-time-minutes" data-id="${task.id}" value="${minutes}" min="0" max="59" step="5" style="width:28px; background:transparent; border:none; color:${timeColor}; font-weight:700; font-size:0.8rem; text-align:center;">
-                        <span style="font-size:0.7rem; color:${timeColor};">د</span>
-                    </div>
-                    <button class="btn-step btn-pomo-trigger" data-id="${task.id}" data-name="${task.name}" style="padding:2px 6px; font-size:0.75rem; color:${timeColor}; border:1px solid ${timeBorder}; background:${pomoBg};" title="بدء مؤقت التركيز لهذه المهمة"><i class="fa-solid fa-stopwatch"></i></button>
-                    <button class="btn-step btn-step-time" data-id="${task.id}" data-time-delta="15" style="padding:2px 6px; font-size:0.75rem;" title="زيادة 15 دقيقة كبونص">+15د</button>
-                    <button class="btn-step btn-step-time" data-id="${task.id}" data-time-delta="-15" style="padding:2px 6px; font-size:0.75rem;" title="إنقاص 15 دقيقة">-15د</button>
-                    ${actionBtn}
-                </div>
-            `;
-        }
-
-        return `
-            <div class="task-controls-area time-controls-area" data-id="${task.id}" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-                <div style="display:flex; align-items:center; gap:6px;">
-                    <div style="display:flex; align-items:center; background:rgba(0,0,0,0.4); border:1px solid var(--glass-border); border-radius:8px; padding:2px 6px;">
-                        <input type="number" class="input-time-hours" data-id="${task.id}" value="${hours}" min="0" max="24" style="width:38px; background:transparent; border:none; color:#fff; font-weight:700; font-size:0.95rem; text-align:center;">
-                        <span style="font-size:0.75rem; color:var(--text-secondary);">ساعة</span>
-                    </div>
-                    <div style="display:flex; align-items:center; background:rgba(0,0,0,0.4); border:1px solid var(--glass-border); border-radius:8px; padding:2px 6px;">
-                        <input type="number" class="input-time-minutes" data-id="${task.id}" value="${minutes}" min="0" max="59" step="5" style="width:38px; background:transparent; border:none; color:#fff; font-weight:700; font-size:0.95rem; text-align:center;">
-                        <span style="font-size:0.75rem; color:var(--text-secondary);">دقيقة</span>
-                    </div>
-                </div>
-                <div style="display:flex; align-items:center; gap:4px;">
-                    <button class="btn-step btn-pomo-trigger" data-id="${task.id}" data-name="${task.name}" style="font-size:0.8rem; padding:3px 8px; border-radius:6px; color:#10b981; border:1px solid rgba(16,185,129,0.3); background:rgba(16,185,129,0.12);" title="بدء مؤقت التركيز لهذه المهمة"><i class="fa-solid fa-stopwatch"></i></button>
-                    <button class="btn-step btn-step-time" data-id="${task.id}" data-time-delta="15" style="font-size:0.8rem; padding:3px 8px; border-radius:6px;" title="زيادة 15 دقيقة">+15د</button>
-                    <button class="btn-step btn-step-time" data-id="${task.id}" data-time-delta="-15" style="font-size:0.8rem; padding:3px 8px; border-radius:6px;" title="إنقاص 15 دقيقة">-15د</button>
-                    ${actionBtn}
-                </div>
-            </div>
-        `;
-    }
-
-    // Default: counter task
-    if (compact) {
-        return `
-            <div class="task-controls" data-id="${task.id}" style="display:flex; align-items:center; gap:6px;">
-                <button class="btn-val-minus btn-action-sm" data-id="${task.id}" style="padding:2px 8px; font-size:0.8rem;" title="تراجع / إنقاص">-</button>
-                <input type="text" class="input-count" value="${val}" readonly style="width:40px; height:26px; font-size:0.8rem; padding:0;">
-                <button class="btn-val-plus btn-action-sm" data-id="${task.id}" style="padding:2px 8px; font-size:0.8rem;" title="زيادة كبونص">+</button>
-                ${actionBtn}
-            </div>
-        `;
-    }
-
-    return `
-        <div class="task-controls-area" data-id="${task.id}">
-            <div class="step-controls">
-                <button class="btn-step btn-val-minus" data-id="${task.id}">-</button>
-                <input type="text" class="input-count" value="${val}" readonly>
-                <button class="btn-step btn-val-plus" data-id="${task.id}">+</button>
-            </div>
-            <div style="display:flex; gap:6px; align-items:center;">
-                ${actionBtn}
-            </div>
-        </div>
-    `;
-}
-
-/**
- * Resolves category icon HTML from appData or APP_CONSTANTS
- * @param {Object} task
- * @returns {string}
- */
-function getCategoryIconHtml(task) {
-    const categories = (typeof appData !== "undefined" && appData?.categories) ? appData.categories : (APP_CONSTANTS.CATEGORIES || []);
-    const cat = categories.find(c => c.name === task?.category);
-    const rawIcon = cat ? (cat.icon || "fa-tag") : "fa-tag";
-    const iconClass = rawIcon.startsWith("fa-") ? rawIcon : `fa-${rawIcon}`;
-    return `<i class="fa-solid ${iconClass}"></i>`;
-}
-
 if (typeof window !== "undefined") {
     window.getTaskUnit = getTaskUnit;
     window.isTimeTask = isTimeTask;
@@ -454,8 +321,6 @@ if (typeof window !== "undefined") {
     window.getPrayerSortIndex = getPrayerSortIndex;
     window.groupTasksByCategory = groupTasksByCategory;
     window.rowToLog = rowToLog;
-    window.renderTaskControls = renderTaskControls;
-    window.getCategoryIconHtml = getCategoryIconHtml;
     window.isEverydayOrSpecificDaysSchedule = isEverydayOrSpecificDaysSchedule;
     window.isDailyScheduledTask = isDailyScheduledTask;
 }
@@ -473,7 +338,5 @@ export {
     PRAYER_ORDER,
     getPrayerSortIndex,
     groupTasksByCategory,
-    rowToLog,
-    renderTaskControls,
-    getCategoryIconHtml
+    rowToLog
 };
