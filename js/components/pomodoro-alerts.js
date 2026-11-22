@@ -373,33 +373,3 @@ export {
     playWebAudioChime,
     playFiveMinuteChime
 };
-
-if (typeof window !== "undefined") {
-    window.ensureAudioUnlocked = ensureAudioUnlocked;
-    window.startAudioKeepalive = startAudioKeepalive;
-    window.stopAudioKeepalive = stopAudioKeepalive;
-    window.requestPomoNotificationPermission = requestPomoNotificationPermission;
-    window.restoreDocumentTitle = restoreDocumentTitle;
-    window.dispatchSystemNotification = dispatchSystemNotification;
-    window.dispatchFiveMinuteWarning = dispatchFiveMinuteWarning;
-    window.startTitleBlinking = startTitleBlinking;
-    window.stopTitleBlinking = stopTitleBlinking;
-    window.playPomoAlarm = playPomoAlarm;
-    window.playWebAudioChime = playWebAudioChime;
-    window.playFiveMinuteChime = playFiveMinuteChime;
-}
-
-export {
-    ensureAudioUnlocked,
-    startAudioKeepalive,
-    stopAudioKeepalive,
-    requestPomoNotificationPermission,
-    restoreDocumentTitle,
-    dispatchSystemNotification,
-    dispatchFiveMinuteWarning,
-    startTitleBlinking,
-    stopTitleBlinking,
-    playPomoAlarm,
-    playWebAudioChime,
-    playFiveMinuteChime
-};

@@ -94,6 +94,7 @@ export function updateTaskModalScheduleUI(schedType) {
 export function updateTaskModalUnitDisplay() {
     const catInput = document.getElementById("task-category-input");
     const subcatInput = document.getElementById("task-subcategory-input");
+    const unitText = document.getElementById("task-unit-text");
     const unitInput = document.getElementById("task-unit-input");
     const targetUnitInline = document.getElementById("task-target-unit-inline");
     const dailyUnitText = document.getElementById("daily-targets-unit-text");
@@ -109,6 +110,10 @@ export function updateTaskModalUnitDisplay() {
         unit = editingTask.type;
     } else {
         unit = getTaskUnit({ category, subcategory }) || "مرة";
+    }
+
+    if (unitText) {
+        unitText.textContent = unit;
     }
 
     if (unitInput) {
@@ -546,12 +551,3 @@ if (typeof window !== "undefined") {
     window.updateDailyTargetsUIState = updateDailyTargetsUIState;
     window.updateTaskModalUnitDisplay = updateTaskModalUnitDisplay;
 }
-
-export {
-    updateDailyTargetsUIState,
-    updateTaskModalScheduleUI,
-    updateTaskModalUnitDisplay,
-    openTaskModal,
-    closeTaskModal,
-    saveTaskFromModal
-};

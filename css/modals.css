@@ -758,40 +758,41 @@
     gap: 4px;
 }
 
-/* Task Unit Field in Task Modal */
-.task-unit-field-wrap {
-    position: relative;
+/* Task Unit Display Box in Task Modal (Non-editable Display) */
+.task-unit-display-box {
     display: flex;
     align-items: center;
-}
-
-.task-unit-field-wrap input.task-unit-readonly {
-    width: 100%;
-    padding-inline-start: 38px;
+    gap: 10px;
     background: rgba(16, 185, 129, 0.08);
-    border: 1px solid rgba(16, 185, 129, 0.3);
-    color: #34d399;
-    font-weight: 700;
-    cursor: default;
-    border-radius: var(--radius-sm);
-    font-size: 0.95rem;
-    padding-top: 12px;
-    padding-bottom: 12px;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    padding: 10px 14px;
+    border-radius: var(--radius-sm, 8px);
     user-select: none;
+    min-height: 46px;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
-.task-unit-field-wrap input.task-unit-readonly:focus {
-    outline: none;
-    border-color: rgba(16, 185, 129, 0.5);
-    box-shadow: 0 0 8px rgba(16, 185, 129, 0.2);
-}
-
-.task-unit-field-wrap .task-unit-field-icon {
-    position: absolute;
-    inset-inline-start: 14px;
-    color: #34d399;
+.task-unit-display-box i {
     font-size: 0.95rem;
-    pointer-events: none;
+    color: #10b981;
+}
+
+.task-unit-display-value {
+    font-size: 1rem;
+    font-weight: 800;
+    color: #34d399;
+    letter-spacing: 0.3px;
+    flex: 1;
+}
+
+.task-unit-display-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-secondary, #94a3b8);
+    border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 /* Task Target Input Row in Task Modal */

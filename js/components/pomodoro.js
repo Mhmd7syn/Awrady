@@ -223,51 +223,68 @@ function populatePomoTaskSelect() {
     if (appData && Array.isArray(appData.tasks)) {
         const curDate = AppState.getCurrentDate() || (typeof currentDateStr !== "undefined" ? currentDateStr : new Date().toISOString().slice(0, 10));
 
-        // Filter: only today's scheduled tasks that have a time unit
-        const todayTimeTasks = appData.tasks.filter(t => {
-            if (t.isArchived) return false;
-            if (!isTimeTask(t)) return false;
+        // Filter: ONLY non-archived tasks that have a time unit
+        const allTimeTasks = appData.tasks.filter(t => !t.isArchived && isTimeTask(t));
 
+        const todayTimeTasks = [];
+        const otherTimeTasks = [];
+
+        allTimeTasks.forEach(t => {
             const isDisabled = ScheduleEngine.isTaskDisabledForDate(t, curDate, appData);
-            if (isDisabled) return false;
+            if (isDisabled) return;
 
             const isSched = ScheduleEngine.isTaskScheduledForDate(t, curDate, appData);
             const progress = appData.logs?.[curDate]?.taskProgress?.[t.id];
             const hasLoggedToday = Boolean(Number(progress?.achieved) > 0);
             const isExplicitToday = progress?.status === "scheduled" || progress?.status === "bonus";
 
-            return isSched || hasLoggedToday || isExplicitToday;
+            if (isSched || hasLoggedToday || isExplicitToday) {
+                todayTimeTasks.push(t);
+            } else {
+                otherTimeTasks.push(t);
+            }
         });
 
-        // Ensure currently active Pomodoro task is retained in list if it is a time task
+        // Ensure currently active Pomodoro task is retained in list if it has a time unit
         if (PomodoroTimer.taskId) {
             const currentTask = appData.tasks.find(t => String(t.id) === String(PomodoroTimer.taskId));
-            if (currentTask && isTimeTask(currentTask) && !todayTimeTasks.some(t => String(t.id) === String(currentTask.id))) {
+            if (currentTask && isTimeTask(currentTask) && !todayTimeTasks.some(t => String(t.id) === String(currentTask.id)) && !otherTimeTasks.some(t => String(t.id) === String(currentTask.id))) {
                 todayTimeTasks.unshift(currentTask);
             }
         }
 
+        const appendTaskOption = (t, parentGroup) => {
+            const opt = document.createElement("option");
+            opt.value = t.id;
+            opt.setAttribute("data-name", t.name);
+            const unit = getTaskUnit(t) || "ساعة";
+            const catInfo = t.subcategory ? `${t.category} - ${t.subcategory}` : (t.category && t.category !== t.name ? t.category : "");
+            opt.textContent = `${t.name}${catInfo ? ` (${catInfo})` : ''} - ${unit}`;
+            if (PomodoroTimer.taskId && String(PomodoroTimer.taskId) === String(t.id)) {
+                opt.selected = true;
+            }
+            parentGroup.appendChild(opt);
+        };
+
         if (todayTimeTasks.length > 0) {
-            const groupTime = document.createElement("optgroup");
-            groupTime.label = "⏱️ مهام الوقت المجدولة لليوم";
-            todayTimeTasks.forEach(t => {
-                const opt = document.createElement("option");
-                opt.value = t.id;
-                opt.setAttribute("data-name", t.name);
-                const unit = getTaskUnit(t) || "ساعة";
-                const catInfo = t.subcategory ? `${t.category} - ${t.subcategory}` : (t.category && t.category !== t.name ? t.category : "");
-                opt.textContent = `${t.name}${catInfo ? ` (${catInfo})` : ''} - ${unit}`;
-                if (PomodoroTimer.taskId && String(PomodoroTimer.taskId) === String(t.id)) {
-                    opt.selected = true;
-                }
-                groupTime.appendChild(opt);
-            });
-            select.appendChild(groupTime);
-        } else {
+            const groupToday = document.createElement("optgroup");
+            groupToday.label = "⏱️ مهام الوقت المجدولة لليوم";
+            todayTimeTasks.forEach(t => appendTaskOption(t, groupToday));
+            select.appendChild(groupToday);
+        }
+
+        if (otherTimeTasks.length > 0) {
+            const groupOther = document.createElement("optgroup");
+            groupOther.label = "⏱️ بقية مهام الوقت";
+            otherTimeTasks.forEach(t => appendTaskOption(t, groupOther));
+            select.appendChild(groupOther);
+        }
+
+        if (allTimeTasks.length === 0) {
             const emptyOpt = document.createElement("option");
             emptyOpt.value = "";
             emptyOpt.disabled = true;
-            emptyOpt.textContent = "لا توجد مهام وقت مجدولة لليوم";
+            emptyOpt.textContent = "لا توجد مهام وقت متوفرة";
             select.appendChild(emptyOpt);
         }
     }

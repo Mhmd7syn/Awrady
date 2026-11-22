@@ -535,12 +535,14 @@
 
                 <div class="form-row" id="task-unit-and-target-row">
                     <div class="form-group half-width" id="task-unit-group">
-                        <label for="task-unit-input"><i class="fa-solid fa-scale-balanced gold-text"></i> وحدة القياس</label>
-                        <div class="task-unit-field-wrap">
-                            <span class="task-unit-field-icon"><i class="fa-solid fa-tag"></i></span>
-                            <input type="text" id="task-unit-input" readonly value="" class="task-unit-readonly" placeholder="الوحدة">
+                        <label><i class="fa-solid fa-scale-balanced gold-text"></i> وحدة القياس</label>
+                        <div class="task-unit-display-box" id="task-unit-display-box">
+                            <i class="fa-solid fa-tag emerald-text"></i>
+                            <span class="task-unit-display-value" id="task-unit-text">--</span>
+                            <span class="task-unit-display-badge">تلقائي</span>
+                            <input type="hidden" id="task-unit-input" value="">
                         </div>
-                        <small class="hint-text text-secondary">تُحدد تلقائياً حسب التصنيف والتصنيف الفرعي.</small>
+                        <small class="hint-text text-secondary">تُحدد تلقائياً ولا يمكن تعديلها يدوياً.</small>
                     </div>
                     <div class="form-group half-width" id="task-target-group">
                         <label for="task-target-input">الحد الأدنى المستهدف <span id="task-target-unit-inline" class="gold-text"></span></label>
