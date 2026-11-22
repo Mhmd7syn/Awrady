@@ -739,6 +739,61 @@
     background: rgba(0, 0, 0, 0.3);
 }
 
+.daily-target-row-unit {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #34d399;
+    min-width: 38px;
+    white-space: nowrap;
+    text-align: start;
+    user-select: none;
+}
+
+.daily-targets-unit-badge {
+    background: rgba(245, 158, 11, 0.12);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Task Unit Field in Task Modal */
+.task-unit-field-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.task-unit-field-wrap input.task-unit-readonly {
+    width: 100%;
+    padding-inline-start: 38px;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #34d399;
+    font-weight: 700;
+    cursor: default;
+    border-radius: var(--radius-sm);
+    font-size: 0.95rem;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    user-select: none;
+}
+
+.task-unit-field-wrap input.task-unit-readonly:focus {
+    outline: none;
+    border-color: rgba(16, 185, 129, 0.5);
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.2);
+}
+
+.task-unit-field-wrap .task-unit-field-icon {
+    position: absolute;
+    inset-inline-start: 14px;
+    color: #34d399;
+    font-size: 0.95rem;
+    pointer-events: none;
+}
+
 /* Task Target Input Row in Task Modal */
 .task-target-input-row {
     margin-top: 12px;

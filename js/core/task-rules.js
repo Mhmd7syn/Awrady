@@ -14,7 +14,10 @@ import { getDayOfWeekAbbrev } from '../utils/date-utils.js';
 function getTaskUnit(task) {
     if (!task) return "";
     if (task.type) return task.type;
-    const cat = APP_CONSTANTS.CATEGORIES.find(c => c.name === task.category);
+    const allCategories = (typeof window !== "undefined" && window.appData?.categories?.length > 0)
+        ? window.appData.categories
+        : (APP_CONSTANTS.CATEGORIES || []);
+    const cat = allCategories.find(c => c.name === task.category) || APP_CONSTANTS.CATEGORIES.find(c => c.name === task.category);
     if (cat) {
         if (task.subcategory && Array.isArray(cat.subcategories)) {
             const sub = cat.subcategories.find(s => s.name === task.subcategory);

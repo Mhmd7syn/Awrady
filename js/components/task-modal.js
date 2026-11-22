@@ -5,7 +5,7 @@
  */
 
 import { APP_CONSTANTS } from '../config/constants.js';
-import { getTaskNormalizedTarget } from '../core/task-rules.js';
+import { getTaskNormalizedTarget, getTaskUnit } from '../core/task-rules.js';
 import { ScoringEngine } from '../core/scoring-engine.js';
 import { AppState } from '../core/state.js';
 import { saveData } from '../core/store.js';
@@ -85,6 +85,51 @@ export function updateTaskModalScheduleUI(schedType) {
         } else {
             if (otBox) otBox.classList.add("hidden");
         }
+    }
+}
+
+/**
+ * Updates the unit display across the task modal inputs, badges, and daily targets list
+ */
+export function updateTaskModalUnitDisplay() {
+    const catInput = document.getElementById("task-category-input");
+    const subcatInput = document.getElementById("task-subcategory-input");
+    const unitInput = document.getElementById("task-unit-input");
+    const targetUnitInline = document.getElementById("task-target-unit-inline");
+    const dailyUnitText = document.getElementById("daily-targets-unit-text");
+
+    const category = catInput?.value || "";
+    const subcategory = subcatInput?.value || "";
+
+    const appData = AppState.getAppData();
+    const editingTask = editingTaskId ? (appData?.tasks || []).find(t => t.id === editingTaskId) : null;
+
+    let unit = "";
+    if (editingTask && editingTask.category === category && (editingTask.subcategory || "") === subcategory && editingTask.type) {
+        unit = editingTask.type;
+    } else {
+        unit = getTaskUnit({ category, subcategory }) || "مرة";
+    }
+
+    if (unitInput) {
+        unitInput.value = unit;
+    }
+
+    if (targetUnitInline) {
+        targetUnitInline.textContent = `(${unit})`;
+    }
+
+    if (dailyUnitText) {
+        dailyUnitText.textContent = unit;
+    }
+
+    document.querySelectorAll(".daily-target-row-unit").forEach(el => {
+        el.textContent = unit;
+    });
+
+    const targetInput = document.getElementById("task-target-input");
+    if (targetInput) {
+        targetInput.placeholder = `الهدف (${unit})`;
     }
 }
 
@@ -179,33 +224,46 @@ export function openTaskModal(id, options = {}) {
     const appData = AppState.getAppData();
     const currentDateStr = AppState.getCurrentDate();
 
+    const allCats = (appData.categories && appData.categories.length > 0) ? appData.categories : (APP_CONSTANTS.CATEGORIES || []);
+
     function updateSubcats(categoryName, selectedSubcat = "") {
         if (!subcatInput) return;
-        subcatInput.innerHTML = '<option value="">-- لا يوجد --</option>';
-        const c = (appData.categories || []).find(x => x.name === categoryName);
+        const c = allCats.find(x => x.name === categoryName);
+        const defaultCatUnit = c?.defaultUnit ? ` (${c.defaultUnit})` : "";
+        subcatInput.innerHTML = `<option value="">-- لا يوجد${defaultCatUnit} --</option>`;
         if (c && c.subcategories) {
             c.subcategories.forEach(sub => {
                 const opt = document.createElement("option");
                 opt.value = sub.name;
-                opt.textContent = sub.name;
+                const subUnit = sub.defaultUnit || c?.defaultUnit;
+                opt.textContent = subUnit ? `${sub.name} (${subUnit})` : sub.name;
                 subcatInput.appendChild(opt);
             });
         }
         subcatInput.value = selectedSubcat;
+        updateTaskModalUnitDisplay();
     }
     
     if (catInput) {
         catInput.onchange = () => {
             updateSubcats(catInput.value);
+            updateTaskModalUnitDisplay();
         };
 
         catInput.innerHTML = "";
-        (appData.categories || []).forEach(c => {
+        allCats.forEach(c => {
             const opt = document.createElement("option");
             opt.value = c.name;
-            opt.textContent = c.label || c.name;
+            const unitSuffix = c.defaultUnit ? ` (${c.defaultUnit})` : "";
+            opt.textContent = `${c.label || c.name}${unitSuffix}`;
             catInput.appendChild(opt);
         });
+    }
+
+    if (subcatInput) {
+        subcatInput.onchange = () => {
+            updateTaskModalUnitDisplay();
+        };
     }
 
     if (id) {
@@ -214,7 +272,7 @@ export function openTaskModal(id, options = {}) {
             if (title) title.innerHTML = `<i class="fa-solid fa-pen-to-square"></i> تعديل (${task.name})`;
             if (idInput) idInput.value = task.id;
             if (nameInput) nameInput.value = task.name;
-            if (catInput) catInput.value = task.category || (appData.categories?.[0]?.name || "عام");
+            if (catInput) catInput.value = task.category || (allCats[0]?.name || "عام");
             updateSubcats(catInput?.value, task.subcategory || "");
             if (targetInput) targetInput.value = (task.target !== null && task.target !== undefined) ? task.target : 1;
 
@@ -297,8 +355,8 @@ export function openTaskModal(id, options = {}) {
 
         if (idInput) idInput.value = "";
         if (nameInput) nameInput.value = "";
-        if (appData.categories && appData.categories.length > 0 && catInput) {
-            catInput.value = appData.categories[0].name;
+        if (allCats && allCats.length > 0 && catInput) {
+            catInput.value = allCats[0].name;
             updateSubcats(catInput.value, "");
         }
         if (targetInput) targetInput.value = "1";
@@ -485,4 +543,14 @@ if (typeof window !== "undefined") {
     window.saveTaskFromModal = saveTaskFromModal;
     window.updateTaskModalScheduleUI = updateTaskModalScheduleUI;
     window.updateDailyTargetsUIState = updateDailyTargetsUIState;
+    window.updateTaskModalUnitDisplay = updateTaskModalUnitDisplay;
 }
+
+export {
+    updateDailyTargetsUIState,
+    updateTaskModalScheduleUI,
+    updateTaskModalUnitDisplay,
+    openTaskModal,
+    closeTaskModal,
+    saveTaskFromModal
+};
