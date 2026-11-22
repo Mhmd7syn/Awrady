@@ -3,11 +3,16 @@
  * Provides offline caching, lightning-fast app shell loading, and network resilience.
  */
 
-const CACHE_NAME = "awrady-pwa-v92";
+const CACHE_NAME = "awrady-pwa-v93";
 
 const PRECACHE_ASSETS = [
     "./",
     "./index.html",
+    "./css/base.css",
+    "./css/layout.css",
+    "./css/daily.css",
+    "./css/modals.css",
+    "./css/auth-lock.css",
     "./css/style.css",
     "./manifest.json",
     "./app-icon.ico",

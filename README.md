@@ -52,10 +52,12 @@ awrady/
 ├── sw.js                        # Service Worker (PWA offline caching)
 ├── manifest.json                # PWA manifest
 ├── css/                         # Modular CSS stylesheets
-│   ├── style.css                # Base & dashboard styling
-│   ├── mobile.css               # Responsive mobile layouts
-│   ├── security-lock.css        # PIN lock modal styling
-│   └── auth.css                 # Authentication modal styling
+│   ├── style.css                # Master stylesheet (@import hub)
+│   ├── base.css                 # Design tokens, reset, typography, utilities & toasts
+│   ├── layout.css               # App shell, navigation, header, analytics & manager
+│   ├── daily.css                # Habit grid, category cards & devotional counters
+│   ├── modals.css               # Modals, weekly sheet matrix & target editors
+│   └── auth-lock.css            # Authentication overlay & security gateway
 ├── js/
 │   ├── app.js                   # Main application coordinator
 │   ├── api.js                   # Supabase client & real-time sync engine

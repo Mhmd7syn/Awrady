@@ -1,0 +1,674 @@
+/**
+ * ============================================================================
+ * AWRAD PRO - DAILY ROUTINE & HABITS
+ * Daily summary hero, progress gauge, task cards, prayer toggles & counters.
+ * ============================================================================
+ */
+
+/* Lunar & Seasonal Events Banner */
+.lunar-banner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 24px;
+    margin-bottom: 20px;
+    border-color: rgba(245, 158, 11, 0.4);
+    background: linear-gradient(90deg, rgba(245, 158, 11, 0.12), rgba(16, 27, 22, 0.7));
+    box-shadow: 0 0 25px rgba(245, 158, 11, 0.15);
+}
+
+.lunar-icon {
+    font-size: 2rem;
+    background: rgba(245, 158, 11, 0.2);
+    width: 54px;
+    height: 54px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.lunar-text { flex: 1; }
+.lunar-text h4 { font-size: 1.15rem; font-weight: 800; color: #fff; }
+.lunar-text p { font-size: 0.95rem; color: var(--text-secondary); margin-top: 2px; }
+
+/* Daily Controls Strip */
+.daily-controls-strip {
+    padding: 16px 24px;
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.date-navigation {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.current-date-display {
+    position: relative;
+    cursor: pointer;
+    border-radius: var(--radius-sm, 8px);
+}
+
+.current-date-display:focus-visible {
+    outline: 2px solid var(--emerald-primary);
+    outline-offset: 4px;
+}
+
+.current-date-display h2 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin: 0;
+    transition: var(--transition);
+}
+
+.current-date-display:hover h2 { color: var(--emerald-primary); }
+
+#date-picker-input {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.hijri-and-season {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.hijri-date-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    padding: 8px 16px;
+    border-radius: var(--radius-md);
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.toggle-switch-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(0, 0, 0, 0.25);
+    padding: 8px 16px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    border: 1px solid var(--glass-border);
+    transition: var(--transition);
+}
+
+.toggle-switch-card:hover { border-color: rgba(245, 158, 11, 0.4); }
+
+.toggle-switch-card input { display: none; }
+
+.toggle-slider {
+    width: 44px;
+    height: 24px;
+    background-color: var(--text-muted);
+    border-radius: 24px;
+    position: relative;
+    transition: var(--transition);
+}
+
+.toggle-slider::before {
+    content: "";
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: white;
+    top: 3px;
+    right: 3px;
+    transition: var(--transition);
+}
+
+.toggle-switch-card input:checked + .toggle-slider {
+    background-color: var(--gold-primary);
+    box-shadow: 0 0 12px var(--gold-glow);
+}
+
+.toggle-switch-card input:checked + .toggle-slider::before {
+    transform: translateX(-20px);
+}
+
+/* Daily Summary Hero */
+.daily-summary-hero {
+    padding: 28px 32px;
+    margin-bottom: 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 30px;
+    background: linear-gradient(135deg, rgba(16, 27, 22, 0.8), rgba(6, 11, 9, 0.9));
+}
+
+.summary-text-sec h3 {
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: var(--emerald-primary);
+    margin-bottom: 8px;
+}
+
+.summary-text-sec p {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    line-height: 1.6;
+    max-width: 720px;
+    margin-bottom: 16px;
+}
+
+.quick-stats-bar { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.badge {
+    padding: 5px 12px;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
+.badge-emerald { background: rgba(16, 185, 129, 0.15); color: var(--emerald-primary); border: 1px solid rgba(16, 185, 129, 0.3); }
+.badge-amber { background: rgba(245, 158, 11, 0.15); color: var(--gold-primary); border: 1px solid rgba(245, 158, 11, 0.3); }
+
+/* Progress Ring Gauge */
+.radial-progress-container {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.progress-ring { transform: rotate(-90deg); }
+.progress-ring__circle { transition: stroke-dashoffset 0.5s ease; }
+
+.progress-text {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.progress-val { font-size: 1.35rem; font-weight: 800; font-family: var(--font-ui); color: #fff; }
+.progress-lbl { font-size: 0.75rem; color: var(--text-secondary); }
+
+/* Filter Bar & Category Chips */
+
+.chip {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--text-secondary);
+    padding: 8px 18px;
+    border-radius: 20px;
+    font-family: var(--font-title);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+
+.chip:hover { border-color: rgba(16, 185, 129, 0.4); color: white; }
+.chip.active {
+    background: var(--emerald-primary);
+    color: #000;
+    font-weight: 800;
+    box-shadow: 0 0 15px var(--emerald-glow);
+}
+
+/* Tasks Grid & Cards */
+.tasks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 20px;
+}
+
+.task-card {
+    background: rgba(13, 22, 18, 0.85);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-md);
+    padding: 20px 20px 16px;
+    position: relative;
+    overflow: hidden;
+    transition: var(--transition);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 220px;
+    height: 100%;
+}
+
+.task-card:hover {
+    border-color: rgba(16, 185, 129, 0.35);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+}
+
+.task-card.completed {
+    border-color: rgba(16, 185, 129, 0.5);
+    background: linear-gradient(145deg, rgba(16, 185, 129, 0.1), rgba(13, 22, 18, 0.8));
+}
+
+.task-card.completed::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 6px;
+    height: 100%;
+    background-color: var(--emerald-primary);
+    box-shadow: 0 0 10px var(--emerald-glow);
+}
+
+.task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+    gap: 12px;
+}
+
+.task-title-group { display: flex; gap: 14px; align-items: center; }
+
+.task-icon {
+    width: 46px;
+    height: 46px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    color: var(--gold-primary);
+}
+
+.task-card.completed .task-icon {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--emerald-primary);
+    border-color: var(--emerald-primary);
+}
+
+.task-title-group h4 { font-size: 1.15rem; font-weight: 700; line-height: 1.3; }
+.task-unit-label { font-size: 0.85rem; color: var(--text-secondary); display: block; margin-top: 2px; }
+
+.task-controls-area {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 10px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.step-controls { display: flex; align-items: center; gap: 8px; }
+
+.btn-step {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid var(--glass-border);
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-step:hover { background: rgba(16, 185, 129, 0.2); border-color: var(--emerald-primary); color: var(--emerald-primary); }
+
+.input-count {
+    width: 60px;
+    height: 36px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    color: #fff;
+    text-align: center;
+    font-family: var(--font-ui);
+    font-size: 1.15rem;
+    font-weight: 700;
+}
+
+.task-progress-bar-bg {
+    width: 100%;
+    height: 6px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 3px;
+    margin-top: 14px;
+    overflow: hidden;
+}
+
+.task-progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--gold-primary), var(--emerald-primary));
+    width: 0%;
+    transition: width 0.4s ease;
+}
+
+
+/* Smart Nawafel Interactive Toast */
+.toast-overlay {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    width: 92%;
+    max-width: 620px;
+    animation: slideUp 0.35s cubic-bezier(0.3, 1.1, 0.5, 1);
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translate(-50%, 60px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.nawafel-card {
+    padding: 24px;
+    border-color: rgba(245, 158, 11, 0.6);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7), 0 0 30px rgba(245, 158, 11, 0.25);
+    background: rgba(10, 18, 14, 0.95);
+}
+
+.nawafel-header {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.nawafel-icon-pulse {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    background: rgba(245, 158, 11, 0.2);
+    color: var(--gold-primary);
+    font-size: 1.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: pulseIcon 1.5s infinite;
+}
+
+@keyframes pulseIcon {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+    70% { transform: scale(1.08); box-shadow: 0 0 0 12px rgba(245, 158, 11, 0); }
+    100% { transform: scale(1); }
+}
+
+.nawafel-header h4 { font-size: 1.25rem; font-weight: 800; color: var(--gold-primary); }
+.nawafel-header p { font-size: 0.95rem; color: #cbd5e1; margin-top: 4px; }
+
+.nawafel-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+
+/* Prayer Selection Buttons */
+.prayer-toggles {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.btn-prayer {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: var(--text-secondary);
+    font-family: 'Cairo', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-prayer:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+.btn-prayer.active-mosque {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: var(--emerald-primary);
+    color: var(--emerald-primary);
+}
+
+.btn-prayer.active-home {
+    background: rgba(245, 158, 11, 0.15);
+    border-color: var(--gold-primary);
+    color: var(--gold-primary);
+}
+
+.btn-prayer.active-none {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+/* Subcategories Pill */
+.subcat-pill {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    color: var(--emerald-primary);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.subcat-pill:hover {
+    background: rgba(16, 185, 129, 0.25);
+    border-color: rgba(16, 185, 129, 0.6);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.15);
+}
+
+.subcat-pill button {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 2px 4px;
+    line-height: 1;
+    border-radius: 4px;
+    opacity: 0.75;
+    transition: all 0.15s ease;
+}
+
+.subcat-pill button:hover {
+    opacity: 1;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* Quick Actions Strip & Bonus/OneTime Badges */
+.daily-quick-actions-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    margin-bottom: 20px;
+    border-radius: var(--radius-md);
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.quick-actions-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+
+.quick-actions-buttons {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.btn-action-pill {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-family: var(--font-title);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-bonus-pill {
+    background: rgba(245, 158, 11, 0.15);
+    color: var(--gold-primary);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.btn-bonus-pill:hover {
+    background: rgba(245, 158, 11, 0.3);
+    border-color: var(--gold-primary);
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.3);
+    transform: translateY(-1px);
+}
+
+.task-card.is-bonus-card,
+.task-item-minimal.is-bonus-card {
+    border-color: rgba(245, 158, 11, 0.35);
+    background: linear-gradient(145deg, rgba(15, 23, 42, 0.8), rgba(245, 158, 11, 0.05));
+}
+
+
+/* ============================================
+   Daily View: Category Cards & Task Items
+   (Used by renderDailyView in app.js)
+   ============================================ */
+.category-card {
+    padding: 0;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--glass-border);
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    transition: var(--transition);
+    margin-bottom: 16px;
+}
+
+.task-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.btn-action-sm {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.07);
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.btn-val-plus {
+    border-color: rgba(16, 185, 129, 0.4);
+    color: #10b981;
+}
+
+.btn-val-plus:hover {
+    background: rgba(16, 185, 129, 0.2);
+    border-color: #10b981;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+}
+
+.btn-val-minus:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.5);
+    color: #ef4444;
+}
+
+.btn-task-off {
+    color: var(--text-muted) !important;
+    border-color: rgba(255,255,255,0.07) !important;
+    width: auto !important;
+    padding: 0 6px !important;
+    font-size: 0.75rem !important;
+}
+
+.btn-task-off:hover {
+    background: rgba(239, 68, 68, 0.1) !important;
+    color: #ef4444 !important;
+}
+
+/* Minimal cards for disabled/paused tasks */
+.disabled-tasks-section {
+    margin-top: 12px;
+    padding: 0 4px;
+}
+
+.task-item-minimal {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px dashed rgba(255, 255, 255, 0.08);
+    margin-bottom: 6px;
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    gap: 10px;
+    transition: var(--transition);
+}
+
+.task-item-minimal:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.task-item-minimal.is-bonus-card:hover {
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.5);
+}
+
