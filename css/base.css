@@ -150,6 +150,7 @@ body {
 .flex-col { display: flex; flex-direction: column; }
 .flex-wrap { flex-wrap: wrap !important; }
 .flex-1 { flex: 1; }
+.justify-center { justify-content: center !important; }
 .block { display: block !important; }
 .inline-flex { display: inline-flex !important; }
 .gap-xs { gap: 6px; }

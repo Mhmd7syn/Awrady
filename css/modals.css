@@ -890,12 +890,25 @@
     border-radius: 8px;
 }
 
+.pomodoro-mode-selector {
+    margin-bottom: 20px;
+}
+
 .pomo-display {
     font-size: 4rem;
     font-weight: bold;
     font-family: var(--font-ui);
     margin-bottom: 20px;
     color: var(--emerald-primary);
+}
+
+.pomodoro-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
 }
 
 .pomo-settings-box {
