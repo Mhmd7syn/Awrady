@@ -22,6 +22,12 @@ jobs:
     - name: Verify JavaScript Syntax
       run: |
         echo "Validating JavaScript syntax across codebase..."
-        find js -name "*.js" -exec node --check {} +
+        find js test -name "*.js" -exec node --check {} \;
         node --check sw.js
         echo "All JavaScript files passed syntax verification!"
+
+    - name: Run Automated Test Suite
+      run: |
+        echo "Running automated unit test suite..."
+        npm test
+        echo "All automated tests passed successfully!"
