@@ -607,13 +607,18 @@ export const AppStore = {
                             }
                         } else if (payload.new?.task_id) {
                             const row = payload.new;
+                            const isLegacyArchived = Boolean(row.is_archived);
+                            const isLegacyOneTime = row.schedule === "OneTime";
+                            const schedule = (isLegacyArchived || isLegacyOneTime || row.schedule === "Unscheduled")
+                                ? "Unscheduled"
+                                : (row.schedule || "Everyday");
                             const fields = {
                                 name: row.name,
                                 category: row.category,
                                 subcategory: row.subcategory || null,
                                 target: Number(row.target) || 1,
-                                schedule: row.schedule || "Everyday",
-                                isArchived: Boolean(row.is_archived),
+                                schedule,
+                                isArchived: false,
                                 totalAchieved: Number(row.total_achieved) || 0,
                                 totalHours: Number(row.total_hours) || 0,
                                 totalScore: Number(row.total_score) || 0

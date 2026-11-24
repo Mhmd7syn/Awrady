@@ -49,6 +49,10 @@ class ScheduleEngine {
 
         const sched = (task.schedule || "Everyday").trim();
 
+        if (sched === "Unscheduled") {
+            return false;
+        }
+
         if (sched === "OneTime") {
             const taskDate = (task.oneTimeDate || task.createdAt || "").slice(0, 10);
             return taskDate === dateStr;
@@ -70,13 +74,13 @@ class ScheduleEngine {
 
                 // Check if user has a dedicated Ramadan fasting task in their task list
                 const allTasks = appData?.tasks || [];
-                const hasDedicatedRamadan = allTasks.some(t => !t.isArchived && (t.schedule === "Ramadan" || (t.category === "صوم" && t.name && t.name.includes("رمضان"))));
+                const hasDedicatedRamadan = allTasks.some(t => !t.isArchived && t.schedule !== "Unscheduled" && (t.schedule === "Ramadan" || (t.category === "صوم" && t.name && t.name.includes("رمضان"))));
 
                 // If user has a dedicated Ramadan task, voluntary tasks are suppressed
                 if (hasDedicatedRamadan) return false;
 
                 // If no dedicated Ramadan task exists, only the primary default fasting task acts as the Ramadan fast
-                return task.id === "task_fasting" || (!sched.includes("WhiteDays") && sched !== "OneTime");
+                return task.id === "task_fasting" || (!sched.includes("WhiteDays") && sched !== "OneTime" && sched !== "Unscheduled");
             }
 
             // Priority 2: White Days (13, 14, 15 Hijri outside Ramadan)
@@ -145,6 +149,9 @@ class ScheduleEngine {
         if (val <= 0) return false;
 
         const sched = (task.schedule || "").trim();
+        if (sched === "Unscheduled") {
+            return true;
+        }
         if (sched === "OneTime") {
             const taskDate = (task.oneTimeDate || task.createdAt || "").slice(0, 10);
             return taskDate !== dateStr;
@@ -169,6 +176,10 @@ class ScheduleEngine {
 
         if (task.isArchived) {
             return val > 0;
+        }
+
+        if (task.schedule === "Unscheduled") {
+            return val > 0 || Boolean(tp?._explicit || tp?.status === "bonus");
         }
 
         if (ScheduleEngine.isTaskDisabledForDate(task, log, appData)) return true;
