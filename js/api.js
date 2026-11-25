@@ -184,7 +184,7 @@ class AwradyAPI {
             is_archived: false,
             total_achieved: Number(task.totalAchieved ?? task.total_achieved) || 0,
             total_hours: Number(task.totalHours ?? task.total_hours) || 0,
-            totalScore: Number(task.totalScore ?? task.total_score) || 0
+            total_score: Number(task.totalScore ?? task.total_score) || 0
         };
         if (task.createdAt) {
             row.created_at = task.createdAt;

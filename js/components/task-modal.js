@@ -1,11 +1,11 @@
 /**
  * Awrady Dashboard - Task Create/Edit Modal Component
- * Supports editing task details, base target, schedule choices (Daily, OneTime, WhiteDays, Ramadan),
+ * Supports editing task details, base target, schedule choices (Daily/Weekly, WhiteDays, Ramadan, Unscheduled),
  * and per-day target configuration via the dailyTargets dictionary for Daily schedule.
  */
 
 import { APP_CONSTANTS } from '../config/constants.js';
-import { getTaskNormalizedTarget, getTaskUnit } from '../core/task-rules.js';
+import { getTaskNormalizedTarget, getTaskUnit, isUnscheduledTask } from '../core/task-rules.js';
 import { ScoringEngine } from '../core/scoring-engine.js';
 import { AppState } from '../core/state.js';
 import { saveData } from '../core/store.js';
@@ -57,11 +57,10 @@ export function updateDailyTargetsUIState() {
 
 /**
  * Updates task edit modal UI elements according to the chosen schedule type
- * @param {string} schedType ("Everyday", "Daily", "WhiteDays", "Ramadan", "OneTime")
+ * @param {string} schedType ("Everyday", "Daily", "WhiteDays", "Ramadan", "Unscheduled")
  */
 export function updateTaskModalScheduleUI(schedType) {
     const dailyBox = document.getElementById("daily-targets-box");
-    const otBox = document.getElementById("onetime-date-selector-box");
     const targetGroup = document.getElementById("task-target-group");
     const isDaily = (schedType === "Everyday" || schedType === "Daily" || !schedType);
 
@@ -69,22 +68,11 @@ export function updateTaskModalScheduleUI(schedType) {
         // Daily: Show per-day vertical collapsible targets; hide scalar target input
         if (dailyBox) dailyBox.classList.remove("hidden");
         if (targetGroup) targetGroup.classList.add("hidden");
-        if (otBox) otBox.classList.add("hidden");
         updateDailyTargetsUIState();
     } else {
-        // Non-Daily (WhiteDays, Ramadan, OneTime): Hide daily targets; show scalar target input
+        // Non-Daily (WhiteDays, Ramadan, Unscheduled): Hide daily targets; show scalar target input
         if (dailyBox) dailyBox.classList.add("hidden");
         if (targetGroup) targetGroup.classList.remove("hidden");
-
-        if (schedType === "OneTime") {
-            if (otBox) otBox.classList.remove("hidden");
-            const otDateInput = document.getElementById("task-onetime-date-input");
-            if (otDateInput && !otDateInput.value) {
-                otDateInput.value = AppState.getCurrentDate() || new Date().toISOString().slice(0, 10);
-            }
-        } else {
-            if (otBox) otBox.classList.add("hidden");
-        }
     }
 }
 
@@ -211,7 +199,7 @@ function setupTaskModalDynamicEvents() {
 /**
  * Opens task modal to add or edit a task
  * @param {string|null} id Task ID to edit, or null to create
- * @param {Object} options Configuration flags (e.g. { isOneTime: true })
+ * @param {Object} options Configuration flags (e.g. { isUnscheduled: true })
  */
 export function openTaskModal(id, options = {}) {
     editingTaskId = id;
@@ -284,12 +272,12 @@ export function openTaskModal(id, options = {}) {
             const sched = (task.schedule || "Everyday").trim();
             let schedType = "Everyday";
 
-            if (sched === "WhiteDays") {
+            if (isUnscheduledTask(task)) {
+                schedType = "Unscheduled";
+            } else if (sched === "WhiteDays") {
                 schedType = "WhiteDays";
             } else if (sched === "Ramadan") {
                 schedType = "Ramadan";
-            } else if (sched === "OneTime") {
-                schedType = "OneTime";
             } else {
                 schedType = "Everyday";
             }
@@ -334,24 +322,16 @@ export function openTaskModal(id, options = {}) {
                 }
             });
 
-            // Date picker for one-time tasks
-            if (schedType === "OneTime") {
-                const otDateInput = document.getElementById("task-onetime-date-input");
-                if (otDateInput) {
-                    otDateInput.value = (task.oneTimeDate || task.createdAt || "").slice(0, 10) || currentDateStr;
-                }
-            }
-
             updateDailyTargetsUIState();
             updateTaskModalScheduleUI(schedType);
         }
     } else {
-        const defaultDate = currentDateStr || new Date().toISOString().slice(0, 10);
-        const schedType = options.isOneTime ? "OneTime" : "Everyday";
+        const isUnscheduled = Boolean(options.isUnscheduled || options.isOneTime);
+        const schedType = isUnscheduled ? "Unscheduled" : "Everyday";
 
         if (title) {
-            title.innerHTML = options.isOneTime
-                ? `<i class="fa-solid fa-bolt gold-text"></i> إضافة مهمة لمرة واحدة فقط`
+            title.innerHTML = isUnscheduled
+                ? `<i class="fa-solid fa-clock-rotate-left gold-text"></i> إضافة ورد غير مجدول`
                 : `<i class="fa-solid fa-plus"></i> إضافة ورد أو مهمة مخصصة`;
         }
 
@@ -382,9 +362,6 @@ export function openTaskModal(id, options = {}) {
             }
             if (row) row.classList.remove("disabled");
         });
-
-        const otDateInput = document.getElementById("task-onetime-date-input");
-        if (otDateInput) otDateInput.value = defaultDate;
 
         updateDailyTargetsUIState();
         updateTaskModalScheduleUI(schedType);
@@ -434,18 +411,19 @@ export function saveTaskFromModal() {
         });
 
         if (activeDays.length === 7) {
-            scheduleVal = "Everyday";
+            scheduleVal = APP_CONSTANTS.SCHEDULE_TYPES.EVERYDAY;
         } else if (activeDays.length > 0) {
             scheduleVal = activeDays.join(", ");
         } else {
-            scheduleVal = "Everyday";
+            scheduleVal = APP_CONSTANTS.SCHEDULE_TYPES.UNSCHEDULED;
+            dailyTargets = null;
         }
 
-        const pos = Object.values(dailyTargets).filter(v => Number(v) > 0);
+        const pos = dailyTargets ? Object.values(dailyTargets).filter(v => Number(v) > 0) : [];
         effectiveTarget = pos.length > 0 ? pos[0] : 1;
     } else {
-        // OneTime, WhiteDays, Ramadan, etc. -> Uses scalar target column!
-        scheduleVal = schedType;
+        // WhiteDays, Ramadan, Unscheduled -> Uses scalar target column
+        scheduleVal = schedType === "OneTime" ? APP_CONSTANTS.SCHEDULE_TYPES.UNSCHEDULED : schedType;
         dailyTargets = null;
         const targetStr = document.getElementById("task-target-input")?.value;
         effectiveTarget = targetStr === "" ? 1 : Math.max(0.25, parseFloat(targetStr) || 1);
@@ -453,8 +431,6 @@ export function saveTaskFromModal() {
 
     const appData = AppState.getAppData();
     const selectedDate = AppState.getCurrentDate() || new Date().toISOString().slice(0, 10);
-    const otDateInput = document.getElementById("task-onetime-date-input");
-    const chosenOneTimeDate = (schedType === "OneTime" && otDateInput?.value) ? otDateInput.value : selectedDate;
 
     let savedTask = null;
     if (editingTaskId) {
@@ -466,16 +442,14 @@ export function saveTaskFromModal() {
             oldTask.subcategory = subcat;
             oldTask.target = effectiveTarget;
             oldTask.schedule = scheduleVal;
+            oldTask.isArchived = false;
+            oldTask.isOneTime = false;
+            oldTask.oneTimeDate = null;
+            delete oldTask.archivedAt;
             if (dailyTargets) {
                 oldTask.dailyTargets = dailyTargets;
             } else {
                 delete oldTask.dailyTargets;
-            }
-            if (schedType === "OneTime") {
-                oldTask.oneTimeDate = chosenOneTimeDate;
-                oldTask.createdAt = chosenOneTimeDate;
-            } else {
-                oldTask.oneTimeDate = null;
             }
             oldTask._pendingSync = true;
             savedTask = oldTask;
@@ -489,8 +463,8 @@ export function saveTaskFromModal() {
             target: effectiveTarget,
             schedule: scheduleVal,
             isArchived: false,
-            createdAt: (schedType === "OneTime") ? chosenOneTimeDate : (new Date().toISOString()),
-            oneTimeDate: (schedType === "OneTime") ? chosenOneTimeDate : null,
+            createdAt: new Date().toISOString(),
+            oneTimeDate: null,
             _pendingSync: true
         };
         if (dailyTargets) {
@@ -512,14 +486,26 @@ export function saveTaskFromModal() {
     }
 
     // Update target snapshot in current date log
-    if (savedTask && appData.logs?.[selectedDate]?.taskProgress?.[savedTask.id]) {
-        const newNorm = (typeof getTaskNormalizedTarget === "function")
-            ? getTaskNormalizedTarget(savedTask, selectedDate)
-            : effectiveTarget;
-        appData.logs[selectedDate].taskProgress[savedTask.id].target = newNorm;
-        if (!appData.logs[selectedDate]._dirtyTasks) appData.logs[selectedDate]._dirtyTasks = {};
-        appData.logs[selectedDate]._dirtyTasks[savedTask.id] = Date.now();
-        appData.logs[selectedDate]._dirty = true;
+    const dayLog = appData.logs?.[selectedDate];
+    if (savedTask && dayLog?.taskProgress?.[savedTask.id]) {
+        const tp = dayLog.taskProgress[savedTask.id];
+        if (savedTask.schedule === APP_CONSTANTS.SCHEDULE_TYPES.UNSCHEDULED) {
+            const achievedVal = Number(tp.achieved) || 0;
+            if (achievedVal <= 0 && tp.status !== "bonus") {
+                delete dayLog.taskProgress[savedTask.id];
+            } else {
+                tp.status = "bonus";
+                tp.target = 0;
+            }
+        } else {
+            const newNorm = (typeof getTaskNormalizedTarget === "function")
+                ? getTaskNormalizedTarget(savedTask, selectedDate)
+                : effectiveTarget;
+            tp.target = newNorm;
+        }
+        if (!dayLog._dirtyTasks) dayLog._dirtyTasks = {};
+        dayLog._dirtyTasks[savedTask.id] = Date.now();
+        dayLog._dirty = true;
         if (typeof ScoringEngine !== "undefined" && ScoringEngine.invalidateScoreCache) {
             ScoringEngine.invalidateScoreCache(selectedDate, appData);
         }

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ScheduleEngine } from '../js/core/schedule-engine.js';
 import { ScoringEngine } from '../js/core/scoring-engine.js';
-import { isEverydayOrSpecificDaysSchedule, isDailyScheduledTask, getTaskDayTarget } from '../js/core/task-rules.js';
+import { isEverydayOrSpecificDaysSchedule, isDailyScheduledTask, isUnscheduledTask, getTaskDayTarget } from '../js/core/task-rules.js';
 import { awradyAPI } from '../js/api.js';
 
 test('ScheduleEngine: Unscheduled task is never scheduled on any date', () => {
@@ -124,21 +124,64 @@ test('TaskRules: getTaskDayTarget resolves scalar target for Unscheduled tasks',
     assert.equal(getTaskDayTarget(task, '2026-11-24'), 15);
 });
 
-test('AwradyAPI: _taskToRow maps legacy OneTime, isArchived, and Unscheduled tasks correctly', () => {
-    const legacyArchived = { id: 't1', name: 'Archived Task', category: 'عام', target: 1, isArchived: true, schedule: 'Everyday' };
+test('TaskRules: isUnscheduledTask classifies Unscheduled, OneTime, and archived tasks accurately', () => {
+    assert.equal(isUnscheduledTask({ id: 'u1', schedule: 'Unscheduled' }), true);
+    assert.equal(isUnscheduledTask({ id: 'u2', schedule: 'OneTime' }), true);
+    assert.equal(isUnscheduledTask({ id: 'u3', schedule: 'Everyday', isOneTime: true }), true);
+    assert.equal(isUnscheduledTask({ id: 'u4', schedule: 'Everyday', isArchived: true }), true);
+    assert.equal(isUnscheduledTask({ id: 's1', schedule: 'Everyday', isArchived: false }), false);
+    assert.equal(isUnscheduledTask({ id: 's2', schedule: 'Mon, Thu' }), false);
+    assert.equal(isUnscheduledTask({ id: 's3', schedule: 'Ramadan' }), false);
+    assert.equal(isUnscheduledTask(null), false);
+});
+
+test('AwradyAPI: _taskToRow maps legacy OneTime, isArchived, Unscheduled, and numeric totals correctly', () => {
+    const legacyArchived = {
+        id: 't1',
+        name: 'Archived Task',
+        category: 'عام',
+        target: 1,
+        isArchived: true,
+        schedule: 'Everyday',
+        totalAchieved: 12,
+        totalHours: 4.5,
+        totalScore: 85
+    };
     const rowArchived = awradyAPI._taskToRow(legacyArchived);
     assert.equal(rowArchived.schedule, 'Unscheduled');
     assert.equal(rowArchived.is_archived, false);
     assert.equal(rowArchived.one_time_date, undefined);
+    assert.equal(rowArchived.total_achieved, 12);
+    assert.equal(rowArchived.total_hours, 4.5);
+    assert.equal(rowArchived.total_score, 85);
+    assert.equal(rowArchived.totalScore, undefined);
 
-    const legacyOneTime = { id: 't2', name: 'OneTime Task', category: 'عام', target: 1, isOneTime: true, schedule: 'OneTime', oneTimeDate: '2026-11-24' };
+    const legacyOneTime = {
+        id: 't2',
+        name: 'OneTime Task',
+        category: 'عام',
+        target: 1,
+        isOneTime: true,
+        schedule: 'OneTime',
+        oneTimeDate: '2026-11-24',
+        total_achieved: 3,
+        total_hours: 1.5,
+        total_score: 100
+    };
     const rowOneTime = awradyAPI._taskToRow(legacyOneTime);
     assert.equal(rowOneTime.schedule, 'Unscheduled');
     assert.equal(rowOneTime.is_archived, false);
     assert.equal(rowOneTime.one_time_date, undefined);
+    assert.equal(rowOneTime.total_achieved, 3);
+    assert.equal(rowOneTime.total_hours, 1.5);
+    assert.equal(rowOneTime.total_score, 100);
+    assert.equal(rowOneTime.totalScore, undefined);
 
     const unscheduled = { id: 't3', name: 'Unscheduled Task', category: 'عام', target: 1, schedule: 'Unscheduled' };
     const rowUnscheduled = awradyAPI._taskToRow(unscheduled);
     assert.equal(rowUnscheduled.schedule, 'Unscheduled');
     assert.equal(rowUnscheduled.is_archived, false);
+    assert.equal(rowUnscheduled.total_achieved, 0);
+    assert.equal(rowUnscheduled.total_hours, 0);
+    assert.equal(rowUnscheduled.total_score, 0);
 });

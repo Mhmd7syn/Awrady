@@ -6,7 +6,7 @@
  */
 
 import { APP_CONSTANTS } from '../config/constants.js';
-import { groupTasksByCategory, getTaskUnit, isTimeTask, isPrayerSelector } from '../core/task-rules.js';
+import { groupTasksByCategory, getTaskUnit, isTimeTask, isPrayerSelector, isUnscheduledTask } from '../core/task-rules.js';
 import { getCategoryIconHtml } from './category-manager.js';
 import { ScoringEngine } from '../core/scoring-engine.js';
 import { AppState } from '../core/state.js';
@@ -28,14 +28,11 @@ function setupTaskManager() {
             const sec = btn.getAttribute("data-sub");
             document.querySelectorAll(".sub-tab-content").forEach(c => c.classList.remove("active"));
             
-            if (sec === "active-tasks") {
-                document.getElementById("manager-active-section")?.classList.add("active");
+            if (sec === "scheduled-tasks") {
+                document.getElementById("manager-scheduled-section")?.classList.add("active");
                 if (btnAddTask) btnAddTask.style.display = "flex";
-            } else if (sec === "onetime-tasks") {
-                document.getElementById("manager-onetime-section")?.classList.add("active");
-                if (btnAddTask) btnAddTask.style.display = "flex";
-            } else if (sec === "archived-tasks") {
-                document.getElementById("manager-archived-section")?.classList.add("active");
+            } else if (sec === "unscheduled-tasks") {
+                document.getElementById("manager-unscheduled-section")?.classList.add("active");
                 if (btnAddTask) btnAddTask.style.display = "flex";
             } else if (sec === "categories") {
                 document.getElementById("manager-categories-section")?.classList.add("active");
@@ -60,8 +57,8 @@ function setupTaskManager() {
     if (openAddBtn) {
         openAddBtn.addEventListener("click", () => {
             const activeSub = document.querySelector(".sub-tab.active")?.getAttribute("data-sub");
-            if (activeSub === "onetime-tasks") {
-                openTaskModal(null, { isOneTime: true });
+            if (activeSub === "unscheduled-tasks") {
+                openTaskModal(null, { isUnscheduled: true });
             } else {
                 openTaskModal(null);
             }
@@ -91,15 +88,13 @@ function setupTaskManager() {
     }
 }
 
-function renderGroupedTasks(containerEl, tasksList, isArchivedList = false, isOneTimeList = false) {
+function renderGroupedTasks(containerEl, tasksList, isUnscheduledList = false) {
     containerEl.innerHTML = "";
     if (!tasksList || tasksList.length === 0) {
-        if (isArchivedList) {
-            containerEl.innerHTML = `<div class="empty-state"><i class="fa-solid fa-box-open icon-lg gold-text"></i><h3>قائمة الأرشيف فارغة</h3><p>عند الانتهاء الدائم من مهمة معينة، اضغط على زر "إتمام وأرشفة" لتخليد إنجازها وتخفيف جدولك.</p></div>`;
-        } else if (isOneTimeList) {
-            containerEl.innerHTML = `<div class="empty-state"><i class="fa-solid fa-bolt icon-lg gold-text"></i><h3>لا توجد مهام لمرة واحدة حالياً</h3><p>المهام المؤقتة أو المجدولة لمرة واحدة فقط تظهر هنا بشكل مستقل لتسهيل مراجعتها وتعديلها أو أرشفتها.</p></div>`;
+        if (isUnscheduledList) {
+            containerEl.innerHTML = `<div class="empty-state"><i class="fa-solid fa-clock-rotate-left icon-lg gold-text"></i><h3>لا توجد أوراد غير مجدولة</h3><p>الأوراد غير المجدولة متاحة دائماً للإضافة اليومية السريعة كـ بونص دون أن تؤثر على تقييم التزامك اليومي.</p></div>`;
         } else {
-            containerEl.innerHTML = `<div class="empty-state"><h3>لا توجد أوراد نشطة حالياً</h3></div>`;
+            containerEl.innerHTML = `<div class="empty-state"><h3>لا توجد أوراد مجدولة حالياً</h3></div>`;
         }
         return 0;
     }
@@ -144,7 +139,7 @@ function renderGroupedTasks(containerEl, tasksList, isArchivedList = false, isOn
 
                 const tasksBox = document.createElement("div");
                 tasksBox.className = "manager-subcat-tasks";
-                subTasks.forEach(t => tasksBox.appendChild(createTaskRowElement(t, isArchivedList)));
+                subTasks.forEach(t => tasksBox.appendChild(createTaskRowElement(t, isUnscheduledList)));
                 catCard.appendChild(tasksBox);
             });
 
@@ -156,13 +151,13 @@ function renderGroupedTasks(containerEl, tasksList, isArchivedList = false, isOn
 
                 const tasksBox = document.createElement("div");
                 tasksBox.className = "manager-subcat-tasks";
-                generalTasks.forEach(t => tasksBox.appendChild(createTaskRowElement(t, isArchivedList)));
+                generalTasks.forEach(t => tasksBox.appendChild(createTaskRowElement(t, isUnscheduledList)));
                 catCard.appendChild(tasksBox);
             }
         } else {
             const tasksBox = document.createElement("div");
             tasksBox.className = "manager-subcat-tasks";
-            catTasks.forEach(t => tasksBox.appendChild(createTaskRowElement(t, isArchivedList)));
+            catTasks.forEach(t => tasksBox.appendChild(createTaskRowElement(t, isUnscheduledList)));
             catCard.appendChild(tasksBox);
         }
 
@@ -176,7 +171,7 @@ function formatScheduleDisplay(sched) {
     if (!sched || sched === "Everyday") return "يومياً";
     if (sched === "Ramadan") return "شهر رمضان";
     if (sched === "WhiteDays") return "الأيام البيض (13، 14، 15)";
-    if (sched === "OneTime") return "لمرة واحدة فقط";
+    if (sched === "Unscheduled" || sched === "OneTime") return "غير مجدولة";
 
     const dayNameMap = Object.fromEntries(APP_CONSTANTS.WEEKDAYS.map(w => [w.key, w.ar]));
 
@@ -188,37 +183,29 @@ function formatScheduleDisplay(sched) {
     return sched;
 }
 
-function createTaskRowElement(task, isArchived) {
+function createTaskRowElement(task, isUnscheduled) {
     const row = document.createElement("div");
-    row.className = `manager-row ${task.isArchived ? 'archived' : ''}`;
+    row.className = `manager-row ${isUnscheduled ? 'unscheduled' : ''}`;
     const iconHtml = getCategoryIconHtml(task);
 
-    const isOt = !!(task.isOneTime || task.schedule === "OneTime");
-    let schedText;
-    if (isOt) {
-        const dStr = task.oneTimeDate;
-        schedText = dStr ? `📅 التاريخ: ${dStr}` : `📅 لمرة واحدة فقط`;
-    } else {
-        const schedDisplay = formatScheduleDisplay(task.schedule);
-        schedText = `📅 التكرار: ${schedDisplay}`;
-    }
+    const schedDisplay = formatScheduleDisplay(task.schedule);
+    const schedText = `📅 التكرار: ${schedDisplay}`;
 
     const displayType = isPrayerSelector(task) ? 'صلاة فريضة' : getTaskUnit(task);
     const hasDailyTargets = Boolean(task.dailyTargets && Object.keys(task.dailyTargets).length > 0);
     const uniqueTargets = hasDailyTargets ? Array.from(new Set(Object.values(task.dailyTargets).map(Number))) : [];
-    const targetText = hasDailyTargets && uniqueTargets.length > 1
+    const targetText = !isUnscheduled && hasDailyTargets && uniqueTargets.length > 1
         ? `🎯 الهدف: مخصص أسبوعياً (${displayType})`
         : (task.target ? `🎯 الهدف: ${task.target} ${displayType}` : `🏷️ وحدة: ${displayType}`);
 
     const catBadgeText = task.subcategory ? `${task.category} - ${task.subcategory}` : (task.category || 'عام');
-    const otBadge = isOt ? `<span class="badge badge-amber text-xs"><i class="fa-solid fa-bolt"></i> لمرة واحدة</span>` : '';
 
-    if (!isArchived) {
+    if (!isUnscheduled) {
         row.innerHTML = `
             <div class="manager-info">
                 <div class="manager-icon">${iconHtml}</div>
                 <div class="manager-details">
-                    <h4>${task.name} <span class="tag-badge" class="text-xs">${catBadgeText}</span> ${otBadge}</h4>
+                    <h4>${task.name} <span class="tag-badge text-xs">${catBadgeText}</span></h4>
                     <p>
                         <span>${targetText}</span>
                         <span>${schedText}</span>
@@ -227,7 +214,7 @@ function createTaskRowElement(task, isArchived) {
             </div>
             <div class="manager-actions">
                 <button class="btn-action-icon btn-edit" data-id="${task.id}" title="تعديل"><i class="fa-solid fa-pen"></i></button>
-                <button class="btn-action-icon btn-archive" data-id="${task.id}" title="أرشفة"><i class="fa-solid fa-box-archive"></i> أرشفة</button>
+                <button class="btn-action-icon btn-unschedule" data-id="${task.id}" title="إلغاء الجدولة"><i class="fa-solid fa-calendar-minus"></i> إلغاء الجدولة</button>
                 <button class="btn-action-icon btn-del" data-id="${task.id}" title="حذف نهائي"><i class="fa-solid fa-trash"></i></button>
             </div>
         `;
@@ -236,15 +223,14 @@ function createTaskRowElement(task, isArchived) {
             <div class="manager-info">
                 <div class="manager-icon">${iconHtml}</div>
                 <div class="manager-details">
-                    <h4>${task.name} <span class="tag-badge" class="text-xs">${catBadgeText}</span> ${otBadge} <span class="badge badge-amber" class="text-xs">✨ مؤرشف</span></h4>
+                    <h4>${task.name} <span class="tag-badge text-xs">${catBadgeText}</span> <span class="badge badge-amber text-xs">غير مجدولة</span></h4>
                     <p>
                         <span>${targetText}</span>
-                        ${isOt ? `<span>${schedText}</span>` : ''}
                     </p>
                 </div>
             </div>
             <div class="manager-actions">
-                <button class="btn-action-icon btn-unarchive" data-id="${task.id}" title="استعادة"><i class="fa-solid fa-box-open"></i> استعادة</button>
+                <button class="btn-action-icon btn-schedule" data-id="${task.id}" title="جدولة"><i class="fa-solid fa-calendar-plus"></i> جدولة</button>
                 <button class="btn-action-icon btn-edit" data-id="${task.id}" title="تعديل"><i class="fa-solid fa-pen"></i></button>
                 <button class="btn-action-icon btn-del" data-id="${task.id}" title="حذف نهائي"><i class="fa-solid fa-trash"></i></button>
             </div>
@@ -255,34 +241,29 @@ function createTaskRowElement(task, isArchived) {
 }
 
 function renderTaskManager() {
-    const activeList = document.getElementById("manager-active-list");
-    const onetimeList = document.getElementById("manager-onetime-list");
-    const archivedList = document.getElementById("manager-archived-list");
-    if (!activeList || !archivedList) return;
+    const scheduledList = document.getElementById("manager-scheduled-list");
+    const unscheduledList = document.getElementById("manager-unscheduled-list");
+    if (!scheduledList || !unscheduledList) return;
 
     const appData = AppState.getAppData();
     const tasks = AppState.getTasks();
-    const activeTasks = tasks.filter(t => !t.isArchived && !t.isOneTime && t.schedule !== "OneTime");
-    const onetimeTasks = tasks.filter(t => !t.isArchived && (t.isOneTime || t.schedule === "OneTime"));
-    const archivedTasks = tasks.filter(t => t.isArchived);
+    const scheduledTasks = tasks.filter(t => t && !isUnscheduledTask(t));
+    const unscheduledTasks = tasks.filter(t => isUnscheduledTask(t));
 
-    const activeCount = renderGroupedTasks(activeList, activeTasks, false, false);
-    const onetimeCount = onetimeList ? renderGroupedTasks(onetimeList, onetimeTasks, false, true) : 0;
-    const archivedCount = renderGroupedTasks(archivedList, archivedTasks, true, false);
+    const scheduledCount = renderGroupedTasks(scheduledList, scheduledTasks, false);
+    const unscheduledCount = renderGroupedTasks(unscheduledList, unscheduledTasks, true);
 
-    const elActive = document.getElementById("count-active-tasks");
-    const elOnetime = document.getElementById("count-onetime-tasks");
-    const elArchived = document.getElementById("count-archived-tasks");
+    const elScheduled = document.getElementById("count-scheduled-tasks");
+    const elUnscheduled = document.getElementById("count-unscheduled-tasks");
     const elCats = document.getElementById("count-categories");
 
-    if (elActive) elActive.textContent = activeCount;
-    if (elOnetime) elOnetime.textContent = onetimeCount;
-    if (elArchived) elArchived.textContent = archivedCount;
+    if (elScheduled) elScheduled.textContent = scheduledCount;
+    if (elUnscheduled) elUnscheduled.textContent = unscheduledCount;
     if (elCats) elCats.textContent = (appData?.categories || APP_CONSTANTS.CATEGORIES || []).length;
 
     document.querySelectorAll(".btn-edit").forEach(b => b.addEventListener("click", e => openTaskModal(e.currentTarget.getAttribute("data-id"))));
-    document.querySelectorAll(".btn-archive").forEach(b => b.addEventListener("click", e => archiveTask(e.currentTarget.getAttribute("data-id"), true)));
-    document.querySelectorAll(".btn-unarchive").forEach(b => b.addEventListener("click", e => archiveTask(e.currentTarget.getAttribute("data-id"), false)));
+    document.querySelectorAll(".btn-unschedule").forEach(b => b.addEventListener("click", e => toggleTaskSchedule(e.currentTarget.getAttribute("data-id"), false)));
+    document.querySelectorAll(".btn-schedule").forEach(b => b.addEventListener("click", e => toggleTaskSchedule(e.currentTarget.getAttribute("data-id"), true)));
     document.querySelectorAll(".btn-del").forEach(b => b.addEventListener("click", e => deleteForever(e.currentTarget.getAttribute("data-id"))));
 
     if (typeof renderCategoriesManager === "function") {
@@ -290,41 +271,70 @@ function renderTaskManager() {
     }
 }
 
-function archiveTask(id, isArchive) {
+function resolveRestoredSchedule(task) {
+    if (task.dailyTargets && typeof task.dailyTargets === "object") {
+        const activeDays = APP_CONSTANTS.WEEKDAYS
+            .map(w => w.key)
+            .filter(dayKey => Number(task.dailyTargets[dayKey]) > 0);
+        if (activeDays.length === 7) return APP_CONSTANTS.SCHEDULE_TYPES.EVERYDAY;
+        if (activeDays.length > 0) return activeDays.join(", ");
+    }
+    return APP_CONSTANTS.SCHEDULE_TYPES.EVERYDAY;
+}
+
+function toggleTaskSchedule(id, shouldSchedule) {
     const appData = AppState.getAppData();
     const tasks = AppState.getTasks();
     const t = tasks.find(x => x.id === id);
-    if (t) {
-        t.isArchived = isArchive;
-        const curDate = AppState.getCurrentDate();
-        t.archivedAt = isArchive ? curDate : null;
-        if (isArchive) {
-            const log = appData.logs?.[curDate];
-            if (log) {
-                const tp = log.taskProgress?.[id];
-                const val = Number(tp?.achieved) || 0;
-                if (val <= 0 && tp?.status !== "bonus") {
-                    if (log.taskProgress) delete log.taskProgress[id];
-                    if (log._dirtyTasks) delete log._dirtyTasks[id];
-                    log._dirty = true;
-                }
-            }
-        } else {
-            if (t.schedule === "OneTime") {
-                t.isOneTime = true;
-                if (!t.oneTimeDate) {
-                    t.oneTimeDate = curDate;
-                }
-            }
-            if (!t.target || t.target === 0) {
-                t.target = 1;
+    if (!t) return;
+
+    const curDate = AppState.getCurrentDate();
+    t.isArchived = false;
+    t.isOneTime = false;
+    t.oneTimeDate = null;
+    t.archivedAt = null;
+    t._pendingSync = true;
+
+    if (!shouldSchedule) {
+        t.schedule = APP_CONSTANTS.SCHEDULE_TYPES.UNSCHEDULED;
+        const log = appData.logs?.[curDate];
+        if (log) {
+            const tp = log.taskProgress?.[id];
+            const val = Number(tp?.achieved) || 0;
+            if (val <= 0 && tp?.status !== "bonus") {
+                if (log.taskProgress) delete log.taskProgress[id];
+                if (log._dirtyTasks) delete log._dirtyTasks[id];
+                log._dirty = true;
             }
         }
-        saveData(true);
-        if (window.awradyAPI?.client) {
-            window.awradyAPI.saveTask(t).catch(e => console.warn("[AwradyAPI] archiveTask:", e.message));
+    } else {
+        t.schedule = resolveRestoredSchedule(t);
+        if (!t.target || t.target <= 0) {
+            t.target = 1;
         }
-        renderDailyView();
+    }
+
+    if (curDate && typeof ScoringEngine !== "undefined" && ScoringEngine.invalidateScoreCache) {
+        ScoringEngine.invalidateScoreCache(curDate, appData);
+    }
+
+    saveData(true);
+    if (awradyAPI?.client) {
+        awradyAPI.saveTask(t).then(() => {
+            if (t._pendingSync) {
+                delete t._pendingSync;
+                saveData(true);
+            }
+        }).catch(e => console.warn("[AwradyAPI] toggleTaskSchedule:", e.message));
+    }
+
+    if (typeof window !== "undefined") {
+        if (typeof window.renderDailyView === "function") window.renderDailyView();
+        renderTaskManager();
+        if (typeof window.updateHeaderTodayScore === "function") window.updateHeaderTodayScore();
+        if (typeof window.renderAllTimeStats === "function") window.renderAllTimeStats();
+        if (typeof window.updateChartAndAnalytics === "function") window.updateChartAndAnalytics();
+    } else {
         renderTaskManager();
     }
 }
@@ -401,7 +411,7 @@ if (typeof window !== "undefined") {
     window.setupTaskManager = setupTaskManager;
     window.renderGroupedTasks = renderGroupedTasks;
     window.renderTaskManager = renderTaskManager;
-    window.archiveTask = archiveTask;
+    window.toggleTaskSchedule = toggleTaskSchedule;
     window.deleteForever = deleteForever;
     window.addBonusTaskToDate = addBonusTaskToDate;
 }
@@ -410,7 +420,7 @@ export {
     setupTaskManager,
     renderGroupedTasks,
     renderTaskManager,
-    archiveTask,
+    toggleTaskSchedule,
     deleteForever,
     addBonusTaskToDate
 };

@@ -54,12 +54,24 @@ function isEverydayOrSpecificDaysSchedule(schedule) {
 }
 
 /**
+ * Checks whether a task belongs to the Unscheduled bucket in the binary model
+ * (including legacy OneTime and archived tasks).
+ * @param {Object} task
+ * @returns {boolean}
+ */
+function isUnscheduledTask(task) {
+    if (!task) return false;
+    const sched = (task.schedule || "").trim();
+    return Boolean(task.isArchived || task.isOneTime || sched === "Unscheduled" || sched === "OneTime");
+}
+
+/**
  * Focuses positively on whether a task is an active daily scheduled task.
  * @param {Object} task
  * @returns {boolean}
  */
 function isDailyScheduledTask(task) {
-    if (!task || task.isArchived || task.schedule === "Unscheduled") return false;
+    if (!task || isUnscheduledTask(task)) return false;
     return isEverydayOrSpecificDaysSchedule(task.schedule);
 }
 
@@ -323,6 +335,7 @@ if (typeof window !== "undefined") {
     window.rowToLog = rowToLog;
     window.isEverydayOrSpecificDaysSchedule = isEverydayOrSpecificDaysSchedule;
     window.isDailyScheduledTask = isDailyScheduledTask;
+    window.isUnscheduledTask = isUnscheduledTask;
 }
 
 export {
@@ -330,6 +343,7 @@ export {
     isTimeTask,
     isEverydayOrSpecificDaysSchedule,
     isDailyScheduledTask,
+    isUnscheduledTask,
     getTaskDayTarget,
     getTaskNormalizedTarget,
     isTaskCompleted,
