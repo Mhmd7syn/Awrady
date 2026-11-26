@@ -80,3 +80,42 @@ test('ScheduleEngine: isVisibleOn returns true for scheduled, bonus with progres
     assert.equal(ScheduleEngine.isVisibleOn(taskBonusWithProgress, '2026-11-22', appData), true);
     assert.equal(ScheduleEngine.isVisibleOn(taskBonusNoProgress, '2026-11-22', appData), false);
 });
+
+test('ScheduleEngine: fasting task respects dailyTargets for Everyday and specific-day schedules', () => {
+    const everydayFasting = {
+        id: 'task_fasting_everyday',
+        name: 'صيام تطوعي',
+        category: 'صوم',
+        schedule: 'Everyday',
+        target: 1,
+        dailyTargets: { Sat: 0, Sun: 0, Mon: 1, Tue: 0, Wed: 0, Thu: 1, Fri: 0 }
+    };
+    const nonSpecialContextSat = { dayAbbrev: 'Sat', hijriInfo: { isRamadan: false, isWhiteDay: false } };
+    const nonSpecialContextMon = { dayAbbrev: 'Mon', hijriInfo: { isRamadan: false, isWhiteDay: false } };
+
+    assert.equal(ScheduleEngine.isTaskScheduledForDate(everydayFasting, '2026-11-21', null, null, nonSpecialContextSat), false);
+    assert.equal(ScheduleEngine.isTaskScheduledForDate(everydayFasting, '2026-11-23', null, null, nonSpecialContextMon), true);
+
+    const specificDaysFasting = {
+        id: 'task_fasting_specific',
+        name: 'صيام الإثنين والخميس',
+        category: 'صوم',
+        schedule: 'Mon, Thu',
+        target: 1,
+        dailyTargets: { Mon: 0, Thu: 1 }
+    };
+    const nonSpecialContextThu = { dayAbbrev: 'Thu', hijriInfo: { isRamadan: false, isWhiteDay: false } };
+
+    assert.equal(ScheduleEngine.isTaskScheduledForDate(specificDaysFasting, '2026-11-23', null, null, nonSpecialContextMon), false);
+    assert.equal(ScheduleEngine.isTaskScheduledForDate(specificDaysFasting, '2026-11-26', null, null, nonSpecialContextThu), true);
+});
+
+test('ScheduleEngine: WhiteDays and Ramadan fasting schedules remain intact', () => {
+    const whiteDaysTask = { id: 'wd1', name: 'صيام الأيام البيض', category: 'صوم', schedule: 'WhiteDays', target: 1 };
+    const ramadanTask = { id: 'rm1', name: 'صيام رمضان', category: 'صوم', schedule: 'Ramadan', target: 1 };
+
+    assert.equal(ScheduleEngine.isTaskScheduledForDate(whiteDaysTask, '2026-11-21', null, null, { dayAbbrev: 'Sat', hijriInfo: { isRamadan: false, isWhiteDay: true } }), true);
+    assert.equal(ScheduleEngine.isTaskScheduledForDate(whiteDaysTask, '2026-11-21', null, null, { dayAbbrev: 'Sat', hijriInfo: { isRamadan: false, isWhiteDay: false } }), false);
+    assert.equal(ScheduleEngine.isTaskScheduledForDate(ramadanTask, '2026-11-21', null, null, { dayAbbrev: 'Sat', hijriInfo: { isRamadan: true, isWhiteDay: false } }), true);
+    assert.equal(ScheduleEngine.isTaskScheduledForDate(ramadanTask, '2026-11-21', null, null, { dayAbbrev: 'Sat', hijriInfo: { isRamadan: false, isWhiteDay: false } }), false);
+});
