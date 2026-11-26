@@ -99,12 +99,9 @@ class ScheduleEngine {
                 }
             }
 
-            // Priority 3: Regular Monday / Thursday voluntary fasting
+            // Priority 3: Regular voluntary fasting (fall through to standard dailyTargets / weekday rules)
             if (sched.includes("WhiteDays")) return false;
             if (sched === "Ramadan") return false;
-            if (sched === "Everyday" || sched === "") return true;
-
-            return sched.includes(dayAbbrev);
         }
 
         if (typeof isEverydayOrSpecificDaysSchedule === "function" && isEverydayOrSpecificDaysSchedule(sched)) {
