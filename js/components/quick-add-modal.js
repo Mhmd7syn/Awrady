@@ -4,6 +4,7 @@
 
 import { AppState } from '../core/state.js';
 import { ScheduleEngine } from '../core/schedule-engine.js';
+import { isUnscheduledTask } from '../core/task-rules.js';
 import { getCategoryIconHtml } from './category-manager.js';
 import { openTaskModal } from './task-modal.js';
 
@@ -145,13 +146,10 @@ export function renderQuickAddExistingList() {
 
     const allTasks = appData.tasks || [];
     const filtered = allTasks.filter(task => {
-        const isArchived = !!task.isArchived;
-        const isOneTime = !isArchived && (task.isOneTime || task.schedule === "OneTime");
-        const isScheduled = !isArchived && !isOneTime;
+        const isUnscheduled = isUnscheduledTask(task);
 
-        if (_qaCurrentFilter === "archived" && !isArchived) return false;
-        if (_qaCurrentFilter === "onetime" && !isOneTime) return false;
-        if (_qaCurrentFilter === "scheduled" && !isScheduled) return false;
+        if (_qaCurrentFilter === "scheduled" && isUnscheduled) return false;
+        if (_qaCurrentFilter === "unscheduled" && !isUnscheduled) return false;
 
         if (term) {
             const nameMatch = (task.name || "").toLowerCase().includes(term);
@@ -168,15 +166,11 @@ export function renderQuickAddExistingList() {
     }
 
     filtered.forEach(task => {
-        const isArchived = !!task.isArchived;
-        const isOneTime = !isArchived && (task.isOneTime || task.schedule === "OneTime");
+        const isUnscheduled = isUnscheduledTask(task);
 
-        let typeBadgeHtml = `<span style="font-size:0.72rem; padding:2px 8px; border-radius:10px; background:rgba(16,185,129,0.15); color:#34d399; border:1px solid rgba(16,185,129,0.3);">مجدول</span>`;
-        if (isArchived) {
-            typeBadgeHtml = `<span style="font-size:0.72rem; padding:2px 8px; border-radius:10px; background:rgba(239,68,68,0.15); color:#f87171; border:1px solid rgba(239,68,68,0.3);">مؤرشف</span>`;
-        } else if (isOneTime) {
-            typeBadgeHtml = `<span style="font-size:0.72rem; padding:2px 8px; border-radius:10px; background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3);">مرة واحدة</span>`;
-        }
+        const typeBadgeHtml = isUnscheduled
+            ? `<span style="font-size:0.72rem; padding:2px 8px; border-radius:10px; background:rgba(245,158,11,0.15); color:#fbbf24; border:1px solid rgba(245,158,11,0.3);">غير مجدول</span>`
+            : `<span style="font-size:0.72rem; padding:2px 8px; border-radius:10px; background:rgba(16,185,129,0.15); color:#34d399; border:1px solid rgba(16,185,129,0.3);">مجدول</span>`;
 
         const isAlreadyActive = ScheduleEngine.isVisibleOn(task, curDate, appData);
         const iconHtml = getCategoryIconHtml(task);

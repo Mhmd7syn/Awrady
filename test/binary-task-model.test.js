@@ -4,6 +4,7 @@ import { ScheduleEngine } from '../js/core/schedule-engine.js';
 import { ScoringEngine } from '../js/core/scoring-engine.js';
 import { isEverydayOrSpecificDaysSchedule, isDailyScheduledTask, isUnscheduledTask, getTaskDayTarget } from '../js/core/task-rules.js';
 import { awradyAPI } from '../js/api.js';
+import { getTaskStatusKey, calculateTaskStatsForDates } from '../js/components/analytics-breakdown.js';
 
 test('ScheduleEngine: Unscheduled task is never scheduled on any date', () => {
     const task = { id: 'u1', schedule: 'Unscheduled', target: 10 };
@@ -184,4 +185,57 @@ test('AwradyAPI: _taskToRow maps legacy OneTime, isArchived, Unscheduled, and nu
     assert.equal(rowUnscheduled.total_achieved, 0);
     assert.equal(rowUnscheduled.total_hours, 0);
     assert.equal(rowUnscheduled.total_score, 0);
+});
+
+test('AnalyticsBreakdown: getTaskStatusKey returns binary scheduled vs unscheduled', () => {
+    assert.equal(getTaskStatusKey({ id: 's1', schedule: 'Everyday' }), 'scheduled');
+    assert.equal(getTaskStatusKey({ id: 'u1', schedule: 'Unscheduled' }), 'unscheduled');
+    assert.equal(getTaskStatusKey({ id: 'u2', schedule: 'OneTime' }), 'unscheduled');
+    assert.equal(getTaskStatusKey({ id: 'u3', schedule: 'Everyday', isArchived: true }), 'unscheduled');
+});
+
+test('AnalyticsBreakdown: calculateTaskStatsForDates reflects actual active days for unscheduled tasks without 1-day clamping', () => {
+    const unscheduledTask = { id: 'u_stats', schedule: 'Unscheduled', target: 2, unit: 'عدد' };
+    const prevAppData = globalThis.appData;
+    globalThis.appData = {
+        tasks: [unscheduledTask],
+        logs: {
+            '2026-11-20': { taskProgress: { u_stats: { achieved: 2 } } },
+            '2026-11-21': { taskProgress: { u_stats: { achieved: 1 } } },
+            '2026-11-22': { taskProgress: { u_stats: { achieved: 0 } } }
+        }
+    };
+    try {
+        const stats = calculateTaskStatsForDates(unscheduledTask, ['2026-11-20', '2026-11-21', '2026-11-22']);
+        assert.equal(stats.scheduledDaysCount, 0);
+        assert.equal(stats.activeTimes, 2);
+        assert.equal(stats.effectiveTotalDays, 2);
+        assert.equal(stats.consistencyPct, 75);
+
+        const emptyStats = calculateTaskStatsForDates(unscheduledTask, ['2026-11-22']);
+        assert.equal(emptyStats.activeTimes, 0);
+        assert.equal(emptyStats.effectiveTotalDays, 0);
+        assert.equal(emptyStats.consistencyPct, 0);
+    } finally {
+        if (prevAppData === undefined) {
+            delete globalThis.appData;
+        } else {
+            globalThis.appData = prevAppData;
+        }
+    }
+});
+
+test('ScheduleEngine: transitioning task between Scheduled and Unscheduled updates schedule & visibility', () => {
+    const task = { id: 'tr1', schedule: 'Everyday', target: 1 };
+    const appData = { tasks: [task], logs: {} };
+    assert.equal(ScheduleEngine.isTaskScheduledForDate(task, '2026-11-25', appData), true);
+    assert.equal(ScheduleEngine.isVisibleOn(task, '2026-11-25', appData), true);
+
+    task.schedule = 'Unscheduled';
+    assert.equal(ScheduleEngine.isTaskScheduledForDate(task, '2026-11-25', appData), false);
+    assert.equal(ScheduleEngine.isVisibleOn(task, '2026-11-25', appData), false);
+
+    task.schedule = 'Everyday';
+    assert.equal(ScheduleEngine.isTaskScheduledForDate(task, '2026-11-25', appData), true);
+    assert.equal(ScheduleEngine.isVisibleOn(task, '2026-11-25', appData), true);
 });
