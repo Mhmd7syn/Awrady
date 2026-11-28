@@ -2,7 +2,7 @@
  * Per-task consistency breakdown
  */
 
-import { isTimeTask, getTaskNormalizedTarget, groupTasksByCategory } from '../core/task-rules.js';
+import { isTimeTask, getTaskNormalizedTarget, groupTasksByCategory, isUnscheduledTask } from '../core/task-rules.js';
 import { getCategoryIconHtml } from './category-manager.js';
 import { ScheduleEngine } from '../core/schedule-engine.js';
 import { ScoringEngine } from '../core/scoring-engine.js';
@@ -18,25 +18,17 @@ const TASK_STATUS_CONFIG = {
         icon: "fa-calendar-check",
         badgeClass: "badge-status-scheduled"
     },
-    onetime: {
-        key: "onetime",
-        label: "لمرة واحدة",
-        icon: "fa-bolt",
-        badgeClass: "badge-status-onetime"
-    },
-    archived: {
-        key: "archived",
-        label: "مؤرشفة",
-        icon: "fa-box-archive",
-        badgeClass: "badge-status-archived"
+    unscheduled: {
+        key: "unscheduled",
+        label: "غير مجدولة",
+        icon: "fa-clock-rotate-left",
+        badgeClass: "badge-status-unscheduled"
     }
 };
 
 function getTaskStatusKey(task) {
     if (!task) return "scheduled";
-    if (task.isArchived) return "archived";
-    if (task.isOneTime || task.schedule === "OneTime") return "onetime";
-    return "scheduled";
+    return isUnscheduledTask(task) ? "unscheduled" : "scheduled";
 }
 
 /**
@@ -50,8 +42,7 @@ function calculateTaskStatsForDates(task, allDates) {
     let taskTotalHours = 0;
 
     const statusKey = getTaskStatusKey(task);
-    const targetDate = task.oneTimeDate || (task.createdAt ? task.createdAt.slice(0, 10) : null);
-    const archiveCutoff = task.archivedAt || null;
+    const data = (typeof appData !== "undefined" && appData) ? appData : AppState.getAppData();
 
     const computeTaskHours = (taskObj, val, date) => {
         if (val <= 0) return 0;
@@ -67,49 +58,17 @@ function calculateTaskStatsForDates(task, allDates) {
         return (ratio * weightMinutes) / 60;
     };
 
-    // Check if task has any past logged entries (for legacy tasks without explicit cutoff dates)
-    let taskHasAnyLogs = false;
-    let lastLoggedDate = null;
-    if (appData && appData.logs) {
-        for (const dKey in appData.logs) {
-            if ((Number(appData.logs[dKey]?.taskProgress?.[task.id]?.achieved) || 0) > 0) {
-                taskHasAnyLogs = true;
-                if (!lastLoggedDate || dKey > lastLoggedDate) {
-                    lastLoggedDate = dKey;
-                }
-            }
-        }
-    }
-
     (allDates || []).forEach(d => {
-        const log = (appData && appData.logs && appData.logs[d]) ? appData.logs[d] : null;
+        const log = (data && data.logs && data.logs[d]) ? data.logs[d] : null;
         const val = Number(log?.taskProgress?.[task.id]?.achieved) || 0;
-        const isDeactivated = (typeof ScheduleEngine !== "undefined") ? ScheduleEngine.isTaskDisabledForDate(task, log, appData) : false;
+        const isDeactivated = (typeof ScheduleEngine !== "undefined") ? ScheduleEngine.isTaskDisabledForDate(task, log, data) : false;
         const isExplicitBonus = Boolean(task.isBonus);
 
         let isScheduled = false;
-        if (!isExplicitBonus && !(isDeactivated && val === 0)) {
-            if (statusKey === "onetime") {
-                if (targetDate && d === targetDate && !isDeactivated) {
-                    isScheduled = true;
-                }
-            } else if (statusKey === "archived") {
-                if (archiveCutoff && d > archiveCutoff) {
-                    isScheduled = false;
-                } else if (!archiveCutoff && !taskHasAnyLogs) {
-                    isScheduled = false;
-                } else if (!archiveCutoff && lastLoggedDate && d > lastLoggedDate) {
-                    isScheduled = false;
-                } else {
-                    isScheduled = (typeof ScheduleEngine !== "undefined")
-                        ? ScheduleEngine.isTaskScheduledForDate(task, d, appData, val, null, true)
-                        : false;
-                }
-            } else {
-                isScheduled = (typeof ScheduleEngine !== "undefined")
-                    ? ScheduleEngine.isTaskScheduledForDate(task, d, appData, val)
-                    : false;
-            }
+        if (statusKey === "scheduled" && !isExplicitBonus && !(isDeactivated && val === 0)) {
+            isScheduled = (typeof ScheduleEngine !== "undefined")
+                ? ScheduleEngine.isTaskScheduledForDate(task, d, data, val)
+                : false;
         }
 
         if (isScheduled) {
@@ -123,7 +82,7 @@ function calculateTaskStatsForDates(task, allDates) {
                 taskTotalHours += computeTaskHours(task, val, d);
             }
         } else if (val > 0) {
-            // Strictly additive bonus entry: never increments scheduledDaysCount
+            // Strictly additive bonus / unscheduled entry: never increments scheduledDaysCount
             activeTimes++;
             const tgt = getTaskNormalizedTarget(task, d);
             const baseTgt = (task.target && task.target > 0) ? (isTimeTask(task) ? task.target * 60 : task.target) : 1;
@@ -132,25 +91,6 @@ function calculateTaskStatsForDates(task, allDates) {
             taskTotalHours += computeTaskHours(task, val, d);
         }
     });
-
-    // Special fallback for one-time task if target date wasn't inside allDates range
-    if (statusKey === "onetime" && scheduledDaysCount === 0 && targetDate) {
-        const log = (appData && appData.logs && appData.logs[targetDate]) ? appData.logs[targetDate] : null;
-        const isDeactivated = (typeof ScheduleEngine !== "undefined") ? ScheduleEngine.isTaskDisabledForDate(task, log, appData) : false;
-        const val = Number(log?.taskProgress?.[task.id]?.achieved) || 0;
-
-        if (!isDeactivated || val > 0) {
-            scheduledDaysCount = isDeactivated ? 0 : 1;
-            if (val > 0) {
-                activeTimes = Math.max(activeTimes, 1);
-                const tgt = getTaskNormalizedTarget(task, targetDate);
-                const baseTgt = (task.target && task.target > 0) ? (isTimeTask(task) ? task.target * 60 : task.target) : 1;
-                const effectiveTgt = tgt > 0 ? tgt : baseTgt;
-                sumRatio += val / effectiveTgt;
-                taskTotalHours += computeTaskHours(task, val, targetDate);
-            }
-        }
-    }
 
     const effectiveTotalDays = scheduledDaysCount > 0 ? scheduledDaysCount : (activeTimes > 0 ? activeTimes : 0);
     const consistencyPct = effectiveTotalDays > 0 ? Math.round((sumRatio / effectiveTotalDays) * 100) : 0;
@@ -300,8 +240,7 @@ function renderTaskBreakdown(allDates) {
     const counts = {
         all: allTasksList.length,
         scheduled: 0,
-        onetime: 0,
-        archived: 0
+        unscheduled: 0
     };
 
     allTasksList.forEach(t => {
@@ -311,13 +250,11 @@ function renderTaskBreakdown(allDates) {
 
     const elCountAll = document.getElementById("filter-count-all");
     const elCountScheduled = document.getElementById("filter-count-scheduled");
-    const elCountOnetime = document.getElementById("filter-count-onetime");
-    const elCountArchived = document.getElementById("filter-count-archived");
+    const elCountUnscheduled = document.getElementById("filter-count-unscheduled");
 
     if (elCountAll) elCountAll.textContent = counts.all;
     if (elCountScheduled) elCountScheduled.textContent = counts.scheduled;
-    if (elCountOnetime) elCountOnetime.textContent = counts.onetime;
-    if (elCountArchived) elCountArchived.textContent = counts.archived;
+    if (elCountUnscheduled) elCountUnscheduled.textContent = counts.unscheduled;
 
     // 3. Filter tasks based on active status filter
     const filteredTasks = (analyticsTaskStatusFilter === "all")
@@ -328,8 +265,7 @@ function renderTaskBreakdown(allDates) {
         const emptyLabels = {
             all: "لا توجد أوراد أو مهام لعرض نسبة الالتزام",
             scheduled: "لا توجد مهام مجدولة حالياً",
-            onetime: "لا توجد مهام لمرة واحدة",
-            archived: "قائمة المهام المؤرشفة فارغة"
+            unscheduled: "لا توجد مهام غير مجدولة حالياً"
         };
         container.innerHTML = `<div class="empty-state"><h3>${emptyLabels[analyticsTaskStatusFilter] || 'لا توجد مهام لعرضها'}</h3></div>`;
         return;
@@ -360,9 +296,6 @@ function renderTaskBreakdown(allDates) {
             const statusKey = getTaskStatusKey(task);
             const statusCfg = TASK_STATUS_CONFIG[statusKey] || TASK_STATUS_CONFIG.scheduled;
 
-            const targetDate = task.oneTimeDate || (task.createdAt ? task.createdAt.slice(0, 10) : null);
-            const archiveCutoff = task.archivedAt || null;
-
             const stats = calculateTaskStatsForDates(task, allDates);
             catSumPct += stats.consistencyPct;
             catSumHours += stats.taskTotalHours;
@@ -374,13 +307,6 @@ function renderTaskBreakdown(allDates) {
             const iconHtml = getCategoryIconHtml(task);
             const statusBadgeHtml = `<span class="breakdown-status-badge ${statusCfg.badgeClass}"><i class="fa-solid ${statusCfg.icon}"></i> ${statusCfg.label}</span>`;
 
-            let metaExtra = "";
-            if (statusKey === "onetime" && targetDate) {
-                metaExtra = `<span>•</span><span><i class="fa-regular fa-calendar"></i> ${targetDate}</span>`;
-            } else if (statusKey === "archived" && archiveCutoff) {
-                metaExtra = `<span>•</span><span><i class="fa-solid fa-box-archive"></i> ${archiveCutoff}</span>`;
-            }
-
             const card = document.createElement("div");
             card.className = "breakdown-card horizontal";
             card.innerHTML = `
@@ -391,7 +317,6 @@ function renderTaskBreakdown(allDates) {
                     </div>
                     <div class="breakdown-meta">
                         <span>${activeTimes} من ${effectiveTotalDays} يوم</span>
-                        ${metaExtra}
                     </div>
                 </div>
                 <div class="breakdown-metrics-display">

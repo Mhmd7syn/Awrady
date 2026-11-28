@@ -678,13 +678,7 @@
     border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
-.breakdown-status-badge.badge-status-onetime {
-    background: rgba(59, 130, 246, 0.15);
-    color: #60a5fa;
-    border: 1px solid rgba(59, 130, 246, 0.3);
-}
-
-.breakdown-status-badge.badge-status-archived {
+.breakdown-status-badge.badge-status-unscheduled {
     background: rgba(245, 158, 11, 0.15);
     color: #fbbf24;
     border: 1px solid rgba(245, 158, 11, 0.3);
@@ -830,7 +824,7 @@
 }
 
 .manager-row:hover { border-color: rgba(255, 255, 255, 0.2); background: rgba(18, 30, 25, 0.8); }
-.manager-row.archived { opacity: 0.75; border-color: rgba(245, 158, 11, 0.25); }
+.manager-row.unscheduled, .manager-row.archived { opacity: 0.78; border-color: rgba(245, 158, 11, 0.25); }
 
 .manager-info { display: flex; align-items: center; gap: 16px; }
 
@@ -868,8 +862,8 @@
 }
 
 .btn-action-icon:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
-.btn-archive:hover { border-color: var(--gold-primary); color: var(--gold-primary); }
-.btn-unarchive:hover { border-color: var(--emerald-primary); color: var(--emerald-primary); }
+.btn-unschedule:hover, .btn-archive:hover { border-color: var(--gold-primary); color: var(--gold-primary); }
+.btn-schedule:hover, .btn-unarchive:hover { border-color: var(--emerald-primary); color: var(--emerald-primary); }
 .btn-del:hover { background: rgba(239, 68, 68, 0.2); border-color: #ef4444; color: #ef4444; }
 
 

@@ -292,11 +292,8 @@
                     <button class="btn-filter-status" data-status-filter="scheduled">
                         <i class="fa-solid fa-calendar-check emerald-text"></i> <span>المجدولة</span> <span class="filter-count" id="filter-count-scheduled">0</span>
                     </button>
-                    <button class="btn-filter-status" data-status-filter="onetime">
-                        <i class="fa-solid fa-bolt blue-text"></i> <span>لمرة واحدة</span> <span class="filter-count" id="filter-count-onetime">0</span>
-                    </button>
-                    <button class="btn-filter-status" data-status-filter="archived">
-                        <i class="fa-solid fa-box-archive gold-text"></i> <span>المؤرشفة</span> <span class="filter-count" id="filter-count-archived">0</span>
+                    <button class="btn-filter-status" data-status-filter="unscheduled">
+                        <i class="fa-solid fa-clock-rotate-left gold-text"></i> <span>غير المجدولة</span> <span class="filter-count" id="filter-count-unscheduled">0</span>
                     </button>
                 </div>
             </div>
@@ -309,14 +306,11 @@
         <section id="view-manager" class="tab-view">
             <div class="manager-toolbar glass-card">
                 <div class="toolbar-tabs">
-                    <button class="sub-tab active" data-sub="active-tasks">
-                        <i class="fa-solid fa-layer-group emerald-text"></i> النشطة (<span id="count-active-tasks">0</span>)
+                    <button class="sub-tab active" data-sub="scheduled-tasks">
+                        <i class="fa-solid fa-calendar-check emerald-text"></i> الأوراد المجدولة (<span id="count-scheduled-tasks">0</span>)
                     </button>
-                    <button class="sub-tab" data-sub="onetime-tasks" title="مهام لمرة واحدة">
-                        <i class="fa-solid fa-bolt gold-text"></i> لمرة واحدة (<span id="count-onetime-tasks">0</span>)
-                    </button>
-                    <button class="sub-tab" data-sub="archived-tasks" title="الأرشيف">
-                        <i class="fa-solid fa-box-archive gold-text"></i> الأرشيف (<span id="count-archived-tasks">0</span>)
+                    <button class="sub-tab" data-sub="unscheduled-tasks" title="الأوراد غير المجدولة">
+                        <i class="fa-solid fa-clock-rotate-left gold-text"></i> الأوراد غير المجدولة (<span id="count-unscheduled-tasks">0</span>)
                     </button>
                     <button class="sub-tab" data-sub="categories">
                         <i class="fa-solid fa-tags blue-text"></i> التصنيفات (<span id="count-categories">0</span>)
@@ -332,23 +326,16 @@
                 </div>
             </div>
 
-            <!-- Active Tasks List -->
-            <div id="manager-active-section" class="sub-tab-content active">
-                <div id="manager-active-list" class="manager-list">
+            <!-- Scheduled Tasks List -->
+            <div id="manager-scheduled-section" class="sub-tab-content active">
+                <div id="manager-scheduled-list" class="manager-list">
                     <!-- Dynamic -->
                 </div>
             </div>
 
-            <!-- One-time Tasks List -->
-            <div id="manager-onetime-section" class="sub-tab-content">
-                <div id="manager-onetime-list" class="manager-list">
-                    <!-- Dynamic -->
-                </div>
-            </div>
-
-            <!-- Archived Tasks List -->
-            <div id="manager-archived-section" class="sub-tab-content">
-                <div id="manager-archived-list" class="manager-list">
+            <!-- Unscheduled Tasks List -->
+            <div id="manager-unscheduled-section" class="sub-tab-content">
+                <div id="manager-unscheduled-list" class="manager-list">
                     <!-- Dynamic -->
                 </div>
             </div>
@@ -567,8 +554,8 @@
                             <span><i class="fa-solid fa-mosque"></i> موسمي (رمضان فقط)</span>
                         </label>
                         <label class="radio-card">
-                            <input type="radio" name="schedule_type" value="OneTime">
-                            <span><i class="fa-solid fa-bolt gold-text"></i> لمرة واحدة فقط (اليوم المحدد)</span>
+                            <input type="radio" name="schedule_type" value="Unscheduled">
+                            <span><i class="fa-solid fa-clock-rotate-left gold-text"></i> غير مجدولة (بونص / مرنة)</span>
                         </label>
                     </div>
 
@@ -665,12 +652,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <div id="onetime-date-selector-box" class="form-group task-target-input-row hidden">
-                        <label for="task-onetime-date-input" class="gold-text"><i class="fa-solid fa-calendar-day"></i> تاريخ تنفيذ المهمة (Date)</label>
-                        <input type="date" id="task-onetime-date-input" class="task-target-input w-full">
-                        <small class="hint-text text-secondary">تاريخ اليوم الذي ستظهر فيه هذه المهمة لمرة واحدة فقط.</small>
-                    </div>
                 </div>
 
                 <div class="modal-footer">
@@ -730,8 +711,7 @@
                 <div id="quick-add-filter-chips" class="qa-categories-scroll">
                     <button class="qa-chip active" data-filter="all">الكل</button>
                     <button class="qa-chip" data-filter="scheduled">مجدولة</button>
-                    <button class="qa-chip" data-filter="onetime">مرة واحدة</button>
-                    <button class="qa-chip" data-filter="archived">مؤرشفة</button>
+                    <button class="qa-chip" data-filter="unscheduled">غير مجدولة</button>
                 </div>
                 <div id="quick-add-existing-list" class="qa-tasks-list" role="list" aria-label="قائمة المهام السابقة">
                     <!-- Populated by JS -->

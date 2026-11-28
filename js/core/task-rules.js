@@ -41,7 +41,7 @@ function isTimeTask(task) {
 
 /**
  * Checks if a task schedule is 'Everyday' or 'specific days' (recurring weekly weekdays).
- * Returns false for 'OneTime', 'WhiteDays', 'Ramadan', or other special schedules.
+ * Returns false for 'Unscheduled', 'OneTime', 'WhiteDays', 'Ramadan', or other special schedules.
  * @param {string} schedule
  * @returns {boolean}
  */
@@ -49,8 +49,20 @@ function isEverydayOrSpecificDaysSchedule(schedule) {
     if (!schedule) return true;
     const s = schedule.trim();
     if (s === "Everyday" || s === "Daily" || s === "") return true;
-    if (s === "OneTime" || s === "WhiteDays" || s === "Ramadan") return false;
+    if (s === "Unscheduled" || s === "OneTime" || s === "WhiteDays" || s === "Ramadan") return false;
     return ["Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri"].some(d => s.includes(d));
+}
+
+/**
+ * Checks whether a task belongs to the Unscheduled bucket in the binary model
+ * (including legacy OneTime and archived tasks).
+ * @param {Object} task
+ * @returns {boolean}
+ */
+function isUnscheduledTask(task) {
+    if (!task) return false;
+    const sched = (task.schedule || "").trim();
+    return Boolean(task.isArchived || task.isOneTime || sched === "Unscheduled" || sched === "OneTime");
 }
 
 /**
@@ -59,14 +71,14 @@ function isEverydayOrSpecificDaysSchedule(schedule) {
  * @returns {boolean}
  */
 function isDailyScheduledTask(task) {
-    if (!task || task.isArchived) return false;
+    if (!task || isUnscheduledTask(task)) return false;
     return isEverydayOrSpecificDaysSchedule(task.schedule);
 }
 
 /**
  * Resolves the effective target for a task on a specific day or date.
  * If the schedule is Everyday or specific days, it uses the dailyTargets dictionary.
- * Else (OneTime, WhiteDays, Ramadan, etc.), it uses the scalar task.target column.
+ * Else (Unscheduled, OneTime, WhiteDays, Ramadan, etc.), it uses the scalar task.target column.
  * @param {Object} task
  * @param {string} dayOrDateKey Day abbreviation (e.g. "Sat") or Date string ("YYYY-MM-DD")
  * @returns {number} Target units
@@ -97,7 +109,7 @@ function getTaskDayTarget(task, dayOrDateKey = null) {
         return isScheduled ? Math.round((Number(task.target) || 1) * 100) / 100 : 0;
     }
 
-    // Else (OneTime, WhiteDays, Ramadan, etc.) -> use scalar task.target column
+    // Else (Unscheduled, OneTime, WhiteDays, Ramadan, etc.) -> use scalar task.target column
     return Math.round((Number(task.target) || 1) * 100) / 100;
 }
 
@@ -323,6 +335,7 @@ if (typeof window !== "undefined") {
     window.rowToLog = rowToLog;
     window.isEverydayOrSpecificDaysSchedule = isEverydayOrSpecificDaysSchedule;
     window.isDailyScheduledTask = isDailyScheduledTask;
+    window.isUnscheduledTask = isUnscheduledTask;
 }
 
 export {
@@ -330,6 +343,7 @@ export {
     isTimeTask,
     isEverydayOrSpecificDaysSchedule,
     isDailyScheduledTask,
+    isUnscheduledTask,
     getTaskDayTarget,
     getTaskNormalizedTarget,
     isTaskCompleted,

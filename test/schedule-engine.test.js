@@ -7,9 +7,9 @@ test('ScheduleEngine: Everyday schedule is scheduled for any date', () => {
     assert.equal(ScheduleEngine.isTaskScheduledForDate(task, '2026-11-22'), true);
 });
 
-test('ScheduleEngine: OneTime schedule only active on specific date', () => {
-    const task = { id: 't2', schedule: 'OneTime', oneTimeDate: '2026-11-22', target: 1 };
-    assert.equal(ScheduleEngine.isTaskScheduledForDate(task, '2026-11-22'), true);
+test('ScheduleEngine: Unscheduled task is never scheduled on any date', () => {
+    const task = { id: 't2', schedule: 'Unscheduled', target: 1 };
+    assert.equal(ScheduleEngine.isTaskScheduledForDate(task, '2026-11-22'), false);
     assert.equal(ScheduleEngine.isTaskScheduledForDate(task, '2026-11-23'), false);
 });
 
@@ -41,8 +41,8 @@ test('ScheduleEngine: disabled status in day log overrides schedule', () => {
     assert.equal(ScheduleEngine.isTaskDisabledForDate(task, '2026-11-22', appData), true);
 });
 
-test('ScheduleEngine: bonus detection when achieved on non-scheduled day', () => {
-    const task = { id: 't2', schedule: 'OneTime', oneTimeDate: '2026-11-20', target: 1 };
+test('ScheduleEngine: bonus detection when achieved on unscheduled task', () => {
+    const task = { id: 't2', schedule: 'Unscheduled', target: 1 };
     const appData = {
         tasks: [task],
         logs: {
@@ -59,8 +59,8 @@ test('ScheduleEngine: bonus detection when achieved on non-scheduled day', () =>
 test('ScheduleEngine: isVisibleOn returns true for scheduled, bonus with progress, and disabled tasks', () => {
     const taskScheduled = { id: 's1', schedule: 'Everyday', target: 1 };
     const taskDisabled = { id: 'd1', schedule: 'Everyday', target: 1 };
-    const taskBonusWithProgress = { id: 'b1', schedule: 'OneTime', oneTimeDate: '2026-11-20', target: 1 };
-    const taskBonusNoProgress = { id: 'b2', schedule: 'OneTime', oneTimeDate: '2026-11-20', target: 1 };
+    const taskBonusWithProgress = { id: 'b1', schedule: 'Unscheduled', target: 1 };
+    const taskBonusNoProgress = { id: 'b2', schedule: 'Unscheduled', target: 1 };
 
     const appData = {
         tasks: [taskScheduled, taskDisabled, taskBonusWithProgress, taskBonusNoProgress],

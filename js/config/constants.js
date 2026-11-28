@@ -32,7 +32,8 @@ export const APP_CONSTANTS = {
         EVERYDAY: "Everyday",
         WHITE_DAYS: "WhiteDays",
         RAMADAN: "Ramadan",
-        ONE_TIME: "OneTime"
+        ONE_TIME: "OneTime",
+        UNSCHEDULED: "Unscheduled"
     },
     POMODORO_DEFAULTS: {
         WORK_MINUTES: 25,

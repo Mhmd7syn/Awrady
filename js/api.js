@@ -132,7 +132,7 @@ class AwradyAPI {
         this._listeners.forEach(cb => cb(event, payload));
     }
 
-    async getTasks(includeArchived = false) {
+    async getTasks(includeArchived = true) {
         if (!this.client || this.isGuest()) return [];
         const uid = this.getEffectiveUserId();
         if (!uid) return [];
@@ -141,25 +141,37 @@ class AwradyAPI {
         if (!includeArchived) query = query.eq("is_archived", false);
         const { data, error } = await query.order("created_at", { ascending: true });
         if (error) throw error;
-        return (data || []).map(r => ({
-            id: r.task_id,
-            name: r.name,
-            category: r.category,
-            subcategory: r.subcategory || null,
-            target: Number(r.target) || 1,
-            schedule: r.schedule || "Everyday",
-            isArchived: Boolean(r.is_archived),
-            totalAchieved: Number(r.total_achieved) || 0,
-            totalHours: Number(r.total_hours) || 0,
-            totalScore: Number(r.total_score) || 0,
-            createdAt: r.created_at,
-            oneTimeDate: r.one_time_date || (r.schedule === "OneTime" ? (r.created_at ? r.created_at.slice(0, 10) : null) : null),
-            dailyTargets: r.daily_targets || null
-        }));
+        return (data || []).map(r => {
+            const isLegacyArchived = Boolean(r.is_archived);
+            const isLegacyOneTime = r.schedule === "OneTime";
+            const schedule = (isLegacyArchived || isLegacyOneTime || r.schedule === "Unscheduled")
+                ? "Unscheduled"
+                : (r.schedule || "Everyday");
+            return {
+                id: r.task_id,
+                name: r.name,
+                category: r.category,
+                subcategory: r.subcategory || null,
+                target: Number(r.target) || 1,
+                schedule,
+                isArchived: false,
+                totalAchieved: Number(r.total_achieved) || 0,
+                totalHours: Number(r.total_hours) || 0,
+                totalScore: Number(r.total_score) || 0,
+                createdAt: r.created_at,
+                oneTimeDate: null,
+                dailyTargets: r.daily_targets || null
+            };
+        });
     }
 
     _taskToRow(task) {
         const uid = this.getEffectiveUserId();
+        const isLegacyArchived = Boolean(task.isArchived);
+        const isLegacyOneTime = task.schedule === "OneTime" || Boolean(task.isOneTime);
+        const sched = (isLegacyArchived || isLegacyOneTime || task.schedule === "Unscheduled")
+            ? "Unscheduled"
+            : (task.schedule || "Everyday");
         const row = {
             user_id: uid,
             username: this.currentUser,
@@ -168,18 +180,14 @@ class AwradyAPI {
             category: task.category,
             subcategory: task.subcategory || null,
             target: Number(task.target) || 1,
-            schedule: task.schedule || "Everyday",
-            is_archived: Boolean(task.isArchived),
+            schedule: sched,
+            is_archived: false,
             total_achieved: Number(task.totalAchieved ?? task.total_achieved) || 0,
             total_hours: Number(task.totalHours ?? task.total_hours) || 0,
             total_score: Number(task.totalScore ?? task.total_score) || 0
         };
         if (task.createdAt) {
             row.created_at = task.createdAt;
-        }
-        const otDate = task.oneTimeDate || (task.schedule === "OneTime" ? (task.createdAt ? task.createdAt.slice(0, 10) : null) : null);
-        if (otDate) {
-            row.one_time_date = otDate;
         }
         if (task.dailyTargets && typeof task.dailyTargets === "object") {
             row.daily_targets = task.dailyTargets;
